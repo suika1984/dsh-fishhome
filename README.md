@@ -62,6 +62,8 @@ dsh plugin install D:\dschat\dsh-fishhome
     saveDir: ''                   # 存档目录；留空 = <DSH_HOME>/fishhome/saves
 ```
 
+> 还没做完的事（含「回来时从哪下手」）记在 [TODO.md](TODO.md)。
+
 ## 为什么长这样
 
 概念文档（`D:\download\大肥鱼家园-dsh-fishhome.md`）里的几条硬约束，在这个实现里是这样落的：

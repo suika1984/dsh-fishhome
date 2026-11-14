@@ -293,3 +293,4 @@ Client 每次 tick（5 秒）拉一次，然后：
 - [README.md](README.md) —— 面向人类：安装、玩法、功能清单
 - [docs/SCHEMA.md](docs/SCHEMA.md) —— 数据规范：场景 / 背景 / 家具 / 事件 / 条件与权重 / z 轴
 - [docs/STYLE.md](docs/STYLE.md) —— 美术规范：等距比例、光源方向、配色
+- [TODO.md](TODO.md) —— 暂定搁置的待办（含回来时从哪下手）

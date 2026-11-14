@@ -294,6 +294,24 @@ async function call(url, method = 'GET', body = '') {
   assert.ok(!row.label.includes('session-'), '标签里没有前缀')
 }
 
+// 从 Session 历史补标题：事件没赶上（比如插件启动前就发过消息）也能拿到
+{
+  const fireLocal = (event, ...args) => { for (const handler of listeners.get(event) || []) handler(...args) }
+  const fakeSession = {
+    id: 'session-history999',
+    deriveMessages: () => ([
+      { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: '把家园插件整理一下\n顺便提个 PR' }] },
+      { role: 'assistant', content: [{ type: 'text', text: '好的' }] },
+    ]),
+  }
+  fireLocal('session/created', fakeSession)
+  const listed = JSON.parse((await call('/fishhome/api/activity')).body).notes
+  const row = listed.sessions.find((item) => item.id === 'session-history999')
+  assert.ok(row, '会话在列表里')
+  assert.equal(row.label, '把家园插件整理一下 顺便提个 PR', '从历史消息里补出了标题')
+  assert.equal(row.titled, true)
+}
+
 const meta = await call('/fishhome/api/meta')
 assert.equal(meta.statusCode, 200)
 const metaJson = JSON.parse(meta.body)

@@ -53,7 +53,9 @@ try {
   fail('构建', `拼装 src/ 失败：${error.message}`)
 }
 if (bundle !== '') {
-  const onDisk = existsSync(path.join(ROOT, 'client.js')) ? readFileSync(path.join(ROOT, 'client.js'), 'utf8') : ''
+  const onDiskRaw = existsSync(path.join(ROOT, 'client.js')) ? readFileSync(path.join(ROOT, 'client.js'), 'utf8') : ''
+  // build.mjs 会注入一行 BUILD_REV（src 的哈希），这里剥掉再比，否则永远不一致
+  const onDisk = onDiskRaw.replace(/^ {4}const BUILD_REV = '[0-9a-f]{8}'\n/m, '')
   if (onDisk !== bundle) fail('构建', 'client.js 与 src/ 不一致，跑一下 node build.mjs')
   else notes.push('client.js 与 src/ 一致 ✓')
 }

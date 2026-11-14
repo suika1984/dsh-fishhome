@@ -626,7 +626,7 @@
 
     /** 设置：称呼 / 自称 / 房间名，改完立刻存档 */
     function SettingsBar(props) {
-      const { t, profile, onChange, onSave, onClose, paths, configs, onOpen, openTip, sessionTargets, noteTarget, onNoteTarget } = props
+      const { t, profile, onChange, onSave, onClose, paths, configs, onOpen, openTip, sessionTargets, noteTarget, onNoteTarget, hostRev } = props
       const field = (label, key, placeholder) => h('label', { className: 'fh-field' },
         h('span', { className: 'fh-field-label' }, label),
         h('input', {
@@ -701,6 +701,7 @@
                 `${item.label}${item.running ? ' · 运行中' : ''}`)))),
             h('span', { className: 'fh-muted' }, t('settings.noteTargetHint')))
           : null,
+        h('p', { className: 'fh-build-info' }, t('settings.buildInfo', { host: props.hostRev || '?', client: BUILD_REV })),
         h('div', { className: 'fh-editor-actions' },
           h('button', { type: 'button', className: 'fh-toggle', onClick: onSave }, t('settings.save')),
           h('button', { type: 'button', className: 'fh-toggle', onClick: onClose }, t('settings.close')),
@@ -1426,6 +1427,7 @@
                   ]
                 })(),
                 openTip,
+                hostRev: (snapshot.meta && snapshot.meta.hostRev) || '',
                 sessionTargets: (snapshot.activity && snapshot.activity.notes && snapshot.activity.notes.sessions) || [],
                 noteTarget: (snapshot.activity && snapshot.activity.notes && snapshot.activity.notes.pinned) || '',
                 onNoteTarget: (id) => {

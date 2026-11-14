@@ -259,7 +259,9 @@ Client 每次 tick（5 秒）拉一次，然后：
 
 **目标会话可以在设置里指定**：`POST /fishhome/api/note-target { sessionId }`（空字符串 = 自动）。手动指定优先于自动，指定的会话被关掉时自动清空。
 
-**会话标题**：`SessionSummary` 里没有标题字段，所以 Host 从 `session/event` 的第一条 `user/message` 里抽第一段文字当标题（压平换行、截 24 字、只写一次），下拉框显示的就是它；拿不到标题时退回短 id。
+**会话标题**：`SessionSummary` 里没有标题字段，所以标题靠两条路取：`session/event` 的第一条 `user/message`，或者用 `session/created` 存下的 Session 引用调 `deriveMessages()` 回溯（插件启动前就发过消息的会话也能补上）。压平换行、截 24 字、只写一次；实在拿不到就退回短 id。
+
+**版本号自查**：`/api/meta` 带 `hostRev`（`index.js` 的短哈希），client.js 里注入 `BUILD_REV`（src 的短哈希），设置面板底部会显示 `Host xxxx · 界面 yyyy`。改了 `index.js` 没重启、或改了 src 没刷新，看这行就知道哪边是旧的。
 
 **自动时目标会话是唯一的**：Host 记录「最近一次开始运行/有新消息的会话」（`api-session/status(running)`、`agent/status`、`api-session/activity`），便条只会注入到这个会话的 `agent/pre-step`；别的 agent 进步骤时便把条留在队列里。目标超过 10 分钟没动静视为失效，只预览不注入。
 

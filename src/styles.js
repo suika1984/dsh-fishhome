@@ -899,6 +899,14 @@
   font-size: 11px;
   color: var(--dsw-alias-text-tertiary, #8a8a8a);
 }
+
+/* 设置底部的版本信息：判断 Host 重启了没、界面刷新了没 */
+.fh-build-info {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: var(--dsw-alias-text-tertiary, #9a9a9a);
+  font-variant-numeric: tabular-nums;
+}
 `
 
 

@@ -1313,6 +1313,27 @@ model.applyFurniture(model.DEFAULT_FURNITURE)
   selects[0].props.onChange({ target: { value: 'def67890-1111' } })
   assert.deepEqual(calls, ['def67890-1111'], '切换会回调出去')
 }
+// 设置底部显示两侧版本：改了 index.js 要重启、改了 src 要刷新，靠这两串哈希判断
+{
+  const bar = model.SettingsBar({
+    t: translate, profile: {}, paths: [], configs: [], openTip: '',
+    hostRev: 'host1234', sessionTargets: [], noteTarget: '', onNoteTarget() {},
+    onOpen() {}, onChange() {}, onSave() {}, onClose() {},
+  })
+  const found = []
+  const walk = (n) => {
+    if (!n || typeof n !== 'object') return
+    if (Array.isArray(n)) { n.forEach(walk); return }
+    if (typeof n.type === 'function') { walk(n.type(n.props || {})); return }
+    if (n.props && String(n.props.className || '').includes('fh-build-info')) found.push(n)
+    walk(n.children)
+  }
+  walk(bar)
+  assert.equal(found.length, 1, '有版本信息行')
+  const text = [].concat(found[0].children).flat(8).join('')
+  assert.ok(text.includes('host1234'), '显示 Host 版本')
+  assert.ok(/[0-9a-f]{8}/.test(text), '显示界面版本')
+}
 console.log('ui tests passed:', {
   components: Object.keys(registered),
   behaviors: model.BEHAVIORS.length,

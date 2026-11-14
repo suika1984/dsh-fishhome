@@ -10,6 +10,7 @@
  * 不要直接编辑 client.js —— 它是生成物。
  */
 import { readFileSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -41,6 +42,8 @@ const PROLOGUE = "/**\n * 大肥鱼的家园 · Client 半。\n *\n * 分成两�
 const CLOSING = '  },\n})\n'
 
 const body = ORDER.map((file) => readFileSync(path.join(HERE, file), 'utf8').replace(/\n$/, '')).join('\n')
+// 界面版本号：src 的短哈希，面板设置里能看到，用来判断「刷新了没有」
+const BUILD_REV = createHash('sha256').update(body).digest('hex').slice(0, 8)
 
-writeFileSync(path.join(HERE, 'client.js'), PROLOGUE + '\n' + body + '\n' + CLOSING)
+writeFileSync(path.join(HERE, 'client.js'), PROLOGUE + `\n    const BUILD_REV = '${BUILD_REV}'\n` + body + '\n' + CLOSING)
 console.log('built client.js from', ORDER.length, 'fragments')

@@ -9,13 +9,22 @@
  * 世界状态、行为调度、离线结算全部在 Client 半完成（见 client.js），
  * Host 不持有第二份真相，所以重装插件不会丢档。
  */
-import { promises as fsp } from 'node:fs'
+import { promises as fsp, readFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { spawn } from 'node:child_process'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
+/** Host 版本号：本文件的短哈希。改了 index.js 必须重启，重启后这个值才会变 */
+const HOST_REV = (() => {
+  try {
+    return createHash('sha256').update(readFileSync(fileURLToPath(import.meta.url))).digest('hex').slice(0, 8)
+  } catch {
+    return 'unknown'
+  }
+})()
 /** 路由前缀。刻意避开 /api 与 SPA 回退路径。 */
 const ROUTE = '/fishhome'
 const DEFAULT_PACK_DIR = path.join(HERE, 'packs', 'bigfish-adult')
@@ -265,6 +274,7 @@ async function sendMeta(res, settings) {
   sendJson(res, 200, {
     ok: true,
     route: ROUTE,
+    hostRev: HOST_REV,
     packDir,
     dataDir: DATA_DIR,
     saveDir,
@@ -632,6 +642,8 @@ function createNotes() {
     pinned: '',
     // 见过的活会话：id → { id, running, lastAt, label }
     sessions: new Map(),
+    // 活会话的 Session 对象：拿不到实时事件时，用 deriveMessages() 补标题
+    sessionRefs: new Map(),
   }
 }
 
@@ -672,6 +684,27 @@ function prettySessionId(sessionId) {
   const bare = text.replace(/^session[-_]/i, '')
   if (bare !== text) return bare.slice(0, 8)
   return text.length > 8 ? text.slice(-8) : text
+}
+
+/** 用 Session 的历史消息补标题（事件没赶上时用） */
+function backfillTitle(notes, sessionId) {
+  const current = notes.sessions.get(sessionId)
+  if (current && current.titled) return
+  const session = notes.sessionRefs.get(sessionId)
+  if (!session || typeof session.deriveMessages !== 'function') return
+  let messages = []
+  try {
+    messages = session.deriveMessages() || []
+  } catch {
+    return
+  }
+  for (const message of messages) {
+    const title = titleFromMessage(message)
+    if (title) {
+      setSessionTitle(notes, sessionId, title)
+      return
+    }
+  }
 }
 
 /** 便条最终送去哪个会话：手动指定的优先，其次最近活跃的 */
@@ -718,6 +751,10 @@ function notesSnapshot(notes, mode) {
     pinned: notes.pinned,
     // 设置里的下拉框用：见过的活会话
     sessions: [...notes.sessions.values()]
+      .map((item) => {
+        backfillTitle(notes, item.id)
+        return notes.sessions.get(item.id) || item
+      })
       .sort((a, b) => (b.running ? 1 : 0) - (a.running ? 1 : 0) || b.lastAt - a.lastAt)
       .slice(0, 12)
       .map((item) => ({ id: item.id, label: item.label, titled: item.titled === true, running: item.running, lastAt: item.lastAt })),
@@ -874,6 +911,7 @@ function activityListeners(activity, notes) {
         activity.sessions.delete(id)
         activity.running.delete(id)
         notes.sessions.delete(id)
+        notes.sessionRefs.delete(id)
         // 目标会话被关掉了，便条不再有去处；手动指定的也一并清掉
         if (notes.target === id) notes.target = null
         if (notes.pinned === id) notes.pinned = ''
@@ -924,7 +962,10 @@ function activityListeners(activity, notes) {
     }],
     ['session/created', (session) => {
       const id = sessionIdOf(session)
-      if (id) rememberSession(notes, id, {})
+      if (!id) return
+      rememberSession(notes, id, {})
+      // 存一份引用：之后可以用 deriveMessages() 把历史第一条用户消息挖出来
+      if (session && typeof session === 'object') notes.sessionRefs.set(id, session)
     }],
     ['session/event', (session, event) => {
       // 用第一条用户消息当标题（和左侧会话列表的观感一致）

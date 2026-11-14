@@ -15,6 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
+    const BUILD_REV = 'f3744243'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -85,6 +86,7 @@ window.__ModuleLoader__.load({
       'settings.noteTarget': '便条送进哪个会话',
       'settings.noteTargetAuto': '自动（最近活跃的会话）',
       'settings.noteTargetHint': '只有 noteMode 为 inject 时才会真的送进会话',
+      'settings.buildInfo': 'Host {host} · 界面 {client}（改了 index.js 要重启，改了 src 要刷新）',
       'edit.title': '布局编辑',
       'edit.none': '点一下家具选中它',
       'edit.save': '保存',
@@ -343,6 +345,7 @@ window.__ModuleLoader__.load({
       'settings.noteTarget': 'Which session gets the note',
       'settings.noteTargetAuto': 'Auto (most recent session)',
       'settings.noteTargetHint': 'Only delivered when noteMode is inject',
+      'settings.buildInfo': 'Host {host} · UI {client} (restart after index.js, refresh after src)',
       'edit.title': 'Layout editor',
       'edit.none': 'Click a piece of furniture to select it',
       'edit.save': 'Save',
@@ -4721,7 +4724,7 @@ async function writeSave(home) {
 
     /** 设置：称呼 / 自称 / 房间名，改完立刻存档 */
     function SettingsBar(props) {
-      const { t, profile, onChange, onSave, onClose, paths, configs, onOpen, openTip, sessionTargets, noteTarget, onNoteTarget } = props
+      const { t, profile, onChange, onSave, onClose, paths, configs, onOpen, openTip, sessionTargets, noteTarget, onNoteTarget, hostRev } = props
       const field = (label, key, placeholder) => h('label', { className: 'fh-field' },
         h('span', { className: 'fh-field-label' }, label),
         h('input', {
@@ -4796,6 +4799,7 @@ async function writeSave(home) {
                 `${item.label}${item.running ? ' · 运行中' : ''}`)))),
             h('span', { className: 'fh-muted' }, t('settings.noteTargetHint')))
           : null,
+        h('p', { className: 'fh-build-info' }, t('settings.buildInfo', { host: props.hostRev || '?', client: BUILD_REV })),
         h('div', { className: 'fh-editor-actions' },
           h('button', { type: 'button', className: 'fh-toggle', onClick: onSave }, t('settings.save')),
           h('button', { type: 'button', className: 'fh-toggle', onClick: onClose }, t('settings.close')),
@@ -5521,6 +5525,7 @@ async function writeSave(home) {
                   ]
                 })(),
                 openTip,
+                hostRev: (snapshot.meta && snapshot.meta.hostRev) || '',
                 sessionTargets: (snapshot.activity && snapshot.activity.notes && snapshot.activity.notes.sessions) || [],
                 noteTarget: (snapshot.activity && snapshot.activity.notes && snapshot.activity.notes.pinned) || '',
                 onNoteTarget: (id) => {
@@ -6635,6 +6640,14 @@ async function writeSave(home) {
   margin: 5px 0 0;
   font-size: 11px;
   color: var(--dsw-alias-text-tertiary, #8a8a8a);
+}
+
+/* 设置底部的版本信息：判断 Host 重启了没、界面刷新了没 */
+.fh-build-info {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: var(--dsw-alias-text-tertiary, #9a9a9a);
+  font-variant-numeric: tabular-nums;
 }
 `
 

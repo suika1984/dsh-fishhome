@@ -91,6 +91,33 @@
           character.mood = clampNumber(character.mood - 5, 0, 100, character.mood)
         }
       },
+      /**
+       * 小屋便条：跟她说一句话（L3）。
+       * 先在屋子里说出来（气泡 + 日志），再交给 Host 决定要不要送进当前会话。
+       */
+      async sendNote(text) {
+        const clean = typeof text === 'string' ? text.trim() : ''
+        if (clean === '') return { ok: false, error: '空便条' }
+        if (!this.home) return { ok: false, error: '还没准备好' }
+        const now = Date.now()
+        try {
+          const payload = await fetchJson(`${ROUTE}/api/note`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ text: clean }),
+          })
+          if (this.home.character) {
+            this.home.character.say = { text: clean, until: now + 6000 }
+            pushLog(this.home, now, 'noteQueued', null)
+            this.publish()
+          }
+          void this.refreshActivity()
+          return { ok: true, mode: payload && payload.mode ? payload.mode : 'preview', pending: payload && payload.pending ? payload.pending : 0 }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          return { ok: false, error: message }
+        }
+      },
       /** 给面板用的活动快照（没有就是 null） */
       activityView() {
         return this.activity || null

@@ -226,6 +226,13 @@ window.__ModuleLoader__.load({
       'log.sessionStart': '你开始干活了，{name}也坐到了书桌前。',
       'log.sessionEnd': '{user}的工作完成啦，{name}伸了个懒腰。',
       'log.sessionError': '好像出了点问题，{name}有点担心。',
+      'activity.noteTitle': '跟她说一句',
+      'activity.notePlaceholder': '想对她说点什么…',
+      'activity.noteSend': '递给她',
+      'activity.notePreview': '只在屋子里说（不会进会话）',
+      'activity.noteInject': '会作为一条消息送进当前会话',
+      'activity.notePending': '{count} 张待递',
+      'log.noteQueued': '{name}把你的话记下了。',
       'log.offline': '你离开了 {span}，{name}自己过了这段日子。',
       'log.move': '{name}凑到你面前来了。',
       'log.sit': '{name}在沙发上发了会儿呆。',
@@ -472,6 +479,13 @@ window.__ModuleLoader__.load({
       'log.sessionStart': 'You started working; {name} sat down at the desk too.',
       'log.sessionEnd': "{user}'s work is done — {name} stretched.",
       'log.sessionError': 'Something went wrong; {name} looks worried.',
+      'activity.noteTitle': 'Say something to her',
+      'activity.notePlaceholder': 'A few words for her…',
+      'activity.noteSend': 'Hand it over',
+      'activity.notePreview': 'Only in the room (not sent to the session)',
+      'activity.noteInject': 'Will be delivered into the current session',
+      'activity.notePending': '{count} pending',
+      'log.noteQueued': '{name} took note of what you said.',
       'log.offline': 'You were away for {span}; it kept living.',
       'log.move': 'It came over to you.',
       'log.sit': 'It spaced out on the sofa.',
@@ -931,6 +945,16 @@ window.__ModuleLoader__.load({
         recent,
         at: Date.now(),
         idleMs: Number.isFinite(Number(raw.idleMs)) ? Number(raw.idleMs) : -1,
+        // 小屋便条的状态（预览/注入模式、待递张数）
+        notes: raw.notes && typeof raw.notes === 'object'
+          ? {
+            mode: raw.notes.mode === 'inject' ? 'inject' : 'preview',
+            pending: Number(raw.notes.pending) || 0,
+            injected: Number(raw.notes.injected) || 0,
+            preview: Number(raw.notes.preview) || 0,
+            canInject: raw.notes.canInject === true,
+          }
+          : null,
       }
     }
 
@@ -2239,6 +2263,33 @@ async function writeSave(home) {
         if (next.counters.errors > previousErrors) {
           pushLog(this.home, now, 'sessionError', null)
           character.mood = clampNumber(character.mood - 5, 0, 100, character.mood)
+        }
+      },
+      /**
+       * 小屋便条：跟她说一句话（L3）。
+       * 先在屋子里说出来（气泡 + 日志），再交给 Host 决定要不要送进当前会话。
+       */
+      async sendNote(text) {
+        const clean = typeof text === 'string' ? text.trim() : ''
+        if (clean === '') return { ok: false, error: '空便条' }
+        if (!this.home) return { ok: false, error: '还没准备好' }
+        const now = Date.now()
+        try {
+          const payload = await fetchJson(`${ROUTE}/api/note`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ text: clean }),
+          })
+          if (this.home.character) {
+            this.home.character.say = { text: clean, until: now + 6000 }
+            pushLog(this.home, now, 'noteQueued', null)
+            this.publish()
+          }
+          void this.refreshActivity()
+          return { ok: true, mode: payload && payload.mode ? payload.mode : 'preview', pending: payload && payload.pending ? payload.pending : 0 }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          return { ok: false, error: message }
         }
       },
       /** 给面板用的活动快照（没有就是 null） */
@@ -4355,6 +4406,8 @@ async function writeSave(home) {
     /** DSH 会话卡：把「真实会话」的活动显示出来，也解释她为什么在书桌前忙 */
     function ActivityCard(props) {
       const { t, activity, home, now } = props
+      const [note, setNote] = useState('')
+      const [tip, setTip] = useState('')
       if (!activity) return null
       const running = Number(activity.running) || 0
       const counters = activity.counters || {}
@@ -4377,6 +4430,43 @@ async function writeSave(home) {
           h('span', null, t('activity.messages'), h('b', null, String(Number(counters.messages) || 0))),
           h('span', null, t('activity.errors'), h('b', null, String(Number(counters.errors) || 0))),
         ),
+        // 跟她说一句：预览模式只在屋子里说，inject 模式会送进当前会话
+        props.onNote
+          ? h('div', { className: 'fh-note' },
+            h('input', {
+              type: 'text',
+              className: 'fh-input fh-input-text fh-note-input',
+              value: note,
+              maxLength: 200,
+              placeholder: t('activity.notePlaceholder'),
+              onChange: (event) => setNote(event.target.value),
+              onKeyDown: (event) => {
+                if (event.key !== 'Enter') return
+                event.preventDefault()
+                const text = note.trim()
+                if (text === '') return
+                setNote('')
+                void props.onNote(text).then((result) => setTip(result && result.ok ? '' : (result && result.error) || ''))
+              },
+            }),
+            h('button', {
+              type: 'button',
+              className: 'fh-toggle fh-note-send',
+              disabled: note.trim() === '',
+              onClick: () => {
+                const text = note.trim()
+                if (text === '') return
+                setNote('')
+                void props.onNote(text).then((result) => setTip(result && result.ok ? '' : (result && result.error) || ''))
+              },
+            }, t('activity.noteSend')),
+          )
+          : null,
+        props.onNote
+          ? h('p', { className: 'fh-note-hint' }, t((activity.notes && activity.notes.mode) === 'inject' ? 'activity.noteInject' : 'activity.notePreview'),
+            activity.notes && activity.notes.pending > 0 ? ` · ${t('activity.notePending', { count: activity.notes.pending })}` : null,
+            tip ? ` · ${tip}` : null)
+          : null,
         recent.length > 0
           ? h('ul', { className: 'fh-activity-list' },
             recent.map((item, index) => h('li', { key: `${item.at}-${index}` },
@@ -4470,6 +4560,8 @@ async function writeSave(home) {
           return t('log.stretch')
         case 'idle':
           return t('log.idle')
+        case 'noteQueued':
+          return t('log.noteQueued')
         case 'sessionStart':
           return t('log.sessionStart')
         case 'sessionEnd':
@@ -5550,7 +5642,13 @@ async function writeSave(home) {
               h('div', { className: 'fh-side' },
                 h(StatusCard, { home: snapshot.home, now, t }),
                 h(NeedsCard, { home: snapshot.home, t }),
-            h(ActivityCard, { t, activity: snapshot.activity, home: snapshot.home, now }),
+            h(ActivityCard, {
+              t,
+              activity: snapshot.activity,
+              home: snapshot.home,
+              now,
+              onNote: (text) => store.sendNote(text),
+            }),
                 h(LogCard, { home: snapshot.home, t }),
                 h('p', { className: 'fh-foot' }, t('saved.at', { time: snapshot.lastSavedAt ? formatLogTime(snapshot.lastSavedAt) : t('saved.never') })),
               ),
@@ -6446,6 +6544,25 @@ async function writeSave(home) {
 }
 .fh-activity-time {
   font-variant-numeric: tabular-nums;
+  color: var(--dsw-alias-text-tertiary, #8a8a8a);
+}
+
+/* 便条输入：跟她说一句话 */
+.fh-note {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.fh-note-input {
+  flex: 1;
+  min-width: 0;
+}
+.fh-note-send {
+  flex: none;
+}
+.fh-note-hint {
+  margin: 5px 0 0;
+  font-size: 11px;
   color: var(--dsw-alias-text-tertiary, #8a8a8a);
 }
 `

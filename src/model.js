@@ -380,6 +380,16 @@
         recent,
         at: Date.now(),
         idleMs: Number.isFinite(Number(raw.idleMs)) ? Number(raw.idleMs) : -1,
+        // 小屋便条的状态（预览/注入模式、待递张数）
+        notes: raw.notes && typeof raw.notes === 'object'
+          ? {
+            mode: raw.notes.mode === 'inject' ? 'inject' : 'preview',
+            pending: Number(raw.notes.pending) || 0,
+            injected: Number(raw.notes.injected) || 0,
+            preview: Number(raw.notes.preview) || 0,
+            canInject: raw.notes.canInject === true,
+          }
+          : null,
       }
     }
 

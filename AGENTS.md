@@ -219,6 +219,7 @@ GET    /fishhome/api/meta          插件元信息（角色包、各目录、map
 GET    /fishhome/api/maps          可用地图列表
 GET    /fishhome/api/pack-files    角色包里的图片清单（编辑器换图下拉用）
 GET    /fishhome/api/activity      DSH 会话活动快照（运行时聚合，不落盘）
+POST   /fishhome/api/note          小屋便条：{ text }（预览或注入当前会话）
 GET    /fishhome/api/state         读存档        POST 写存档        DELETE 删存档
 POST   /fishhome/api/open          用系统程序打开配置文件 { kind: file|folder|reveal, path }
 GET    /fishhome/pack/<file>       角色包静态资源（ETag + 304）
@@ -246,6 +247,18 @@ Client 每次 tick（5 秒）拉一次，然后：
 | 0 → 有会话 | 日志 `log.sessionStart`；若她正闲着/睡着，切到 `work` |
 | 有会话 → 0 | 日志 `log.sessionEnd`、心情 +4；她正在 work 就切 `stretch` |
 | 出错数增加 | 日志 `log.sessionError`、心情 -5 |
+
+### 小屋便条（L3）：把话送进当前会话
+
+面板「会话」卡下面的输入框 → `POST /fishhome/api/note`。
+
+| `noteMode` | 行为 |
+| --- | --- |
+| `preview`（默认） | 只在她头顶的气泡里说 + 写日志 `log.noteQueued`，不进会话 |
+| `inject` | 额外把她的话作为**一条用户消息**送进当前正在跑的会话 |
+
+注入走的是文档化水位 `agent/pre-step`（waterfall）：**先 `await next()` 拿到决策**，只在 `decision.kind === 'enter'` 时往 `messages` 里 push，绝不改写原有内容；任何异常都退回原决策。
+消息形状照抄 `agent/inbox/inserted` 里最近一条真实 `UserMessage`（模板），没有模板就只预览。队列上限 5 条、每条 ≤200 字。
 
 **不要**订阅 waterfall 事件（`approval/request`、`tools/pre-execute` 等）却不调用 `next()`，会卡住原有流程。
 

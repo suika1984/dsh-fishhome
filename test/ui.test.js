@@ -1243,6 +1243,42 @@ model.applyFurniture(model.DEFAULT_FURNITURE)
   assert.ok(startText.includes('书桌'), '开始文案有书桌')
   assert.ok(model.fillText(model.logText(translate, { code: 'sessionError', arg: null }), logHome).includes('担心'), '出错文案有担心')
 }
+// 便条输入：卡片上能有输入框和「递给她」，预览/注入模式提示不同
+{
+  const cardHome = model.createHome(Date.now(), '大肥鱼')
+  const build = (mode) => model.ActivityCard({
+    t: translate,
+    home: cardHome,
+    now: Date.now(),
+    onNote: () => {},
+    activity: {
+      running: 1, sessions: 1,
+      counters: { tools: 0, messages: 0, errors: 0 },
+      recent: [],
+      notes: { mode, pending: mode === 'inject' ? 2 : 0, injected: 0, preview: 0, canInject: true },
+    },
+  })
+  const collect = (tree) => {
+    const out = { tags: [], texts: [] }
+    const walk = (n) => {
+      if (n === null || n === undefined || n === false) return
+      if (typeof n === 'string' || typeof n === 'number') { out.texts.push(String(n)); return }
+      if (Array.isArray(n)) { n.forEach(walk); return }
+      if (typeof n.type === 'function') { walk(n.type(n.props || {})); return }
+      if (n.type) out.tags.push(n.type)
+      walk(n.props ? n.props.children : undefined)
+    }
+    walk(tree)
+    return out
+  }
+  const preview = collect(build('preview'))
+  assert.ok(preview.tags.includes('input'), '有输入框')
+  assert.ok(preview.texts.includes(translate('activity.noteSend')), '有「递给她」按钮')
+  assert.ok(preview.texts.some((x) => x.includes(translate('activity.notePreview'))), '预览模式有提示')
+  const inject = collect(build('inject'))
+  assert.ok(inject.texts.some((x) => x.includes(translate('activity.noteInject'))), '注入模式提示不同')
+  assert.ok(inject.texts.some((x) => x.includes('2')), '显示待递张数')
+}
 console.log('ui tests passed:', {
   components: Object.keys(registered),
   behaviors: model.BEHAVIORS.length,

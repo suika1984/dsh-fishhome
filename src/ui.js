@@ -354,6 +354,8 @@
     /** DSH 会话卡：把「真实会话」的活动显示出来，也解释她为什么在书桌前忙 */
     function ActivityCard(props) {
       const { t, activity, home, now } = props
+      const [note, setNote] = useState('')
+      const [tip, setTip] = useState('')
       if (!activity) return null
       const running = Number(activity.running) || 0
       const counters = activity.counters || {}
@@ -376,6 +378,43 @@
           h('span', null, t('activity.messages'), h('b', null, String(Number(counters.messages) || 0))),
           h('span', null, t('activity.errors'), h('b', null, String(Number(counters.errors) || 0))),
         ),
+        // 跟她说一句：预览模式只在屋子里说，inject 模式会送进当前会话
+        props.onNote
+          ? h('div', { className: 'fh-note' },
+            h('input', {
+              type: 'text',
+              className: 'fh-input fh-input-text fh-note-input',
+              value: note,
+              maxLength: 200,
+              placeholder: t('activity.notePlaceholder'),
+              onChange: (event) => setNote(event.target.value),
+              onKeyDown: (event) => {
+                if (event.key !== 'Enter') return
+                event.preventDefault()
+                const text = note.trim()
+                if (text === '') return
+                setNote('')
+                void props.onNote(text).then((result) => setTip(result && result.ok ? '' : (result && result.error) || ''))
+              },
+            }),
+            h('button', {
+              type: 'button',
+              className: 'fh-toggle fh-note-send',
+              disabled: note.trim() === '',
+              onClick: () => {
+                const text = note.trim()
+                if (text === '') return
+                setNote('')
+                void props.onNote(text).then((result) => setTip(result && result.ok ? '' : (result && result.error) || ''))
+              },
+            }, t('activity.noteSend')),
+          )
+          : null,
+        props.onNote
+          ? h('p', { className: 'fh-note-hint' }, t((activity.notes && activity.notes.mode) === 'inject' ? 'activity.noteInject' : 'activity.notePreview'),
+            activity.notes && activity.notes.pending > 0 ? ` · ${t('activity.notePending', { count: activity.notes.pending })}` : null,
+            tip ? ` · ${tip}` : null)
+          : null,
         recent.length > 0
           ? h('ul', { className: 'fh-activity-list' },
             recent.map((item, index) => h('li', { key: `${item.at}-${index}` },
@@ -469,6 +508,8 @@
           return t('log.stretch')
         case 'idle':
           return t('log.idle')
+        case 'noteQueued':
+          return t('log.noteQueued')
         case 'sessionStart':
           return t('log.sessionStart')
         case 'sessionEnd':
@@ -1549,7 +1590,13 @@
               h('div', { className: 'fh-side' },
                 h(StatusCard, { home: snapshot.home, now, t }),
                 h(NeedsCard, { home: snapshot.home, t }),
-            h(ActivityCard, { t, activity: snapshot.activity, home: snapshot.home, now }),
+            h(ActivityCard, {
+              t,
+              activity: snapshot.activity,
+              home: snapshot.home,
+              now,
+              onNote: (text) => store.sendNote(text),
+            }),
                 h(LogCard, { home: snapshot.home, t }),
                 h('p', { className: 'fh-foot' }, t('saved.at', { time: snapshot.lastSavedAt ? formatLogTime(snapshot.lastSavedAt) : t('saved.never') })),
               ),

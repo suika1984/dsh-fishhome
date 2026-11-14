@@ -25,9 +25,15 @@ const fakeInner = {
 }
 const listeners = new Map()
 const ctx = {
+  // 同一个事件可以有多个监听者（Cordis 就是这样），所以按数组存
   on(event, handler) {
-    listeners.set(event, handler)
-    return () => listeners.delete(event)
+    if (!listeners.has(event)) listeners.set(event, [])
+    listeners.get(event).push(handler)
+    return () => {
+      const list = listeners.get(event) || []
+      const at = list.indexOf(handler)
+      if (at >= 0) list.splice(at, 1)
+    }
   },
   inject(deps, callback) {
     assert.deepEqual(deps, ['webServer'])
@@ -111,9 +117,11 @@ async function call(url, method = 'GET', body = '') {
 
   assert.ok(listeners.size > 0, '至少订阅了一些会话事件')
   const fire = (event, ...args) => {
-    const handler = listeners.get(event)
-    assert.ok(handler, `应该有 ${event} 的订阅`)
-    handler(...args)
+    const handlers = listeners.get(event) || []
+    assert.ok(handlers.length > 0, `应该有 ${event} 的订阅`)
+    let result
+    for (const handler of handlers) result = handler(...args)
+    return result
   }
   fire('api-session/added', { sessionId: 'sess-1' })
   fire('api-session/status', 'sess-1', true)
@@ -132,6 +140,77 @@ async function call(url, method = 'GET', body = '') {
   fire('api-session/status', 'sess-1', false)
   const idle = JSON.parse((await call('/fishhome/api/activity')).body)
   assert.equal(idle.running, 0, '结束后没有运行中的会话')
+}
+
+// L3 便条：预览模式只计数不排队；注入模式在 pre-step 水位追加一条用户消息
+{
+  const note = await call('/fishhome/api/note', 'POST', JSON.stringify({ text: '记得喝水' }))
+  assert.equal(note.statusCode, 200, '可以递便条')
+  const noteJson = JSON.parse(note.body)
+  assert.equal(noteJson.mode, 'preview', '默认是预览模式（不会写进会话）')
+  assert.equal(noteJson.preview, 1, '预览计数 +1')
+
+  const tooLong = await call('/fishhome/api/note', 'POST', JSON.stringify({ text: 'x'.repeat(201) }))
+  assert.equal(tooLong.statusCode, 400, '过长的便条被拒')
+  const empty = await call('/fishhome/api/note', 'POST', JSON.stringify({ text: '   ' }))
+  assert.equal(empty.statusCode, 400, '空便条被拒')
+
+  const snapshot = JSON.parse((await call('/fishhome/api/activity')).body)
+  assert.equal(snapshot.notes.mode, 'preview', '活动快照带上便条模式')
+  assert.equal(snapshot.notes.preview, 1)
+}
+
+// 注入模式：另起一个插件实例
+{
+  const injectListeners = new Map()
+  const injectCtx = {
+    on(event, handler) {
+      if (!injectListeners.has(event)) injectListeners.set(event, [])
+      injectListeners.get(event).push(handler)
+      return () => {
+        const list = injectListeners.get(event) || []
+        const at = list.indexOf(handler)
+        if (at >= 0) list.splice(at, 1)
+      }
+    },
+    inject(deps, callback) {
+      callback({ webServer: { register(route2) { routes.push(route2); return () => {} } }, effect(fn) { return fn() } })
+    },
+    effect(fn) { return fn() },
+  }
+  apply(injectCtx, { saveDir, noteMode: 'inject' })
+  const injectRoute = routes[routes.length - 1]
+  const callInject = async (url, method = 'GET', body = '') => {
+    const res = makeRes()
+    await injectRoute.handler(makeReq(url, method, body), res)
+    return res
+  }
+  const fire = async (event, ...args) => {
+    const handlers = injectListeners.get(event) || []
+    assert.ok(handlers.length > 0, `应该有 ${event} 的订阅`)
+    let result = undefined
+    for (const handler of handlers) result = await handler(...args)
+    return result
+  }
+  // 先喂一条真实的用户消息当模板
+  fire('agent/inbox/inserted', {
+    agent: { id: 'sess-1' },
+    message: { id: 'm1', time: Date.now(), role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: 'hi' }] },
+  })
+  const queued = JSON.parse((await callInject('/fishhome/api/note', 'POST', JSON.stringify({ text: '休息一下' }))).body)
+  assert.equal(queued.mode, 'inject', '注入模式')
+  assert.equal(queued.pending, 1, '进入待递队列')
+
+  const decision = { kind: 'enter', messages: [] }
+  const injected = await fire('agent/pre-step', { agent: { id: 'sess-1' }, messages: [], turn: 1, step: 1 }, async () => decision)
+  assert.equal(injected.messages.length, 1, '在 pre-step 追加了一条消息')
+  assert.equal(injected.messages[0].role, 'user', '是用户消息')
+  assert.ok(injected.messages[0].content[0].text.includes('休息一下'), '内容就是便条')
+  assert.ok(injected.messages[0].id.includes('fishhome-note'), 'id 有标记')
+
+  // 队列空了就不再加
+  const again = await fire('agent/pre-step', { agent: { id: 'sess-1' }, messages: [], turn: 1, step: 2 }, async () => ({ kind: 'enter', messages: [] }))
+  assert.equal(again.messages.length, 0, '没有待递便条时不追加')
 }
 
 const meta = await call('/fishhome/api/meta')

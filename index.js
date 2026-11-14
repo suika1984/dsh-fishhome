@@ -56,7 +56,9 @@ function normalizeConfig(raw) {
     typeof config.map === 'string' && /^[A-Za-z0-9._-]+$/.test(config.map.trim())
       ? config.map.trim()
       : 'bedroom'
-  return { characterName, tickSeconds, packDir, saveDir, map }
+  // 小屋便条：preview = 只在她嘴里说，inject = 真把消息送进当前会话
+  const noteMode = config.noteMode === 'inject' ? 'inject' : 'preview'
+  return { characterName, tickSeconds, packDir, saveDir, map, noteMode }
 }
 
 function clampNumber(value, min, max, fallback) {
@@ -217,9 +219,18 @@ function createHandler(settings) {
         await handleOpen(req, res, settings)
         return
       }
+      if (rest === '/api/note') {
+        await handleNote(req, res, settings)
+        return
+      }
       if (rest === '/api/activity' && (req.method === 'GET' || req.method === 'HEAD')) {
         const activity = settings.activity ? settings.activity() : null
-        sendJson(res, 200, activity ? activitySnapshot(activity) : { ok: true, running: 0, sessions: 0, counters: {}, recent: [] })
+        if (!activity) {
+          sendJson(res, 200, { ok: true, running: 0, sessions: 0, counters: {}, recent: [] })
+          return
+        }
+        const noteMode = settings.config().noteMode
+        sendJson(res, 200, activitySnapshot(activity, settings.notes ? settings.notes() : null, noteMode))
         return
       }
       if (rest.startsWith('/pack/')) {
@@ -549,8 +560,30 @@ async function serveData(req, res, relative) {
 export function apply(ctx, rawConfig) {
   const current = normalizeConfig(rawConfig)
   const activity = createActivity()
-  const settings = { config: () => current, activity: () => activity }
+  const notes = createNotes()
+  const settings = { config: () => current, activity: () => activity, notes: () => notes }
 
+  // 记下一条真实的用户消息当模板（构造便条消息时要照它的形状来）
+  try {
+    ctx.effect(() => ctx.on('agent/inbox/inserted', (payload) => {
+      rememberUserShape(notes, payload && payload.message)
+    }), 'dsh-fishhome: remember user message shape')
+  } catch {
+    /* 没有这个事件 */
+  }
+  // 小屋便条：在「进入下一步」的水位处把消息追加进去（必须先 next() 保留原流程）
+  try {
+    ctx.effect(() => ctx.on('agent/pre-step', async (payload, next) => {
+      const decision = await next()
+      try {
+        return injectNote(notes, current, payload, decision)
+      } catch {
+        return decision
+      }
+    }), 'dsh-fishhome: inject note at step boundary')
+  } catch {
+    /* 没有这个事件 */
+  }
   // DSH 会话活动 → 聚合（事件在别的部署里可能不存在，缺了就当没有）
   for (const [event, handler] of activityListeners(activity)) {
     try {
@@ -568,6 +601,106 @@ export function apply(ctx, rawConfig) {
     })
     inner.effect(() => dispose, 'dsh-fishhome: http routes')
   })
+}
+
+
+/* ---------------------------------------------------------------------------
+ * 小屋便条（L3）：面板里跟我说一句话
+ *
+ * preview 模式只在屋子里说 + 记日志；inject 模式会额外把这句话作为一条
+ * 用户消息送进「当前正在跑的会话」——通过文档化的 agent/pre-step 水位实现：
+ * 先 next() 拿到决策，只往 messages 里追加，绝不改写原有内容。
+ * ------------------------------------------------------------------------- */
+
+const NOTE_MAX_CHARS = 200
+const NOTE_QUEUE_MAX = 5
+
+function createNotes() {
+  return { queue: [], injected: 0, preview: 0, shape: null }
+}
+
+/** 记一条真实用户消息的形状，构造便条时照抄（缺了就不注入，只预览） */
+function rememberUserShape(notes, message) {
+  if (!message || typeof message !== 'object' || message.role !== 'user') return
+  if (!Array.isArray(message.content)) return
+  notes.shape = message
+}
+
+function notesSnapshot(notes, mode) {
+  return {
+    mode: mode === 'inject' ? 'inject' : 'preview',
+    pending: notes.queue.length,
+    injected: notes.injected,
+    preview: notes.preview,
+    canInject: notes.shape !== null,
+  }
+}
+
+/** 面板来的一条便条 */
+function queueNote(notes, text) {
+  const clean = typeof text === 'string' ? text.trim() : ''
+  if (clean === '' || clean.length > NOTE_MAX_CHARS) return { ok: false, error: `便条要 1~${NOTE_MAX_CHARS} 个字` }
+  if (notes.queue.length >= NOTE_QUEUE_MAX) return { ok: false, error: '便条太多了，等她先看完' }
+  notes.queue.push({ text: clean, at: Date.now() })
+  return { ok: true, pending: notes.queue.length }
+}
+
+/** 把队首便条追加成一条用户消息（只在 inject 模式 + 有形状模板时） */
+function injectNote(notes, config, payload, decision) {
+  if (!decision || decision.kind !== 'enter' || !Array.isArray(decision.messages)) return decision
+  const mode = config && config.noteMode === 'inject' ? 'inject' : 'preview'
+  const note = notes.queue.shift()
+  if (!note) return decision
+  if (mode !== 'inject' || !notes.shape) {
+    notes.preview += 1
+    // 预览：原样返回，但把这句话记进活动流，面板能看到
+    return decision
+  }
+  const template = notes.shape
+  const message = {
+    ...template,
+    id: `fishhome-note-${note.at}-${Math.random().toString(36).slice(2, 8)}`,
+    time: Date.now(),
+    content: [{ type: 'text', text: note.text }],
+  }
+  decision.messages.push(message)
+  notes.injected += 1
+  return decision
+}
+
+async function handleNote(req, res, settings) {
+  if (req.method !== 'POST') {
+    res.setHeader('allow', 'POST')
+    sendJson(res, 405, { ok: false, error: 'method not allowed' })
+    return
+  }
+  let payload
+  try {
+    payload = JSON.parse(await readBody(req))
+  } catch (error) {
+    const tooLarge = error && error.code === 'E_TOO_LARGE'
+    sendJson(res, tooLarge ? 413 : 400, { ok: false, error: tooLarge ? '请求体过大' : '请求体不是合法 JSON' })
+    return
+  }
+  const notes = settings.notes()
+  const { noteMode } = settings.config()
+  const text = typeof (payload && payload.text) === 'string' ? payload.text.trim() : ''
+  if (text === '' || text.length > NOTE_MAX_CHARS) {
+    sendJson(res, 400, { ok: false, error: `便条要 1~${NOTE_MAX_CHARS} 个字` })
+    return
+  }
+  if (noteMode !== 'inject') {
+    // 预览：只在屋子里说，不进队列
+    notes.preview += 1
+    sendJson(res, 200, { ok: true, pending: notes.queue.length, mode: 'preview', ...notesSnapshot(notes, noteMode) })
+    return
+  }
+  const result = queueNote(notes, text)
+  if (!result.ok) {
+    sendJson(res, 400, result)
+    return
+  }
+  sendJson(res, 200, { ok: true, pending: result.pending, ...notesSnapshot(notes, noteMode) })
 }
 
 /* ---------------------------------------------------------------------------
@@ -673,7 +806,7 @@ function activityListeners(activity) {
 }
 
 /** 给面板的快照：只暴露计数，不暴露会话内容 */
-function activitySnapshot(activity) {
+function activitySnapshot(activity, notes, mode) {
   const now = Date.now()
   return {
     ok: true,
@@ -686,5 +819,6 @@ function activitySnapshot(activity) {
     lastAt: activity.lastAt,
     // 已经静默多久（前端判断"还在忙吗"）
     idleMs: activity.lastAt > 0 ? now - activity.lastAt : -1,
+    notes: notes ? notesSnapshot(notes, mode) : undefined,
   }
 }

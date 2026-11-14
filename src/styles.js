@@ -880,6 +880,25 @@
   font-variant-numeric: tabular-nums;
   color: var(--dsw-alias-text-tertiary, #8a8a8a);
 }
+
+/* 便条输入：跟她说一句话 */
+.fh-note {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.fh-note-input {
+  flex: 1;
+  min-width: 0;
+}
+.fh-note-send {
+  flex: none;
+}
+.fh-note-hint {
+  margin: 5px 0 0;
+  font-size: 11px;
+  color: var(--dsw-alias-text-tertiary, #8a8a8a);
+}
 `
 
 

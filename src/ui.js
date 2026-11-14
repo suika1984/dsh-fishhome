@@ -411,7 +411,13 @@
           )
           : null,
         props.onNote
-          ? h('p', { className: 'fh-note-hint' }, t((activity.notes && activity.notes.mode) === 'inject' ? 'activity.noteInject' : 'activity.notePreview'),
+          ? h('p', { className: 'fh-note-hint' },
+            t((activity.notes && activity.notes.mode) === 'inject' ? 'activity.noteInject' : 'activity.notePreview'),
+            activity.notes && activity.notes.mode === 'inject'
+              ? ` · ${activity.notes.targetFresh
+                ? t('activity.noteTarget', { target: activity.notes.target })
+                : t('activity.noteNoTarget')}`
+              : null,
             activity.notes && activity.notes.pending > 0 ? ` · ${t('activity.notePending', { count: activity.notes.pending })}` : null,
             tip ? ` · ${tip}` : null)
           : null,

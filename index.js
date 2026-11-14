@@ -585,7 +585,7 @@ export function apply(ctx, rawConfig) {
     /* 没有这个事件 */
   }
   // DSH 会话活动 → 聚合（事件在别的部署里可能不存在，缺了就当没有）
-  for (const [event, handler] of activityListeners(activity)) {
+  for (const [event, handler] of activityListeners(activity, notes)) {
     try {
       ctx.effect(() => ctx.on(event, handler), `dsh-fishhome: listen ${event}`)
     } catch {
@@ -616,7 +616,28 @@ const NOTE_MAX_CHARS = 200
 const NOTE_QUEUE_MAX = 5
 
 function createNotes() {
-  return { queue: [], injected: 0, preview: 0, shape: null }
+  return {
+    queue: [],
+    injected: 0,
+    preview: 0,
+    shape: null,
+    // 便条要送进哪个会话：最近一次「开始运行 / 有新消息」的那个
+    target: null,
+    targetAt: 0,
+  }
+}
+
+/** 记下「当前会话」：谁最近开始跑，便条就归谁 */
+function noteTarget(notes, sessionId) {
+  if (typeof sessionId !== 'string' || sessionId === '') return
+  notes.target = sessionId
+  notes.targetAt = Date.now()
+}
+
+/** 便条目标是否还新鲜（会话可能早结束了，别把话送进不相干的步骤） */
+const NOTE_TARGET_TTL_MS = 10 * 60 * 1000
+function noteTargetFresh(notes, now = Date.now()) {
+  return typeof notes.target === 'string' && notes.target !== '' && now - notes.targetAt <= NOTE_TARGET_TTL_MS
 }
 
 /** 记一条真实用户消息的形状，构造便条时照抄（缺了就不注入，只预览） */
@@ -627,12 +648,16 @@ function rememberUserShape(notes, message) {
 }
 
 function notesSnapshot(notes, mode) {
+  const fresh = noteTargetFresh(notes)
   return {
     mode: mode === 'inject' ? 'inject' : 'preview',
     pending: notes.queue.length,
     injected: notes.injected,
     preview: notes.preview,
     canInject: notes.shape !== null,
+    // 便条会送进哪个会话：只暴露短 id，不暴露内容
+    target: fresh ? String(notes.target).slice(0, 8) : '',
+    targetFresh: fresh,
   }
 }
 
@@ -649,13 +674,12 @@ function queueNote(notes, text) {
 function injectNote(notes, config, payload, decision) {
   if (!decision || decision.kind !== 'enter' || !Array.isArray(decision.messages)) return decision
   const mode = config && config.noteMode === 'inject' ? 'inject' : 'preview'
+  if (mode !== 'inject' || !notes.shape || !noteTargetFresh(notes)) return decision
+  const agentId = payload && payload.agent && typeof payload.agent.id === 'string' ? payload.agent.id : ''
+  // 只在「便条的目标会话」进入下一步时注入；别的 agent 一律不碰（便条留着）
+  if (agentId !== notes.target) return decision
   const note = notes.queue.shift()
   if (!note) return decision
-  if (mode !== 'inject' || !notes.shape) {
-    notes.preview += 1
-    // 预览：原样返回，但把这句话记进活动流，面板能看到
-    return decision
-  }
   const template = notes.shape
   const message = {
     ...template,
@@ -741,11 +765,14 @@ function sessionIdOf(value) {
 }
 
 /** 事件名 → 更新聚合状态。全部用 emit 模式事件，不做 waterfall 干预。 */
-function activityListeners(activity) {
+function activityListeners(activity, notes) {
   const entries = [
     ['api-session/added', (summary) => {
       const id = sessionIdOf(summary)
-      if (id) activity.sessions.add(id)
+      if (id) {
+        activity.sessions.add(id)
+        noteTarget(notes, id)
+      }
       noteActivity(activity, 'session-start', '')
     }],
     ['api-session/removed', (sessionId) => {
@@ -753,14 +780,20 @@ function activityListeners(activity) {
       if (id) {
         activity.sessions.delete(id)
         activity.running.delete(id)
+        // 目标会话被关掉了，便条不再有去处
+        if (notes.target === id) notes.target = null
       }
       noteActivity(activity, 'session-end', '')
     }],
     ['api-session/status', (sessionId, running) => {
       const id = sessionIdOf(sessionId)
       if (!id) return
-      if (running) activity.running.add(id)
-      else activity.running.delete(id)
+      if (running) {
+        activity.running.add(id)
+        noteTarget(notes, id)
+      } else {
+        activity.running.delete(id)
+      }
       noteActivity(activity, running ? 'running' : 'idle', '')
     }],
     ['api-session/error', (sessionId, message) => {
@@ -769,14 +802,20 @@ function activityListeners(activity) {
     }],
     ['api-session/activity', (sessionId) => {
       activity.counters.messages += 1
+      // 用户在某个会话里发了消息 → 那个会话就是「当前会话」
+      noteTarget(notes, sessionIdOf(sessionId))
       noteActivity(activity, 'message', '')
     }],
     ['agent/status', (payload) => {
       const id = sessionIdOf(payload && payload.agent)
       const status = payload && payload.status
       if (id && (status === 'running' || status === 'idle')) {
-        if (status === 'running') activity.running.add(id)
-        else activity.running.delete(id)
+        if (status === 'running') {
+          activity.running.add(id)
+          noteTarget(notes, id)
+        } else {
+          activity.running.delete(id)
+        }
       }
     }],
     ['agent/inbox/inserted', () => {

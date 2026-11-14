@@ -232,6 +232,8 @@ window.__ModuleLoader__.load({
       'activity.notePreview': '只在屋子里说（不会进会话）',
       'activity.noteInject': '会作为一条消息送进当前会话',
       'activity.notePending': '{count} 张待递',
+      'activity.noteTarget': '会送进会话 {target}',
+      'activity.noteNoTarget': '当前没有运行中的会话，便条会等她开始',
       'log.noteQueued': '{name}把你的话记下了。',
       'log.offline': '你离开了 {span}，{name}自己过了这段日子。',
       'log.move': '{name}凑到你面前来了。',
@@ -485,6 +487,8 @@ window.__ModuleLoader__.load({
       'activity.notePreview': 'Only in the room (not sent to the session)',
       'activity.noteInject': 'Will be delivered into the current session',
       'activity.notePending': '{count} pending',
+      'activity.noteTarget': 'Delivered to session {target}',
+      'activity.noteNoTarget': 'No session is running; the note waits for her',
       'log.noteQueued': '{name} took note of what you said.',
       'log.offline': 'You were away for {span}; it kept living.',
       'log.move': 'It came over to you.',
@@ -953,6 +957,8 @@ window.__ModuleLoader__.load({
             injected: Number(raw.notes.injected) || 0,
             preview: Number(raw.notes.preview) || 0,
             canInject: raw.notes.canInject === true,
+            target: typeof raw.notes.target === 'string' ? raw.notes.target : '',
+            targetFresh: raw.notes.targetFresh === true,
           }
           : null,
       }
@@ -4463,7 +4469,13 @@ async function writeSave(home) {
           )
           : null,
         props.onNote
-          ? h('p', { className: 'fh-note-hint' }, t((activity.notes && activity.notes.mode) === 'inject' ? 'activity.noteInject' : 'activity.notePreview'),
+          ? h('p', { className: 'fh-note-hint' },
+            t((activity.notes && activity.notes.mode) === 'inject' ? 'activity.noteInject' : 'activity.notePreview'),
+            activity.notes && activity.notes.mode === 'inject'
+              ? ` · ${activity.notes.targetFresh
+                ? t('activity.noteTarget', { target: activity.notes.target })
+                : t('activity.noteNoTarget')}`
+              : null,
             activity.notes && activity.notes.pending > 0 ? ` · ${t('activity.notePending', { count: activity.notes.pending })}` : null,
             tip ? ` · ${tip}` : null)
           : null,

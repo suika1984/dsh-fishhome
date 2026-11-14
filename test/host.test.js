@@ -192,7 +192,9 @@ async function call(url, method = 'GET', body = '') {
     for (const handler of handlers) result = await handler(...args)
     return result
   }
-  // 先喂一条真实的用户消息当模板
+  // 先让 sess-1 成为「当前会话」（它开始运行），便条才会认它为目标
+  await fire('api-session/status', 'sess-1', true)
+  // 再喂一条真实的用户消息当模板
   fire('agent/inbox/inserted', {
     agent: { id: 'sess-1' },
     message: { id: 'm1', time: Date.now(), role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: 'hi' }] },
@@ -200,6 +202,13 @@ async function call(url, method = 'GET', body = '') {
   const queued = JSON.parse((await callInject('/fishhome/api/note', 'POST', JSON.stringify({ text: '休息一下' }))).body)
   assert.equal(queued.mode, 'inject', '注入模式')
   assert.equal(queued.pending, 1, '进入待递队列')
+
+  // 别的会话进入步骤：不能注入、也不能把便条吃掉
+  const other = await fire('agent/pre-step', { agent: { id: 'sess-2' }, messages: [], turn: 1, step: 1 }, async () => ({ kind: 'enter', messages: [] }))
+  assert.equal(other.messages.length, 0, '非目标会话不注入')
+  const stillQueued = JSON.parse((await callInject('/fishhome/api/activity')).body)
+  assert.equal(stillQueued.notes.pending, 1, '便条留在队列里等目标会话')
+  assert.equal(stillQueued.notes.target, 'sess-1', '快照里能看到目标会话')
 
   const decision = { kind: 'enter', messages: [] }
   const injected = await fire('agent/pre-step', { agent: { id: 'sess-1' }, messages: [], turn: 1, step: 1 }, async () => decision)

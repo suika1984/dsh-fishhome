@@ -388,6 +388,8 @@
             injected: Number(raw.notes.injected) || 0,
             preview: Number(raw.notes.preview) || 0,
             canInject: raw.notes.canInject === true,
+            target: typeof raw.notes.target === 'string' ? raw.notes.target : '',
+            targetFresh: raw.notes.targetFresh === true,
           }
           : null,
       }

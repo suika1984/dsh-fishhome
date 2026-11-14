@@ -29,6 +29,13 @@
           }
         }
         const t = (key, params) => makeTranslate(localeRef.value)(key, params)
+        // 可选：客户端 sessions 服务。有它就能像聊天框一样把便条发进会话（会出现在对话里、LLM 也会回）
+        try {
+          const clientSessions = typeof ctx.get === 'function' ? ctx.get('sessions') : null
+          store.clientSessions = clientSessions || null
+        } catch {
+          store.clientSessions = null
+        }
         try {
           ctx.effect(() => ctx.locale.register(NS, 'zh', ZH), 'dsh-fishhome: zh dictionary')
           ctx.effect(() => ctx.locale.register(NS, 'en', EN), 'dsh-fishhome: en dictionary')

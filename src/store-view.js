@@ -100,32 +100,61 @@
         if (clean === '') return { ok: false, error: '空便条' }
         if (!this.home) return { ok: false, error: '还没准备好' }
         const now = Date.now()
+        // 1) 先进屋回一句（跟会话是否可达无关）
+        this.replyLocally(clean, now)
+        // 2) 有客户端 sessions 服务时，像聊天框一样把话发进目标会话：
+        //    它会出现在对话里，并让那个会话真的跑一轮（LLM 会回）
+        const targetId = (this.activity && this.activity.notes && this.activity.notes.targetId) || ''
+        if (this.clientSessions && targetId) {
+          const delivered = await this.promptSession(targetId, clean)
+          if (delivered) {
+            pushLog(this.home, now, 'noteDelivered', null)
+            this.publish()
+            return { ok: true, delivered: true, target: targetId }
+          }
+        }
+        // 3) 否则退回 Host 的便条队列（preview / inject）
         try {
           const payload = await fetchJson(`${ROUTE}/api/note`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ text: clean }),
           })
-          const character = this.home.character
-          if (character) {
-            // 先在屋里回一句（跟 Host 有没有会话、是不是 inject 无关）
-            const reply = matchReply(this.replies, clean, localeRef.value)
-            pushLog(this.home, now, 'noteQueued', null)
-            if (reply.text) pushLog(this.home, now, 'noteReply', { text: reply.text })
-            // 回复带动作（比如「累了」→ 她去打盹）时，如果她正闲着就顺势切过去。
-            // 注意顺序：先切行为再写气泡，否则切换被拒时的提示会盖掉她的回复。
-            const passive = ['idle', 'read', 'stretch', 'window']
-            if (reply.behavior && passive.includes(character.behaviorId)) {
-              this.forceBehavior(reply.behavior)
-            }
-            character.say = { text: reply.text || clean, until: now + 6000 }
-            this.publish()
-          }
+          this.publish()
           void this.refreshActivity()
           return { ok: true, mode: payload && payload.mode ? payload.mode : 'preview', pending: payload && payload.pending ? payload.pending : 0 }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
           return { ok: false, error: message }
+        }
+      },
+      /** 在小屋里回一句（气泡 + 日志 + 可能的动作），不依赖会话 */
+      replyLocally(text, now) {
+        const character = this.home && this.home.character
+        if (!character) return
+        const reply = matchReply(this.replies, text, localeRef.value)
+        pushLog(this.home, now, 'noteQueued', null)
+        if (reply.text) pushLog(this.home, now, 'noteReply', { text: reply.text })
+        // 顺序：先切行为再写气泡，否则切换被拒时的提示会盖掉她的回复
+        const passive = ['idle', 'read', 'stretch', 'window']
+        if (reply.behavior && passive.includes(character.behaviorId)) {
+          this.forceBehavior(reply.behavior)
+        }
+        character.say = { text: reply.text || text, until: now + 6000 }
+      },
+      /** 用客户端 sessions 服务把一句话发进会话（等同在聊天框里发消息） */
+      async promptSession(sessionId, text) {
+        try {
+          let delivered = false
+          await this.clientSessions.using(sessionId, { source: 'gateway' }, async (reference) => {
+            const session = reference && reference.binding && reference.binding.session
+            if (!session || typeof session.prompt !== 'function') return
+            const result = await session.prompt([{ type: 'text', text }], 'queue')
+            delivered = !!(result && result.ok)
+          })
+          return delivered
+        } catch {
+          return false
         }
       },
       /** 设置里的下拉框：指定便条送进哪个会话（空 = 自动） */

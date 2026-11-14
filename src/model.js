@@ -440,6 +440,7 @@
             preview: Number(raw.notes.preview) || 0,
             canInject: raw.notes.canInject === true,
             target: typeof raw.notes.target === 'string' ? raw.notes.target : '',
+            targetId: typeof raw.notes.targetFull === 'string' ? raw.notes.targetFull : '',
             targetFresh: raw.notes.targetFresh === true,
             pinned: typeof raw.notes.pinned === 'string' ? raw.notes.pinned : '',
             sessions: Array.isArray(raw.notes.sessions)

@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = 'd0eec258'
+    const BUILD_REV = 'd38a700e'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -241,6 +241,8 @@ window.__ModuleLoader__.load({
       'activity.noteNoTarget': '当前没有运行中的会话，便条会等她开始',
       'log.noteQueued': '你把话递给了{name}。',
       'log.noteReply': '{name}回你：{text}',
+      'log.noteDelivered': '{name}的话已经发进会话了。',
+      'activity.noteSent': '已发送到会话',
       'log.offline': '你离开了 {span}，{name}自己过了这段日子。',
       'log.move': '{name}凑到你面前来了。',
       'log.sit': '{name}在沙发上发了会儿呆。',
@@ -501,6 +503,8 @@ window.__ModuleLoader__.load({
       'activity.noteNoTarget': 'No session is running; the note waits for her',
       'log.noteQueued': 'You handed {name} a note.',
       'log.noteReply': '{name} replied: {text}',
+      'log.noteDelivered': 'Your note was sent into the session.',
+      'activity.noteSent': 'Sent to session',
       'log.offline': 'You were away for {span}; it kept living.',
       'log.move': 'It came over to you.',
       'log.sit': 'It spaced out on the sofa.',
@@ -1020,6 +1024,7 @@ window.__ModuleLoader__.load({
             preview: Number(raw.notes.preview) || 0,
             canInject: raw.notes.canInject === true,
             target: typeof raw.notes.target === 'string' ? raw.notes.target : '',
+            targetId: typeof raw.notes.targetFull === 'string' ? raw.notes.targetFull : '',
             targetFresh: raw.notes.targetFresh === true,
             pinned: typeof raw.notes.pinned === 'string' ? raw.notes.pinned : '',
             sessions: Array.isArray(raw.notes.sessions)
@@ -1578,6 +1583,8 @@ async function writeSave(home) {
         this.activity = null
         // 便条回复表（data/replies.json）
         this.replies = { rules: [], fallback: [] }
+        // 客户端 sessions 服务（有它就能像聊天框一样把话发进会话）
+        this.clientSessions = null
         this.activityBusy = false
         this.meta = null
         this.animations = null
@@ -2366,32 +2373,61 @@ async function writeSave(home) {
         if (clean === '') return { ok: false, error: '空便条' }
         if (!this.home) return { ok: false, error: '还没准备好' }
         const now = Date.now()
+        // 1) 先进屋回一句（跟会话是否可达无关）
+        this.replyLocally(clean, now)
+        // 2) 有客户端 sessions 服务时，像聊天框一样把话发进目标会话：
+        //    它会出现在对话里，并让那个会话真的跑一轮（LLM 会回）
+        const targetId = (this.activity && this.activity.notes && this.activity.notes.targetId) || ''
+        if (this.clientSessions && targetId) {
+          const delivered = await this.promptSession(targetId, clean)
+          if (delivered) {
+            pushLog(this.home, now, 'noteDelivered', null)
+            this.publish()
+            return { ok: true, delivered: true, target: targetId }
+          }
+        }
+        // 3) 否则退回 Host 的便条队列（preview / inject）
         try {
           const payload = await fetchJson(`${ROUTE}/api/note`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ text: clean }),
           })
-          const character = this.home.character
-          if (character) {
-            // 先在屋里回一句（跟 Host 有没有会话、是不是 inject 无关）
-            const reply = matchReply(this.replies, clean, localeRef.value)
-            pushLog(this.home, now, 'noteQueued', null)
-            if (reply.text) pushLog(this.home, now, 'noteReply', { text: reply.text })
-            // 回复带动作（比如「累了」→ 她去打盹）时，如果她正闲着就顺势切过去。
-            // 注意顺序：先切行为再写气泡，否则切换被拒时的提示会盖掉她的回复。
-            const passive = ['idle', 'read', 'stretch', 'window']
-            if (reply.behavior && passive.includes(character.behaviorId)) {
-              this.forceBehavior(reply.behavior)
-            }
-            character.say = { text: reply.text || clean, until: now + 6000 }
-            this.publish()
-          }
+          this.publish()
           void this.refreshActivity()
           return { ok: true, mode: payload && payload.mode ? payload.mode : 'preview', pending: payload && payload.pending ? payload.pending : 0 }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
           return { ok: false, error: message }
+        }
+      },
+      /** 在小屋里回一句（气泡 + 日志 + 可能的动作），不依赖会话 */
+      replyLocally(text, now) {
+        const character = this.home && this.home.character
+        if (!character) return
+        const reply = matchReply(this.replies, text, localeRef.value)
+        pushLog(this.home, now, 'noteQueued', null)
+        if (reply.text) pushLog(this.home, now, 'noteReply', { text: reply.text })
+        // 顺序：先切行为再写气泡，否则切换被拒时的提示会盖掉她的回复
+        const passive = ['idle', 'read', 'stretch', 'window']
+        if (reply.behavior && passive.includes(character.behaviorId)) {
+          this.forceBehavior(reply.behavior)
+        }
+        character.say = { text: reply.text || text, until: now + 6000 }
+      },
+      /** 用客户端 sessions 服务把一句话发进会话（等同在聊天框里发消息） */
+      async promptSession(sessionId, text) {
+        try {
+          let delivered = false
+          await this.clientSessions.using(sessionId, { source: 'gateway' }, async (reference) => {
+            const session = reference && reference.binding && reference.binding.session
+            if (!session || typeof session.prompt !== 'function') return
+            const result = await session.prompt([{ type: 'text', text }], 'queue')
+            delivered = !!(result && result.ok)
+          })
+          return delivered
+        } catch {
+          return false
         }
       },
       /** 设置里的下拉框：指定便条送进哪个会话（空 = 自动） */
@@ -4568,7 +4604,11 @@ async function writeSave(home) {
                 const text = note.trim()
                 if (text === '') return
                 setNote('')
-                void props.onNote(text).then((result) => setTip(result && result.ok ? '' : (result && result.error) || ''))
+                void props.onNote(text).then((result) => {
+                  if (!result) return setTip('')
+                  if (result.delivered) return setTip(t('activity.noteSent'))
+                  setTip(result.ok ? '' : (result.error || ''))
+                })
               },
             }),
             h('button', {
@@ -4688,6 +4728,8 @@ async function writeSave(home) {
           return t('log.stretch')
         case 'idle':
           return t('log.idle')
+        case 'noteDelivered':
+          return t('log.noteDelivered')
         case 'noteReply': {
           const text = entry.arg && typeof entry.arg.text === 'string' ? entry.arg.text : ''
           return t('log.noteReply', { text })
@@ -6763,6 +6805,13 @@ async function writeSave(home) {
           }
         }
         const t = (key, params) => makeTranslate(localeRef.value)(key, params)
+        // 可选：客户端 sessions 服务。有它就能像聊天框一样把便条发进会话（会出现在对话里、LLM 也会回）
+        try {
+          const clientSessions = typeof ctx.get === 'function' ? ctx.get('sessions') : null
+          store.clientSessions = clientSessions || null
+        } catch {
+          store.clientSessions = null
+        }
         try {
           ctx.effect(() => ctx.locale.register(NS, 'zh', ZH), 'dsh-fishhome: zh dictionary')
           ctx.effect(() => ctx.locale.register(NS, 'en', EN), 'dsh-fishhome: en dictionary')

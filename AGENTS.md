@@ -256,6 +256,8 @@ Client 每次 tick（5 秒）拉一次，然后：
 
 | `noteMode` | 行为 |
 | --- | --- |
+**Client 侧还有一条正式通道**：`ctx.get('sessions')` → `sessions.using(id)` → `session.prompt([{type:'text',text}], 'queue')`。这就是聊天输入框同款路径——消息会**真的出现在对话里**，并且空闲会话会被唤起跑一轮（LLM 会回）。插件优先走这条；拿不到 `sessions` 服务时退回 Host 的便条队列。
+
 | `preview`（默认） | 只在她头顶的气泡里说 + 写日志 `log.noteQueued`，不进会话 |
 | `inject` | 额外把她的话作为**一条用户消息**送进当前正在跑的会话 |
 

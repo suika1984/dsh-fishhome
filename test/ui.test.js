@@ -1341,6 +1341,33 @@ model.applyFurniture(model.DEFAULT_FURNITURE)
   assert.ok(text.includes('那我躺一下'), '引用了她的回复')
   assert.ok(text.includes('大肥鱼'), '带上名字')
 }
+// 便条走客户端 sessions 服务：等于在聊天框里发消息，会出现在对话里并触发一轮
+await (async () => {
+  const calls = []
+  const store = new model.HomeStore()
+  store.publish = () => {}
+  store.scheduleSave = () => {}
+  store.home = model.createHome(Date.now(), '大肥鱼')
+  store.replies = model.normalizeReplies({ fallback: [{ zh: '嗯嗯', en: 'Mm' }] })
+  store.activity = { running: 1, notes: { targetId: 'session-target-1', target: 'session-', sessions: [] } }
+  store.clientSessions = {
+    async using(id, options, callback) {
+      calls.push(['using', id, options.source])
+      return callback({ binding: { session: {
+        async prompt(content, mode) {
+          calls.push(['prompt', content[0].text, mode])
+          return { ok: true, value: { accepted: true } }
+        },
+      } } })
+    },
+  }
+  const result = await store.sendNote('一起吃个饭吧')
+  assert.equal(result.delivered, true, '标记为已送达会话')
+  assert.deepEqual(calls[0], ['using', 'session-target-1', 'gateway'], '按会话 id 取引用')
+  assert.deepEqual(calls[1], ['prompt', '一起吃个饭吧', 'queue'], '用聊天框同款 prompt 发出去')
+  assert.ok(store.home.character.say.text.length > 0, '屋里也回了一句')
+  assert.equal(store.home.log[0].code, 'noteDelivered', '日志记了送达')
+})()
 console.log('ui tests passed:', {
   components: Object.keys(registered),
   behaviors: model.BEHAVIORS.length,

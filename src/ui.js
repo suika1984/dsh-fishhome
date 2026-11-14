@@ -394,7 +394,11 @@
                 const text = note.trim()
                 if (text === '') return
                 setNote('')
-                void props.onNote(text).then((result) => setTip(result && result.ok ? '' : (result && result.error) || ''))
+                void props.onNote(text).then((result) => {
+                  if (!result) return setTip('')
+                  if (result.delivered) return setTip(t('activity.noteSent'))
+                  setTip(result.ok ? '' : (result.error || ''))
+                })
               },
             }),
             h('button', {
@@ -514,6 +518,8 @@
           return t('log.stretch')
         case 'idle':
           return t('log.idle')
+        case 'noteDelivered':
+          return t('log.noteDelivered')
         case 'noteReply': {
           const text = entry.arg && typeof entry.arg.text === 'string' ? entry.arg.text : ''
           return t('log.noteReply', { text })

@@ -11,6 +11,8 @@
         this.activity = null
         // 便条回复表（data/replies.json）
         this.replies = { rules: [], fallback: [] }
+        // 客户端 sessions 服务（有它就能像聊天框一样把话发进会话）
+        this.clientSessions = null
         this.activityBusy = false
         this.meta = null
         this.animations = null

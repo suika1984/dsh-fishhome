@@ -109,7 +109,7 @@ const pet = await call('/fishhome/pack/pet.json')
 assert.equal(pet.statusCode, 200)
 assert.equal(JSON.parse(pet.body).id, metaJson.pack.id)
 
-const png = await call('/fishhome/pack/chibi.png')
+const png = await call('/fishhome/pack/fish-sheet.png')
 assert.equal(png.statusCode, 200)
 assert.equal(png.headers['content-type'], 'image/png')
 

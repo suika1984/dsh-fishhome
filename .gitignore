@@ -12,3 +12,6 @@ node_modules/
 *.log
 Thumbs.db
 .DS_Store
+
+# 归档区：从运行目录移出的未引用素材（没被引用，留着方便找回）
+_archive/

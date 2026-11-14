@@ -1,0 +1,99 @@
+{
+  "id": "eat_snack",
+  "name": "吃点心",
+  "tags": [
+    "eat_snack",
+    "snack",
+    "dessert"
+  ],
+  "asset": "sheetEat",
+  "randomStart": true,
+  "groupSize": 2,
+  "loop": true,
+  "cell": [
+    424,
+    510
+  ],
+  "frames": [
+    {
+      "rect": [
+        848,
+        0,
+        424,
+        510
+      ],
+      "durationMs": 1200,
+      "squash": 0
+    },
+    {
+      "rect": [
+        848,
+        0,
+        424,
+        510
+      ],
+      "durationMs": 1200,
+      "squash": 5
+    },
+    {
+      "rect": [
+        0,
+        510,
+        424,
+        510
+      ],
+      "durationMs": 1200,
+      "squash": 0
+    },
+    {
+      "rect": [
+        0,
+        510,
+        424,
+        510
+      ],
+      "durationMs": 1200,
+      "squash": 5
+    },
+    {
+      "rect": [
+        424,
+        510,
+        424,
+        510
+      ],
+      "durationMs": 1200,
+      "squash": 0
+    },
+    {
+      "rect": [
+        424,
+        510,
+        424,
+        510
+      ],
+      "durationMs": 1200,
+      "squash": 5
+    },
+    {
+      "rect": [
+        848,
+        510,
+        424,
+        510
+      ],
+      "durationMs": 1200,
+      "squash": 0
+    },
+    {
+      "rect": [
+        848,
+        510,
+        424,
+        510
+      ],
+      "durationMs": 1200,
+      "squash": 5
+    }
+  ]
+}

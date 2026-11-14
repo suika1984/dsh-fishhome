@@ -1,0 +1,1 @@
+{"id":"stretch","label":{"zh":"伸懒腰"},"kind":"autonomous","spot":"center","anim":"stretch","duration":[14,22],"log":null,"cooldown":420,"onTick":{"energy":0.3,"mood":0.02},"weight":null,"request":null,"say":null}

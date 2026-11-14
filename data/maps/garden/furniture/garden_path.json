@@ -1,0 +1,22 @@
+{
+  "id": "garden_path",
+  "name": {
+    "zh": "石板路",
+    "en": "garden_path"
+  },
+  "type": "furniture",
+  "parts": [
+    {
+      "id": "body",
+      "z": 3,
+      "sprite": {
+        "rect": [
+          398,
+          107,
+          260,
+          200
+        ]
+      }
+    }
+  ]
+}

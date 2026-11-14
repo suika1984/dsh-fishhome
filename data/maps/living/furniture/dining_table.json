@@ -1,0 +1,57 @@
+{
+  "id": "dining_table",
+  "name": {
+    "zh": "餐桌"
+  },
+  "type": "furniture",
+  "parts": [
+    {
+      "id": "body",
+      "z": 78,
+      "sprite": {
+        "src": "kit-island.png",
+        "rect": [
+          903.0033275414105,
+          538.8005996177058,
+          380,
+          279
+        ],
+        "skew": 0.08
+      }
+    }
+  ],
+  "click": {
+    "type": "event",
+    "id": "eat"
+  },
+  "animations": [
+    {
+      "id": "eat",
+      "animation": "eat_main",
+      "position": {
+        "x": 0.5,
+        "y": 0.95
+      },
+      "pivot": [
+        0,
+        -8
+      ],
+      "facing": "front",
+      "renderLayer": "front"
+    },
+    {
+      "id": "snack",
+      "animation": "eat_snack",
+      "position": {
+        "x": 0.5,
+        "y": 0.95
+      },
+      "pivot": [
+        0,
+        -8
+      ],
+      "facing": "front",
+      "renderLayer": "front"
+    }
+  ]
+}

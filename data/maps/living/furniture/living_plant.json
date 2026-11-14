@@ -1,0 +1,1 @@
+{"id":"living_plant","name":{"zh":"绿植"},"type":"furniture","parts":[{"id":"body","z":90,"sprite":{"src":"act-plant.png","rect":[1023.0450000718256,768.9222980471795,146,201]}}],"click":{"type":"event","id":"stretch"}}

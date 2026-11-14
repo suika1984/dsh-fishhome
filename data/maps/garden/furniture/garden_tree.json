@@ -1,0 +1,22 @@
+{
+  "id": "garden_tree",
+  "name": {
+    "zh": "大树",
+    "en": "garden_tree"
+  },
+  "type": "furniture",
+  "parts": [
+    {
+      "id": "body",
+      "z": 80,
+      "sprite": {
+        "rect": [
+          797,
+          -6,
+          220,
+          300
+        ]
+      }
+    }
+  ]
+}

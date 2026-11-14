@@ -1,0 +1,14 @@
+﻿# 生成物：由 build.mjs 从 src/ 拼出来，不要提交
+client.js
+
+# 调试预览图（切片检查、灯光预览等），不是源码
+docs/refs/
+
+# 原始大图：切片来源，运行时不需要
+packs/_source/
+
+# 依赖与系统垃圾
+node_modules/
+*.log
+Thumbs.db
+.DS_Store

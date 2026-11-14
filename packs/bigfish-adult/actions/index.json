@@ -1,0 +1,21 @@
+{
+  "actions": [
+    "idle",
+    "read",
+    "sit",
+    "work",
+    "play",
+    "stretch",
+    "sleep",
+    "inbed",
+    "hug",
+    "eat",
+    "back",
+    "blanket",
+    "work45",
+    "doze45",
+    "lounge45",
+    "eat_main",
+    "eat_snack"
+  ]
+}

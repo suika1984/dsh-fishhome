@@ -1,0 +1,38 @@
+{
+  "id": "wall_decor",
+  "name": {
+    "zh": "墙面挂饰",
+    "en": "Wall decor"
+  },
+  "type": "decor",
+  "parts": [
+    {
+      "id": "frames",
+      "z": -85,
+      "sprite": {
+        "src": "wall-frames.png",
+        "rect": [
+          516.3147536538827,
+          72.46979529213286,
+          136,
+          101
+        ],
+        "attach": "wallRight"
+      }
+    },
+    {
+      "id": "banner",
+      "z": -85,
+      "sprite": {
+        "src": "wall-banner.png",
+        "rect": [
+          28,
+          195,
+          110,
+          103
+        ],
+        "attach": "wallLeft"
+      }
+    }
+  ]
+}

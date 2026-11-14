@@ -1,0 +1,48 @@
+{
+  "id": "sit",
+  "name": "坐着",
+  "tags": [
+    "sit",
+    "sit_idle"
+  ],
+  "asset": "sheet",
+  "frames": [
+    {
+      "rect": [
+        0,
+        225,
+        293,
+        225
+      ],
+      "durationMs": 900
+    },
+    {
+      "rect": [
+        293,
+        225,
+        293,
+        225
+      ],
+      "durationMs": 900
+    },
+    {
+      "rect": [
+        586,
+        225,
+        293,
+        225
+      ],
+      "durationMs": 900
+    },
+    {
+      "rect": [
+        879,
+        225,
+        293,
+        225
+      ],
+      "durationMs": 900
+    }
+  ],
+  "loop": true
+}

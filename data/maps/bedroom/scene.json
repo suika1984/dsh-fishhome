@@ -1,0 +1,148 @@
+{
+  "id": "bedroom",
+  "name": {
+    "zh": "大肥鱼的小屋",
+    "en": "Fish's room"
+  },
+  "version": 1,
+  "room": {
+    "cols": 12,
+    "rows": 12,
+    "wallHeight": 280,
+    "canvas": [
+      1000,
+      643
+    ],
+    "margin": {
+      "x": 24,
+      "top": 4
+    },
+    "projection": 0.375,
+    "camera": {
+      "mode": "fixed"
+    }
+  },
+  "background": "background.json",
+  "furniture": [
+    "window",
+    "rug",
+    "desk",
+    "shelf",
+    "bed",
+    "night_lamp",
+    "plant",
+    "wall_decor",
+    "plant-copy"
+  ],
+  "events": [
+    "idle",
+    "read",
+    "work",
+    "window",
+    "play",
+    "stretch",
+    "snack",
+    "nap",
+    "sleep",
+    "doze"
+  ],
+  "spots": {
+    "center": {
+      "fx": 5.2,
+      "fy": 7.05
+    },
+    "desk": {
+      "fx": 1.6,
+      "fy": 6
+    },
+    "window": {
+      "fx": 3.4,
+      "fy": 3.75
+    },
+    "bookshelf": {
+      "fx": 2.6,
+      "fy": 8.1
+    },
+    "bed": {
+      "fx": 4.4,
+      "fy": 6
+    },
+    "rug": {
+      "fx": 4.6,
+      "fy": 7.95
+    }
+  },
+  "spawn": {
+    "fx": 1,
+    "fy": 10.5
+  },
+  "controls": [
+    {
+      "kind": "toggle",
+      "key": "deskLamp",
+      "label": {
+        "zh": "台灯",
+        "en": "Desk lamp"
+      },
+      "suffix": "state"
+    },
+    {
+      "kind": "toggle",
+      "key": "bedLamp",
+      "label": {
+        "zh": "床头灯",
+        "en": "Bedside lamp"
+      },
+      "suffix": "state"
+    },
+    {
+      "kind": "toggle",
+      "key": "curtainOpen",
+      "label": {
+        "zh": "窗帘",
+        "en": "Curtain"
+      },
+      "variants": {
+        "on": {
+          "zh": "拉上窗帘",
+          "en": "Close curtain"
+        },
+        "off": {
+          "zh": "拉开窗帘",
+          "en": "Open curtain"
+        }
+      }
+    },
+    {
+      "kind": "event",
+      "id": "whale",
+      "label": {
+        "zh": "小鲸鱼",
+        "en": "Whale toy"
+      }
+    },
+    {
+      "kind": "event",
+      "id": "read",
+      "label": {
+        "zh": "看书",
+        "en": "Read"
+      }
+    },
+    {
+      "kind": "event",
+      "id": "nap",
+      "label": {
+        "zh": "躺一会儿",
+        "en": "Lie down"
+      }
+    },
+    {
+      "kind": "reset",
+      "label": {
+        "zh": "回到屋子中间",
+        "en": "Back to centre"
+      }
+    }
+  ]
+}

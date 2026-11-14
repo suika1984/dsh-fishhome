@@ -1,0 +1,31 @@
+{
+  "id": "work",
+  "name": "用电脑",
+  "tags": [
+    "work",
+    "working",
+    "typing"
+  ],
+  "asset": "sheet",
+  "frames": [
+    {
+      "rect": [
+        1172,
+        900,
+        293,
+        225
+      ],
+      "durationMs": 760
+    },
+    {
+      "rect": [
+        1172,
+        900,
+        293,
+        225
+      ],
+      "durationMs": 760
+    }
+  ],
+  "loop": true
+}

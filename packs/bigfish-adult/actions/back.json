@@ -1,0 +1,29 @@
+{
+  "id": "back",
+  "name": "背影",
+  "tags": [
+    "back"
+  ],
+  "asset": "sheet",
+  "frames": [
+    {
+      "rect": [
+        1758,
+        0,
+        293,
+        225
+      ],
+      "durationMs": 700
+    },
+    {
+      "rect": [
+        2051,
+        0,
+        293,
+        225
+      ],
+      "durationMs": 700
+    }
+  ],
+  "loop": true
+}

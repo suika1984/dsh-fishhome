@@ -1,0 +1,52 @@
+{
+  "id": "sit",
+  "label": {
+    "zh": "坐着发呆",
+    "en": "Sit around"
+  },
+  "kind": "autonomous",
+  "spot": "sofa",
+  "anim": "lounge45",
+  "duration": [
+    120,
+    300
+  ],
+  "cooldown": 180,
+  "onTick": {
+    "energy": -0.001,
+    "mood": 0.012
+  },
+  "weight": {
+    "base": 0.55,
+    "mods": [
+      {
+        "when": "energyHigh",
+        "mul": 1.8
+      },
+      {
+        "when": "energyUnder35",
+        "mul": 0.25
+      },
+      {
+        "when": "evening",
+        "mul": 1.2
+      }
+    ]
+  },
+  "anchor": "sofa:sit",
+  "say": {
+    "chance": 0.4,
+    "lines": [
+      {
+        "zh": "就坐着发会儿呆…",
+        "en": "Just sitting~"
+      },
+      {
+        "zh": "沙发好软",
+        "en": "This sofa is soft"
+      }
+    ]
+  },
+  "log": "sit",
+  "request": null
+}

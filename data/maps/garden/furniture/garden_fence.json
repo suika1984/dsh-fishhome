@@ -1,0 +1,22 @@
+{
+  "id": "garden_fence",
+  "name": {
+    "zh": "栅栏",
+    "en": "garden_fence"
+  },
+  "type": "furniture",
+  "parts": [
+    {
+      "id": "body",
+      "z": 85,
+      "sprite": {
+        "rect": [
+          547,
+          325,
+          240,
+          110
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,92 @@
+{
+  "id": "garden",
+  "name": {
+    "zh": "花园",
+    "en": "Garden"
+  },
+  "room": {
+    "cols": 14,
+    "rows": 10,
+    "wallHeight": 60,
+    "canvas": [
+      1200,
+      502
+    ],
+    "margin": {
+      "x": 24,
+      "top": 4
+    },
+    "projection": 0.375,
+    "camera": {
+      "mode": "fixed"
+    }
+  },
+  "spots": {
+    "center": {
+      "fx": 7,
+      "fy": 5
+    },
+    "bench": {
+      "fx": 3.5,
+      "fy": 3.2
+    },
+    "tree": {
+      "fx": 10.5,
+      "fy": 2.4
+    },
+    "flowers": {
+      "fx": 5,
+      "fy": 7.2
+    }
+  },
+  "spawn": [
+    7,
+    5
+  ],
+  "furniture": [
+    "garden_path",
+    "garden_bench",
+    "garden_tree",
+    "garden_flowers",
+    "garden_fence"
+  ],
+  "events": [
+    "idle",
+    "stretch",
+    "play"
+  ],
+  "controls": [
+    {
+      "kind": "event",
+      "id": "stretch",
+      "label": {
+        "zh": "伸个懒腰",
+        "en": "Stretch"
+      }
+    },
+    {
+      "kind": "event",
+      "id": "play",
+      "label": {
+        "zh": "玩一会儿",
+        "en": "Play"
+      }
+    },
+    {
+      "kind": "event",
+      "id": "idle",
+      "label": {
+        "zh": "发会儿呆",
+        "en": "Space out"
+      }
+    },
+    {
+      "kind": "reset",
+      "label": {
+        "zh": "回到中间",
+        "en": "Back to centre"
+      }
+    }
+  ],
+  "characterHeight": 200
+}

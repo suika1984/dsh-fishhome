@@ -1,0 +1,78 @@
+{
+  "id": "doze45",
+  "name": "摸鱼打盹(45°)",
+  "tags": [
+    "doze",
+    "doze45",
+    "sleepy"
+  ],
+  "asset": "sheet45",
+  "frames": [
+    {
+      "rect": [
+        0,
+        0,
+        233,
+        331
+      ],
+      "durationMs": 640
+    },
+    {
+      "rect": [
+        233,
+        0,
+        233,
+        331
+      ],
+      "durationMs": 480
+    },
+    {
+      "rect": [
+        466,
+        0,
+        233,
+        331
+      ],
+      "durationMs": 640
+    },
+    {
+      "rect": [
+        699,
+        0,
+        233,
+        331
+      ],
+      "durationMs": 480
+    },
+    {
+      "rect": [
+        932,
+        0,
+        233,
+        331
+      ],
+      "durationMs": 640
+    },
+    {
+      "rect": [
+        1165,
+        0,
+        233,
+        331
+      ],
+      "durationMs": 480
+    }
+  ],
+  "loop": true,
+  "cell": [
+    233,
+    331
+  ],
+  "bubble": {
+    "src": "bubble-bed.png",
+    "size": 118,
+    "dx": 42,
+    "dy": 6,
+    "aspect": 0.8
+  }
+}

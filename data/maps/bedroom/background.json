@@ -1,0 +1,114 @@
+{
+  "layers": [
+    {
+      "id": "floor",
+      "kind": "floor",
+      "tile": {
+        "art": "floor-1.png",
+        "size": [
+          3,
+          3
+        ],
+        "repeat": "uv"
+      },
+      "fill": {
+        "type": "linear",
+        "angle": 90,
+        "stops": [
+          {
+            "at": 0,
+            "color": "#f6ead6"
+          },
+          {
+            "at": 1,
+            "color": "#e9d7ba"
+          }
+        ]
+      },
+      "grid": {
+        "color": "#b99a76",
+        "opacity": 0.1,
+        "step": 1
+      }
+    },
+    {
+      "id": "wall_left",
+      "kind": "wall",
+      "side": "fx0",
+      "tile": {
+        "art": "wall-whale.png",
+        "size": [
+          3,
+          70
+        ],
+        "repeat": "u"
+      },
+      "fill": {
+        "type": "linear",
+        "angle": 27,
+        "stops": [
+          {
+            "at": 0,
+            "color": "#fbf1e2"
+          },
+          {
+            "at": 1,
+            "color": "#f2e4d0"
+          }
+        ]
+      },
+      "trim": {
+        "top": {
+          "color": "#7d5a3c",
+          "height": 22
+        },
+        "base": {
+          "color": "#e2d0b4",
+          "height": 10
+        }
+      }
+    },
+    {
+      "id": "wall_right",
+      "kind": "wall",
+      "side": "fy0",
+      "tile": {
+        "art": "wall-whale.png",
+        "size": [
+          3,
+          70
+        ],
+        "repeat": "u"
+      },
+      "fill": {
+        "type": "linear",
+        "angle": 27,
+        "stops": [
+          {
+            "at": 0,
+            "color": "#fdf6ea"
+          },
+          {
+            "at": 1,
+            "color": "#f4e6d2"
+          }
+        ]
+      },
+      "trim": {
+        "top": {
+          "color": "#6a4c32",
+          "height": 22
+        },
+        "base": {
+          "color": "#e8d8bd",
+          "height": 10
+        }
+      }
+    }
+  ],
+  "renderOrder": [
+    "floor",
+    "wall_left",
+    "wall_right"
+  ]
+}

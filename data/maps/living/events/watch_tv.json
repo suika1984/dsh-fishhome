@@ -1,0 +1,52 @@
+{
+  "kind": "autonomous",
+  "duration": [
+    120,
+    240
+  ],
+  "cooldown": 300,
+  "weight": {
+    "base": 0.6,
+    "mods": [
+      {
+        "when": "energyHigh",
+        "mul": 1.5
+      },
+      {
+        "when": "energyUnder35",
+        "mul": 0.3
+      },
+      {
+        "when": "night",
+        "mul": 1.4
+      }
+    ]
+  },
+  "id": "watch_tv",
+  "label": {
+    "zh": "看电视",
+    "en": "Watch TV"
+  },
+  "spot": "sofa",
+  "anim": "lounge45",
+  "log": "watch_tv",
+  "onTick": {
+    "energy": -0.004,
+    "mood": 0.02
+  },
+  "say": {
+    "chance": 0.5,
+    "lines": [
+      {
+        "zh": "这个节目好有意思",
+        "en": "This show is fun"
+      },
+      {
+        "zh": "咦，演到哪了？",
+        "en": "Wait, what happened?"
+      }
+    ]
+  },
+  "anchor": "sofa:sit",
+  "request": null
+}

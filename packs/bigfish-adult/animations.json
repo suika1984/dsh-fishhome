@@ -1,0 +1,391 @@
+[
+  {
+    "id": "fish:idle",
+    "name": "idle",
+    "tags": [
+      "idle"
+    ],
+    "frames": [
+      {
+        "asset": "sheet",
+        "rect": [
+          0,
+          0,
+          192,
+          205
+        ],
+        "durationMs": 420
+      },
+      {
+        "asset": "sheet",
+        "rect": [
+          192,
+          0,
+          192,
+          205
+        ],
+        "durationMs": 420
+      },
+      {
+        "asset": "sheet",
+        "rect": [
+          384,
+          0,
+          192,
+          205
+        ],
+        "durationMs": 520
+      },
+      {
+        "asset": "sheet",
+        "rect": [
+          192,
+          0,
+          192,
+          205
+        ],
+        "durationMs": 420
+      },
+      {
+        "asset": "sheet",
+        "rect": [
+          768,
+          0,
+          192,
+          205
+        ],
+        "durationMs": 420
+      }
+    ],
+    "loop": true
+  },
+  {
+    "id": "fish:read",
+    "name": "看书",
+    "tags": [
+      "read",
+      "reading"
+    ],
+    "frames": [
+      {
+        "asset": "sheet",
+        "rect": [
+          960,
+          0,
+          192,
+          205
+        ],
+        "durationMs": 900
+      },
+      {
+        "asset": "sheet",
+        "rect": [
+          0,
+          0,
+          192,
+          205
+        ],
+        "durationMs": 700
+      }
+    ],
+    "loop": true
+  },
+  {
+    "id": "fish:sit",
+    "name": "坐着",
+    "tags": [
+      "sit",
+      "sit_idle"
+    ],
+    "frames": [
+      {
+        "asset": "sheet",
+        "rect": [
+          0,
+          205,
+          192,
+          205
+        ],
+        "durationMs": 900
+      },
+      {
+        "asset": "sheet",
+        "rect": [
+          192,
+          205,
+          192,
+          205
+        ],
+        "durationMs": 900
+      },
+      {
+        "asset": "sheet",
+        "rect": [
+          384,
+          205,
+          192,
+          205
+        ],
+        "durationMs": 900
+      },
+      {
+        "asset": "sheet",
+        "rect": [
+          576,
+          205,
+          192,
+          205
+        ],
+        "durationMs": 900
+      }
+    ],
+    "loop": true
+  },
+  {
+    "id": "fish:work",
+    "name": "用电脑",
+    "tags": [
+      "work",
+      "working",
+      "typing"
+    ],
+    "frames": [
+      {
+        "asset": "sheet",
+        "rect": [
+          768,
+          820,
+          192,
+          205
+        ],
+        "durationMs": 760
+      },
+      {
+        "asset": "sheet",
+        "rect": [
+          768,
+          820,
+          192,
+          205
+        ],
+        "durationMs": 760
+      }
+    ],
+    "loop": true
+  },
+  {
+    "id": "fish:play",
+    "name": "玩",
+    "tags": [
+      "play",
+      "success",
+      "happy"
+    ],
+    "frames": [
+      {
+        "asset": "sheet",
+        "rect": [
+          768,
+          615,
+          192,
+          205
+        ],
+        "durationMs": 420
+      },
+      {
+        "asset": "sheet",
+        "rect": [
+          960,
+          615,
+          192,
+          205
+        ],
+        "durationMs": 420
+      }
+    ],
+    "loop": true
+  },
+  {
+    "id": "fish:stretch",
+    "name": "伸懒腰",
+    "tags": [
+      "stretch",
+      "greeting",
+      "wave"
+    ],
+    "frames": [
+      {
+        "asset": "sheet",
+        "rect": [
+          768,
+          205,
+          192,
+          205
+        ],
+        "durationMs": 520
+      },
+      {
+        "asset": "sheet",
+        "rect": [
+          960,
+          205,
+          192,
+          205
+        ],
+        "durationMs": 520
+      }
+    ],
+    "loop": true
+  },
+  {
+    "id": "fish:sleep",
+    "name": "睡觉",
+    "tags": [
+      "sleep"
+    ],
+    "frames": [
+      {
+        "asset": "sheet",
+        "rect": [
+          0,
+          615,
+          192,
+          205
+        ],
+        "durationMs": 1100
+      },
+      {
+        "asset": "sheet",
+        "rect": [
+          192,
+          615,
+          192,
+          205
+        ],
+        "durationMs": 1100
+      }
+    ],
+    "loop": true
+  },
+  {
+    "id": "fish:inbed",
+    "name": "躺床上",
+    "tags": [
+      "inbed",
+      "in_bed"
+    ],
+    "frames": [
+      {
+        "asset": "sheet",
+        "rect": [
+          576,
+          820,
+          192,
+          205
+        ],
+        "durationMs": 1100
+      },
+      {
+        "asset": "sheet",
+        "rect": [
+          1152,
+          820,
+          192,
+          205
+        ],
+        "durationMs": 1100
+      }
+    ],
+    "loop": true
+  },
+  {
+    "id": "fish:hug",
+    "name": "抱鲸鱼",
+    "tags": [
+      "hug"
+    ],
+    "frames": [
+      {
+        "asset": "sheet",
+        "rect": [
+          1344,
+          410,
+          192,
+          205
+        ],
+        "durationMs": 1200
+      },
+      {
+        "asset": "sheet",
+        "rect": [
+          1344,
+          820,
+          192,
+          205
+        ],
+        "durationMs": 1200
+      }
+    ],
+    "loop": true
+  },
+  {
+    "id": "fish:eat",
+    "name": "吃东西",
+    "tags": [
+      "eat"
+    ],
+    "frames": [
+      {
+        "asset": "sheet",
+        "rect": [
+          0,
+          820,
+          192,
+          205
+        ],
+        "durationMs": 900
+      },
+      {
+        "asset": "sheet",
+        "rect": [
+          0,
+          820,
+          192,
+          205
+        ],
+        "durationMs": 900
+      }
+    ],
+    "loop": true
+  },
+  {
+    "id": "fish:back",
+    "name": "背影",
+    "tags": [
+      "back"
+    ],
+    "frames": [
+      {
+        "asset": "sheet",
+        "rect": [
+          1152,
+          0,
+          192,
+          205
+        ],
+        "durationMs": 700
+      },
+      {
+        "asset": "sheet",
+        "rect": [
+          1344,
+          0,
+          192,
+          205
+        ],
+        "durationMs": 700
+      }
+    ],
+    "loop": true
+  }
+]

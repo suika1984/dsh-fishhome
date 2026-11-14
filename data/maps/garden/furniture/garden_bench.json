@@ -1,0 +1,22 @@
+{
+  "id": "garden_bench",
+  "name": {
+    "zh": "长椅",
+    "en": "garden_bench"
+  },
+  "type": "furniture",
+  "parts": [
+    {
+      "id": "body",
+      "z": 70,
+      "sprite": {
+        "rect": [
+          418,
+          65,
+          200,
+          120
+        ]
+      }
+    }
+  ]
+}

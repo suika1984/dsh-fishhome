@@ -1,0 +1,29 @@
+{
+  "id": "hug",
+  "name": "抱鲸鱼",
+  "tags": [
+    "hug"
+  ],
+  "asset": "sheet",
+  "frames": [
+    {
+      "rect": [
+        2051,
+        450,
+        293,
+        225
+      ],
+      "durationMs": 1200
+    },
+    {
+      "rect": [
+        2051,
+        900,
+        293,
+        225
+      ],
+      "durationMs": 1200
+    }
+  ],
+  "loop": true
+}

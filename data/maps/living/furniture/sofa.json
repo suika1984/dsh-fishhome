@@ -1,0 +1,76 @@
+{
+  "id": "sofa",
+  "name": {
+    "zh": "沙发"
+  },
+  "type": "furniture",
+  "parts": [
+    {
+      "id": "body",
+      "z": 82,
+      "sprite": {
+        "src": "living-sofa.png",
+        "rect": [
+          602.4589416080908,
+          447.9157285567637,
+          360,
+          239
+        ]
+      }
+    }
+  ],
+  "click": {
+    "type": "event",
+    "id": "sit"
+  },
+  "animations": [
+    {
+      "id": "sit",
+      "animation": "lounge45",
+      "event": "sit",
+      "position": {
+        "x": 0.5,
+        "y": 0.6200000000000001
+      },
+      "pivot": [
+        0,
+        -46
+      ],
+      "facing": "front",
+      "pose": "sit",
+      "renderLayer": "behind_furniture"
+    },
+    {
+      "id": "doze",
+      "animation": "doze45",
+      "event": "nap",
+      "position": {
+        "x": 0.52,
+        "y": 0.6000000000000001
+      },
+      "pivot": [
+        0,
+        -42
+      ],
+      "facing": "front",
+      "pose": "sit",
+      "renderLayer": "behind_furniture"
+    },
+    {
+      "id": "lie",
+      "animation": "sleep",
+      "event": "sofa_play",
+      "position": {
+        "x": 0.46,
+        "y": 0.56
+      },
+      "pivot": [
+        0,
+        -34
+      ],
+      "facing": "front_left",
+      "pose": "lie",
+      "renderLayer": "behind_furniture"
+    }
+  ]
+}

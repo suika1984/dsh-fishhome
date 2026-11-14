@@ -1,0 +1,30 @@
+{
+  "id": "read",
+  "name": "看书",
+  "tags": [
+    "read",
+    "reading"
+  ],
+  "asset": "sheet",
+  "frames": [
+    {
+      "rect": [
+        1465,
+        0,
+        293,
+        225
+      ],
+      "durationMs": 900
+    },
+    {
+      "rect": [
+        0,
+        0,
+        293,
+        225
+      ],
+      "durationMs": 700
+    }
+  ],
+  "loop": true
+}

@@ -1,0 +1,78 @@
+{
+  "id": "bed",
+  "name": {
+    "zh": "床",
+    "en": "Bed"
+  },
+  "type": "furniture",
+  "parts": [
+    {
+      "id": "frame",
+      "z": 85,
+      "sprite": {
+        "src": "bed-frame.png",
+        "rect": [
+          451,
+          196,
+          410,
+          319
+        ],
+        "rotate": 2.6,
+        "flipX": true
+      },
+      "group": "bed"
+    },
+    {
+      "id": "quilt",
+      "z": 88,
+      "sprite": {
+        "src": "quilt.png",
+        "rect": [
+          453,
+          281,
+          330,
+          196
+        ],
+        "flipX": true,
+        "rotate": 3
+      },
+      "group": "bed"
+    }
+  ],
+  "click": {
+    "type": "event",
+    "id": "nap"
+  },
+  "animations": [
+    {
+      "id": "sleep",
+      "animation": "sleep",
+      "position": {
+        "x": 0.64,
+        "y": 0.5
+      },
+      "pivot": [
+        0,
+        0
+      ],
+      "facing": "front_left",
+      "pose": "sleep",
+      "renderLayer": "on_furniture"
+    },
+    {
+      "id": "nap",
+      "animation": "sleep",
+      "position": {
+        "x": 0.64,
+        "y": 0.5
+      },
+      "pivot": [
+        0,
+        0
+      ],
+      "facing": "front_left",
+      "pose": "sleep",
+      "renderLayer": "on_furniture"
+    }
+  ]
+}

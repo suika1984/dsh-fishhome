@@ -1,0 +1,1 @@
+{"id":"work","label":{"zh":"写字"},"kind":"autonomous","spot":"table","anim":"work","duration":[240,480],"log":"work","cooldown":180,"onTick":{"energy":-0.005,"mood":0.002},"weight":null,"say":{"chance":0.45,"lines":[{"zh":"开始干活咯～","en":"Time to work~"},{"zh":"键盘好吵…","en":"This keyboard is loud..."},{"zh":"摸鱼一下下","en":"Quick break~"}]},"anchor":"desk:sit","request":null}

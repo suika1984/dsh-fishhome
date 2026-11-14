@@ -1,0 +1,51 @@
+{
+  "id": "sofa_play",
+  "label": {
+    "zh": "在沙发上玩",
+    "en": "Play on sofa"
+  },
+  "kind": "autonomous",
+  "spot": "sofa",
+  "anchor": "sofa:sit",
+  "anim": "lounge45",
+  "duration": [
+    90,
+    200
+  ],
+  "log": "sofa_play",
+  "cooldown": 240,
+  "onTick": {
+    "mood": 0.02,
+    "energy": -0.006
+  },
+  "weight": {
+    "base": 0.5,
+    "mods": [
+      {
+        "when": "energyHigh",
+        "mul": 2.2
+      },
+      {
+        "when": "energyUnder35",
+        "mul": 0.05
+      },
+      {
+        "when": "evening",
+        "mul": 1.3
+      }
+    ]
+  },
+  "say": {
+    "chance": 0.5,
+    "lines": [
+      {
+        "zh": "再玩一会儿～",
+        "en": "One more round~"
+      },
+      {
+        "zh": "手柄真好玩",
+        "en": "This controller is fun"
+      }
+    ]
+  }
+}

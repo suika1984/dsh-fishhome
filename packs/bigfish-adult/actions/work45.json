@@ -1,0 +1,79 @@
+{
+  "id": "work45",
+  "name": "书桌工作(45°)",
+  "tags": [
+    "work",
+    "working",
+    "typing",
+    "work45"
+  ],
+  "asset": "sheet45",
+  "frames": [
+    {
+      "rect": [
+        0,
+        331,
+        233,
+        331
+      ],
+      "durationMs": 640
+    },
+    {
+      "rect": [
+        233,
+        331,
+        233,
+        331
+      ],
+      "durationMs": 480
+    },
+    {
+      "rect": [
+        466,
+        331,
+        233,
+        331
+      ],
+      "durationMs": 640
+    },
+    {
+      "rect": [
+        699,
+        331,
+        233,
+        331
+      ],
+      "durationMs": 480
+    },
+    {
+      "rect": [
+        932,
+        331,
+        233,
+        331
+      ],
+      "durationMs": 640
+    },
+    {
+      "rect": [
+        1165,
+        331,
+        233,
+        331
+      ],
+      "durationMs": 480
+    }
+  ],
+  "loop": true,
+  "cell": [
+    233,
+    331
+  ],
+  "bubble": {
+    "src": "bubble-laptop.png",
+    "size": 118,
+    "dx": 46,
+    "dy": 4,
+    "aspect": 0.77
+  }
+}

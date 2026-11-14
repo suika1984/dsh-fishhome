@@ -1,0 +1,78 @@
+{
+  "id": "lounge45",
+  "name": "沙发玩耍(45°)",
+  "tags": [
+    "lounge",
+    "lounge45",
+    "sofa"
+  ],
+  "asset": "sheet45",
+  "frames": [
+    {
+      "rect": [
+        0,
+        662,
+        233,
+        331
+      ],
+      "durationMs": 640
+    },
+    {
+      "rect": [
+        233,
+        662,
+        233,
+        331
+      ],
+      "durationMs": 480
+    },
+    {
+      "rect": [
+        466,
+        662,
+        233,
+        331
+      ],
+      "durationMs": 640
+    },
+    {
+      "rect": [
+        699,
+        662,
+        233,
+        331
+      ],
+      "durationMs": 480
+    },
+    {
+      "rect": [
+        932,
+        662,
+        233,
+        331
+      ],
+      "durationMs": 640
+    },
+    {
+      "rect": [
+        1165,
+        662,
+        233,
+        331
+      ],
+      "durationMs": 480
+    }
+  ],
+  "loop": true,
+  "cell": [
+    233,
+    331
+  ],
+  "bubble": {
+    "src": "bubble-game.png",
+    "size": 118,
+    "dx": 48,
+    "dy": 4,
+    "aspect": 0.748
+  }
+}

@@ -1,0 +1,1 @@
+{"id":"play","label":{"zh":"玩鲸鱼"},"kind":"autonomous","spot":"table","anim":"play","duration":[60,120],"log":"play","cooldown":300,"onTick":{"energy":-0.02,"satiety":-0.008,"mood":0.035},"weight":null,"say":{"chance":0.5,"lines":[{"zh":"鲸鱼先生，出发！","en":"Let's go, Mr. Whale!"},{"zh":"接住你啦！","en":"Gotcha!"}]},"request":null}

@@ -1,0 +1,30 @@
+{
+  "id": "snack",
+  "label": {
+    "zh": "吃东西"
+  },
+  "kind": "autonomous",
+  "spot": "desk",
+  "anim": "eat_snack",
+  "duration": [
+    30,
+    50
+  ],
+  "log": "snack",
+  "cooldown": 600,
+  "onTick": {
+    "satiety": 0.9,
+    "mood": 0.02
+  },
+  "weight": null,
+  "say": {
+    "chance": 0.4,
+    "lines": [
+      {
+        "zh": "饿死啦～",
+        "en": "So hungry~"
+      }
+    ]
+  },
+  "request": null
+}

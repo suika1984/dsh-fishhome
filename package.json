@@ -1,0 +1,43 @@
+{
+  "name": "dsh-fishhome",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "大肥鱼的家园：一间会跟着现实时间过日子的小屋。",
+  "license": "MIT",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "build.mjs",
+    "src",
+    "data",
+    "docs",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "packs/bigfish-adult"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node test/model.test.js && node test/host.test.js && node test/ui.test.js && node test/mount.test.js"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-locale"
+      ]
+    }
+  }
+}

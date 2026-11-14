@@ -1,0 +1,342 @@
+# dsh-fishhome · 大肥鱼的家园
+
+给大肥鱼一间**跟着现实时间过日子**的小屋：它会自己发呆、看书、敲键盘、和小鲸鱼玩、按季节和时段换心情，也会在没人看的时候打盹。你打开 Harness 时，看到的是它「这段时间自己过到了哪一步」。
+
+它是 DSH Web 界面里的一个侧边栏面板（和「插件」「日程」并列），不是独立窗口，也不是网页。
+
+> 数据结构正在从「写在代码里」迁到「定义 / 状态 / 派生」三层，规范见 [docs/SCHEMA.md](docs/SCHEMA.md)。当前 `client.js` 仍是写死版本，迁移按文档第 9 节分四步走。
+
+---
+
+## 这间屋子
+
+起因很简单：在自己的大肥鱼那里，看到了群友发的一张「凝凝小屋」的图，一下子就想要一个属于自己的。既然没有现成的，那就自己动手做一个——于是有了这间参考那张图、再配上一份像素卧室效果图搭出来的等距卧室。
+
+现在房间里是：**地面 12 × 12 格**，奶油色墙 + 木梁，左墙一扇窗（窗帘可拉），窗下书桌（笔记本 / 台灯 / 书 / 马克杯），右侧一张大床（**像素风素材**：原木床架、鲸鱼海浪被、床头小鲸鱼玩偶；有**有人 / 无人**两种状态，睡觉时自动换成「钻进被子里」的那张），床边**床头灯**（素材里的抽屉小柜 + 台灯），左前书架，右前绿植，床前地毯，墙上三幅画和一只钟。
+
+房间尺寸和三层背景已经搬进 `data/maps/bedroom/`（见下面「场景数据」一节），现在是 **12 × 12 格、墙高 280、投影比 0.375、画布 1000 × 643**，几何由 `scene.json` 的 `cols/rows/wallHeight/canvas/margin` 推导，不用手算坐标；床和床头灯这两张**素材图**仍是屏幕坐标，改房间比例时要重算 `BED_ART` / `NIGHT_LAMP` 的 `x/y`。
+
+整场画在**同一个 SVG** 里，所有件按 `z` 升序绘制：窗口 -100、挂画 -90、地毯 5、光斑 6、书桌 70、书架 80、床 85、床头柜 95、**角色固定 100**、前景绿植 120、夜色叠加 10000。角色也在 SVG 内（用嵌套 `viewBox` 从精灵图裁当前帧），所以能被 z 更高的家具部件盖住。z 现在集中写在 `client.js` 的 `SCENE_Z`，家具拆 `parts[]` 之后改成从数据读。
+
+床是素材图 `packs/bigfish-adult/bed.png`（从参考图里抠掉白底、裁成单张、镜像后当立牌），由 `/fishhome/pack/bed.png` 提供；换床只要替换这个文件。
+
+书桌上的台灯还是矢量画的（灯杆 + 灯罩）；**床头灯**是两张素材图 `lamp-off.png` / `lamp-on.png`（同一张精灵图里的左右两态，抠掉棋盘格底、按同一轮廓裁齐），开关时 200ms 交叉淡入，并叠一层暖色光晕。位置/大小在 `client.js` 的 `NIGHT_LAMP = { x, y, width, height }`。
+
+床和床头灯都做了一点切变（`skew`）：房间地面线的角度是 ±26.6°，素材自带的透视和它对不上，所以用 `skewY` 把床沿、灯座底边拉到跟墙脚线一致（`BED_ART.skew = -0.14`、`NIGHT_LAMP.skew = 0.1`）。
+
+想加新家具素材：把 PNG 放进 `packs/bigfish-adult/`，在 `client.js` 里加一个 `<image href={...}>`（等距场景是 1000×700 的坐标系），文件会通过 `/fishhome/pack/<文件名>` 直接可取，不用重启 Harness。
+
+睡觉时角色会藏起来，床压暗一点、上方飘 Zzz，表示她已经钻进被子里了。
+
+## 现在能做到什么
+
+- **独立面板**：侧边栏出现「家园」图标，点开是等距视角的小屋。
+- **本地生活模拟**：9 种行为（发呆 / 看书 / 敲键盘 / 看窗外 / 玩耍 / 伸懒腰 / 吃零食 / 打盹 / 睡觉），由需求（精力、饱腹、心情）+ 时段 + 季节 + 家具状态共同决定，不需要 LLM 参与。
+- **跟随现实时间**：时间、季节、昼夜光变化直接来自系统时钟；屋里灯亮不亮、窗外什么光，都跟着真实时间走。
+- **可交互的屋子**：点书桌、书架、床、台灯、窗帘、小鲸鱼都有反应；底部一排开关控制台灯 / 床头灯 / 窗帘。
+- **存档与离线结算**：每 9 秒批量落盘到 `%DSH_HOME%/fishhome/saves/state.json`，关掉 Harness 再回来会按时间差粗粒度补算，并写进「屋子里的动静」。
+
+## 安装
+
+插件是 `D:\dschat\dsh-fishhome` 这个目录（已经通过 Plugin Manager 装进 `desktop` profile）：
+
+```powershell
+dsh plugin install D:\dschat\dsh-fishhome
+```
+
+或者在 Harness 里用 Plugin Manager 以「本地目录」安装。装好后刷新页面，侧边栏就有「家园」。
+
+## 配置
+
+`cordis.patch.yml` 里是默认值；想改就在自己 profile 的 `cordis.patch.yml` 里用同一个 `id` 覆盖：
+
+```yaml
+- id: fishhome
+  name: dsh-fishhome
+  config:
+    characterName: 大肥鱼          # 房间里显示的名字
+    tickSeconds: 15               # 模拟步长（5–600）
+    packDir: ''                   # 角色包目录；留空 = 包内 packs/bigfish-adult
+    saveDir: ''                   # 存档目录；留空 = <DSH_HOME>/fishhome/saves
+```
+
+## 为什么长这样
+
+概念文档（`D:\download\大肥鱼家园-dsh-fishhome.md`）里的几条硬约束，在这个实现里是这样落的：
+
+| 文档里的原则 | 这里的落点 |
+| --- | --- |
+| 模拟逻辑与表现层分离 | `BEHAVIORS` 只产出语义动作（`read` / `work` / `sleep`），由角色包把标签映射成帧；换图不改逻辑 |
+| 本地规则优先 | `pickBehavior()` 是加权效用选择，纯函数、可测；LLM 完全不参与每次行动 |
+| 稳定 ID 与资源解耦 | 物件 ID（`deskLamp` / `curtainOpen`）、行为 ID、动画标签三层分开 |
+| 世界状态 / 角色状态分层 | `home.world`（季节、时段、室内温度、物件开关）与 `home.character`（需求、当前行为、冷却）分开存 |
+| 存档只存事实 | 只存时间戳、开关、需求和日志；光照、季节、行为权重都是读档后重算 |
+| 时间渐变而非整点硬切 | 用 `daylight(hour)`、`sleepiness(hour)` 连续函数影响权重，不是「22 点必须睡」 |
+| 离线结算有上限 | 最多补 12 小时，5 分钟一步、最多 220 步，避免长时间离线后出现离谱状态 |
+| 事件先入总线再决定 | 交互统一走 `store.interact()` / `toggleProp()`，由模拟层决定要不要打断当前行为 |
+
+## 目录
+
+```
+dsh-fishhome/
+├── package.json          # bundle 清单 + dsh.client 声明
+├── cordis.patch.yml      # 默认配置
+├── index.js              # Host 半：存档读写 + 角色包 / data 路由（GET + POST 写回）
+├── build.mjs             # 把 src/ 拼成 client.js（浏览器只认单文件）
+├── src/                  # Client 半源码
+│   ├── env.js            #   常量
+│   ├── model.js          #   纯模型：时间 / 需求 / 调度 / 离线结算 / 动画映射
+│   ├── store.js          #   存档读写 + HomeStore + 编辑器写入
+│   ├── scene.js          #   等距场景：几何、背景、家具、角色、合成
+│   ├── ui.js             #   面板组件 + 多语言 + 编辑模式
+│   ├── styles.js         #   样式
+│   └── index.js          #   插件入口
+├── client.js             # 生成物，别直接改
+├── data/                 # 场景定义（scene.json / background.json / furniture/）
+├── docs/SCHEMA.md        # 数据规范
+├── locale/{zh,en}.json   # 插件管理页显示的标题/描述
+├── icon.svg              # 插件图标（侧边栏用 currentColor 跟随主题）
+├── packs/bigfish-adult/  # 默认角色包 + 家具素材
+└── test/                 # 纯模型 / Host 路由 / 界面树的自测
+```
+
+改代码只改 `src/`，然后：
+
+```powershell
+node build.mjs      # 重新生成 client.js（插件加载的是它）
+node test/ui.test.js
+```
+
+## 接口（Host）
+
+同一源下的只读/存档接口，都在 `/fishhome` 前缀下：
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/fishhome/api/meta` | 角色包信息、存档目录、步长、当前地图 |
+| GET | `/fishhome/api/pack-files` | 角色包目录里可用的图片清单（编辑器换图用） |
+| GET | `/fishhome/api/state` | 读存档（没有则 `state: null`） |
+| POST | `/fishhome/api/state` | 写存档（只接受本插件形状，原子替换） |
+| DELETE | `/fishhome/api/state` | 清档 |
+| GET | `/fishhome/pack/<file>` | 角色包里的图片 / JSON（限平铺文件名，防目录穿越） |
+| GET | `/fishhome/data/<path>` | `data/` 下的场景定义（允许子目录，挡 `..`，只放 json/图片，`no-store`） |
+| POST | `/fishhome/data/<path>.json` | 编辑器写回：只收 `.json`，原子写盘 |
+| DELETE | `/fishhome/data/<path>.json` | 编辑器删除：只删 `.json`，删不存在的返回 404 |
+
+## 场景数据（data/）
+
+房间的尺寸、三层背景和落脚点已经搬进数据文件，改完刷新就能看到（定义文件不缓存）：
+
+```text
+data/maps/bedroom/
+├── scene.json       # cols/rows/wallHeight/canvas/margin、spots、spawn、furniture / events 清单
+├── background.json  # floor / wall_left / wall_right 三层：fill、grid、trim
+├── furniture/       # 一件一个文件：window / rug / desk / shelf / bed / night_lamp / plant / wall_decor
+└── events/          # 一个事件一个文件：idle / read / work / window / play / stretch / snack / nap / sleep
+```
+
+**窗户是「数据 + 叠加」的**：`window.json` 里 5 个 part —— 白天/黄昏/夜里三张窗户图（按 `visibleWhen.period` 切换）+ 开着/拉上两套窗帘（按 `curtainOpen` 切换）。窗帘的 `z` 比窗户高，所以是**叠在窗户上面**画的；两套窗帘属于同一件家具、同一个点击开关，所以对用户来说就是「一个整体」。
+
+**墙高只有一处**：`scene.json` 的 `room.wallHeight`。背景层（`background.json` 的 wall）不写 `height` 就继承它——写死会造成「地面跟着墙走、墙面没变」的错位。
+
+- **几何推导**：`kx = (canvas宽 - 2×margin.x) / (cols + rows)`，`ky = kx × projection`（默认 0.5 是标准 2:1 等距，0.43 更接近参考图的俯视角度），`cx = margin.x + rows×kx`，`cy = margin.top + wallHeight`。改 `cols/rows` 或 `canvas` 会自动重新贴合，不用手算坐标。
+- **背景三层**：每层认 `fill`（渐变色底）+ `grid`（地板格线）+ `trim`（顶部木梁 / 踢脚线）+ **`tile.art`（平铺贴图）**。贴图是「正面视角」的瓷砖/墙纸，渲染时用 SVG `<pattern>` 按等距轴斜切后重复铺满：地板 `size` 是「几格 × 几格」，墙面 `size` 是「几格宽 × 多少像素高」。现在地板用 `floor-1.png`（木地板，3×3 格一铺），两面墙用 `wall-whale.png`（鲸鱼墙纸，3 格宽 × 70px 高）；贴图加载失败会自动落回渐变底色。
+- **家具**：`parts[]` 里每一项是一个「绘制件」，自带 `z`（越大越靠前）。`sprite` 是贴图，`preset` 是代码里的矢量画法（书桌/书架/地毯/绿植/床头灯）。`offset` 用格子数整体挪动，`visibleWhen` 按状态或角色当前事件决定画不画。
+- **事件**：`spot` 是去哪、`anim` 播什么、`duration` 是秒、`onTick` 是每秒对精力/饱腹/心情的影响、`cooldown` 是冷却秒数、`log` 是日志代号。家具还能声明**互动物锚点**（`animations`），事件写 `"anchor": "bed:sleep"` 就把角色摆到床上、换个朝向和动画；没写锚点的事件仍走 `spot`。`say` 是进入事件时的台词（`chance` 概率 + `lines`），点家具时还会先朝那边**偏一下头**。`request` 只对「用户点出来的事件」生效：`accept` 列条件（命中任一就答应，比如睡觉要 `night` 或 `energyLow`），不满足就冒一句 `refuse.lines` 的台词、动作沿用当前的（或按 `refuse.anim` 临时播一个）。`weight` 可选：写了就是 `base × mods`（`mods[].when` 用固定词汇表，如 `moodLow` / `hungry` / `night`），没写就用内置的旧公式。
+- **按时间段换图**：part 的 `visibleWhen.period` 可以列出允许的时间段（`morning` / `noon` / `afternoon` / `dawn` / `evening` / `night` / `deepNight`），窗户就是靠这个在白天/黄昏/夜里换三张图。
+- **没图也能跑**：`sprite` 缺 `src`、`rect` 无效、图片 404，都会画成「半透明填色 + 虚线框 + 文字」的占位块（文字是 `家具id:partid`，下面小字写原因：缺图 / rect 无效 / 图片加载失败），`preset` 写错也会出占位块。角色包缺失时角色本身也退成占位块，面板照常工作。
+- **读不到就回退**：`scene.json` / 家具 / 事件文件请求失败时用内置默认值，面板不会挂；坏掉一件只跳过那一件。
+
+```jsonc
+// background.json 抠一段
+{
+  "layers": [
+    { "id": "floor", "kind": "floor",
+      "fill": { "type": "linear", "angle": 90, "stops": [
+        { "at": 0, "color": "#ddcaac" }, { "at": 1, "color": "#c9b18d" } ] },
+      "grid": { "color": "#b89f7c", "opacity": 0.35, "step": 1 } },
+    { "id": "wall_left", "kind": "wall", "side": "fx0", "height": 175,
+      "fill": { "type": "linear", "angle": 27, "stops": [
+        { "at": 0, "color": "#efe0cb" }, { "at": 1, "color": "#ead9c2" } ] },
+      "trim": { "top": { "color": "#8a6748", "height": 18 },
+                "base": { "color": "#c4a887", "height": 9 } } }
+  ],
+  "renderOrder": ["floor", "wall_left", "wall_right"]
+}
+```
+
+`cordis.patch.yml` 里的 `map`（默认 `bedroom`）决定读 `data/maps/<map>/scene.json`。
+
+## 光照
+
+整间屋子分两层画：
+
+1. **场景层**：所有家具、角色，按 `z` 从后往前画
+2. **环境光**：一个铺满画布的矩形，颜色是暖棕、混合方式是 `multiply`，把整间屋子压暗——**它盖在所有东西上面**
+3. **光源层**：灯、屏幕这类「自己会发光」的件，画在环境光**之上**（`mix-blend-mode: screen`），所以夜里它们是亮的，不会被压暗
+
+颜色和浓度都在 CSS 里：
+
+```css
+/* 色调按时间段走，写在样式里；夜里是暖棕，不是发蓝 */
+.fh-stage[data-period="morning"],
+.fh-stage[data-period="noon"],
+.fh-stage[data-period="afternoon"] { --fh-ambient-tint: #3a3050; }
+.fh-stage[data-period="dawn"],
+.fh-stage[data-period="evening"]   { --fh-ambient-tint: #4d3040; }
+.fh-stage[data-period="night"]     { --fh-ambient-tint: #2c1f2b; }
+.fh-stage[data-period="deepNight"] { --fh-ambient-tint: #1d1522; }
+/* 开着房间灯时整体更暖 */
+.fh-stage[data-room-light="on"][data-period="night"],
+.fh-stage[data-room-light="on"][data-period="deepNight"] { --fh-ambient-tint: #6a4a3e; }
+
+.fh-ambient {
+  fill: var(--fh-ambient-tint);
+  opacity: var(--fh-ambient-alpha);   /* 这个 0~1 的数字由时钟算出来，写在 .fh-stage 的行内样式上 */
+  mix-blend-mode: multiply;
+}
+.fh-lights { mix-blend-mode: screen; filter: saturate(1.15) brightness(1.06); }
+```
+
+想改氛围（更冷、更暖、晚上更黑）只需要动这几行 CSS，不用碰渲染代码。唯一的 JS 值是天亮程度换算出的 `--fh-ambient-alpha`。
+
+### 房间灯（吸顶灯）
+
+夜里大多数人会开灯，所以这是一个**自动推算**的状态，不进存档：
+
+- 规则：`period` 是 `night` / `deepNight`，或者 `daylight < 0.25`（傍晚天黑了也算）→ 亮；**角色在睡觉/午睡时灭**
+- 亮的时候做两件事：环境光浓度乘 0.4（屋子亮一档）+ 光源层里加一片铺满全屋的暖光池（`fh-room-light` 径向渐变）
+- 实现是 `src/scene.js` 的 `roomLightOn(home, clock)`，`RoomStage` 还会在 `.fh-stage` 上打 `data-room-light="on|off"`，CSS 用这个属性换色调
+
+想让它变成「手动开关」也容易：把 `roomLightOn` 的结果换成 `world.props.roomLamp`，再在面板加个按钮就行。
+
+**让某个件进光源层**：在它的 part 上写 `"layer": "light"`：
+
+```jsonc
+{
+  "id": "glow",
+  "preset": "desk_glow",          // 或者 sprite
+  "layer": "light",               // ← 画在环境光之上
+  "z": 70,
+  "visibleWhen": { "state": { "deskLamp": true } }
+}
+```
+
+## 书桌精灵图
+
+`packs/bigfish-adult/desk-*.png` 是从那张 4 状态书桌图里抠出来的（棋盘格背景已去掉，四张同尺寸 368×347，切换状态不会跳）：
+
+| 文件 | 状态 |
+| --- | --- |
+| `desk-off.png` | 灯关、屏幕关 |
+| `desk-screen.png` | 灯关、屏幕亮 |
+| `desk-on.png` | 灯亮、屏幕关 |
+| `desk-on-screen.png` | 灯亮、屏幕亮 |
+
+现在 `desk.json` 用的是「灯关 → `desk-off`」「灯亮 → `desk-on-screen`」，跟随 `deskLamp` 开关切换；灯亮时另有一个 `desk_glow` 光源件叠在上面。位置和大小是估的（`rect: [310, 120, 250, 236]`），用编辑器选中后方向键挪、改「尺寸」两个数字框就能对齐。
+
+## 编辑器（v1）
+
+面板右上角有「编辑」按钮。进入后：
+
+- 点房间里的家具 → 选中它（选中的素材图会有橙色虚线框）
+- **鼠标拖拽**：按住家具直接拖（编辑模式下光标是抓手），拖拽位移会按画布坐标换算，松手即生效
+- `←↑→↓` 移动（`Shift` 加速）；素材图按像素走，矢量家具按 0.1 格走
+- 「复制」把选中的家具复制一份（新 id 自动避让，位置往右前挪一格），适合摆一排绿植/盆栽
+- 选中素材图后，右下角出现**橙色小方块**：按住拖动即可改宽高（底边不动，变体一起改）
+- 「畸变」数字框：平行四边形畸变，存的是斜率（`0.375` 就跟墙/地平行），范围 ±0.8
+- 「撤销」（或 `Ctrl/⌘ + Z`）：家具表、删除清单、scene 清单一起回滚；连续拖拽会合并成一步，最多 60 步
+- 「事件表」按钮是新开关：**默认收起**，要用时点开，不占地方
+- `PageUp` / `PageDown` 调 `z`（遮挡顺序）
+- `[` / `]` 旋转（`Shift` 一次 15°，否则 5°）；`F` 左右镜像——只对**素材图**有效，矢量家具按不了
+- **换图**：选中素材图后，浮条上有个下拉框，选项就是角色包目录里的图片。**图片要先放进 `packs/bigfish-adult/`**（编辑器不负责上传）。换图只换源、**不动尺寸**，大小用旁边的「尺寸」两个数字框改（底边保持不动）
+- **状态变体一起改**：同一件家具里的多张状态图（比如书桌的关灯/开灯两张）会被当成一组，移动 / 改尺寸 / 旋转 / 镜像 / 调 z 都是整组一起改，切换状态不会跳。分组规则：
+  - 写了 `"sprite": { ..., "group": "body" }` → 同名 group 一起改（**推荐**，即使某张之前已经挪偏了，改一次就会对齐）
+  - 没写 group → 退回「rect 完全一样才算一组」
+  - 位置本来就不同的另一个小件不会被误伤
+- **＋ 家具**：新建一件家具（`item-1`、`item-2`…），先是个占位块（还没有图），建完自动选中；用「换图」挑素材、方向键挪位置、尺寸框调大小
+- **删除家具**：选中后点「删除家具」，从屋里和 `scene.json` 的清单里一起拿掉；保存时才真正删掉它的文件
+- **事件表（可视化）**：浮条下面是一张表，选一个事件后可以改：标签、落脚点（选项来自 `scene.json` 的 `spots`）、动画标签（来自角色包）、时长区间、冷却、日志码、每秒影响（精力/饱腹/心情），以及权重（勾上「按数据算」后填 `base` 和若干条「修正」，`when` 从固定词汇表里选）。点「应用」立刻生效，点「保存」写回文件
+- 「保存」把家具和事件逐件写回 `data/maps/<map>/furniture/*.json` 和 `events/*.json`，同时把 `scene.json` 的 `furniture` 清单写回去、删掉被移除的家具文件；「放弃改动」回到磁盘上的版本（含清单）
+- `Esc` 取消选中，「退出编辑」回到正常模式
+
+旋转绕 `rect` 的**底边中点**（落地接触点）转，所以家具不会漂走；想绕中心转就在 JSON 里写 `"pivot": "center"`。参数都在 `sprite` 里：`rotate`（度）、`flipX`（左右镜像）、`skew`（切变）。
+
+保存走 `POST /fishhome/data/...`，Host 只接受 `.json` 并原子替换，写之前会先 `JSON.parse` 校验。
+
+还没做的：鼠标拖拽、多选、撤销、新建/删除事件（现在只能改已有的事件）、场景/背景的可视化编辑。
+
+## 设置（称呼 / 自称 / 房间名）
+
+头部有「设置」按钮，里面三个可编辑的文本：
+
+| 字段 | 存在哪 | 用在哪 |
+| --- | --- | --- |
+| `characterName` 称呼 | 存档 `state.json` | 房间徽章（当房间名留空时）、占位块标签、以后的对白 |
+| `selfName` 自称 | 存档 | 预留：它怎么称呼自己（「我」「本鱼」…），接对白时用 |
+| `roomName` 房间名 | 存档 | 屋子左上角的徽章 |
+
+规则：
+
+- 改完点「保存」立刻生效并存档（`PATCH` 一样走 `POST /api/state`，只是字段多了三个）
+- 留空会**回落到旧值**，不会把名字清成空白
+- 长度上限：称呼 12、自称 8、房间名 16 个字符
+- 老存档没有 `selfName` / `roomName` 时自动补：自称补「我」，房间名补成「<称呼>的小屋」
+
+## 角色包
+
+默认角色是 **Q 版大肥鱼**：动作放在 `packs/bigfish-adult/actions/` 里，**一个动作一个文件**（`idle.json` / `sit.json` …）+ 一份 `index.json` 清单：
+
+```jsonc
+// actions/sit.json
+{ "id": "sit", "name": "坐着", "tags": ["sit", "sit_idle"], "asset": "sheet", "loop": true,
+  "frames": [{ "rect": [220, 220, 220, 220], "durationMs": 900 },
+             { "rect": [220, 440, 220, 220], "durationMs": 900 }] }
+```
+
+加动作只要丢一个文件 + 在 `index.json` 里登记；老格式 `animations.json` 仍然兼容（找不到 actions 就退回它）。
+
+外观素材在 `packs/bigfish-adult/fish-sheet.png` 是那张 5 行 × 8 列的姿势图，40 个姿势按 **220×220 一格**重排（1760×1100），每个小人**底边对齐**，所以换帧时脚不会上下跳。`pet.json` + `animations.json` 按标签对上：
+
+| 标签 | 帧来源（行,列） | 用在哪 |
+| --- | --- | --- |
+| `idle` | (0,0)(0,1)(0,2)(0,1) | 发呆、看窗外、吃零食 |
+| `read` | (1,0)(1,1) 抱书 | 书架看书 |
+| `work` | (4,6) 敲笔记本 + (1,4) | 书桌 |
+| `play` | (1,2)(1,3) 抱小鲸鱼 | 和小鲸鱼玩 |
+| `stretch` | (3,5)(1,5) 举手 / 捧心 | 伸懒腰、被摸头 |
+| `sleep` | (3,0)(3,1) 侧躺 | 睡觉、打盹 |
+| `inbed` | (3,2)(3,3) 钻被子 | 床上的锚点动画（备用） |
+整张图按「一格 = canvas 220×220」取帧，所以每帧宽高比一致，不会因为姿势不同被拉伸变形。
+
+**没有走路帧**：换落脚点（或锚点）时是「淡出 240ms → 直接出现在新位置 → 淡入」，镜头随后柔和跟过去。这样既不用画走路序列，也不用处理穿墙/碰撞。
+
+包格式是 `pet.json` + `animations.json` + 若干 PNG，放在一个目录里，把 `packDir` 指过去即可：
+
+```json
+{
+  "id": "my-pack",
+  "name": "我的角色",
+  "canvas": { "width": 112, "height": 128 },
+  "assets": { "sheet": { "path": "chibi.png", "width": 672, "height": 896 } },
+  "animations": "animations.json"
+}
+```
+
+动画帧用 `{ "asset": "sheet", "rect": [x, y, w, h], "durationMs": 520 }` 描述，`rect` 是精灵图上的裁剪框。角色在屋子里显示成场景宽度的 16%（`src/ui.js` 里 `CharacterSprite` 的 `width`），换角色想调大小就改这个值。
+
+## 自测
+
+```powershell
+node test/model.test.js   # 纯模型：24 小时演化、离线结算、事件表 / 权重、帧换算、文案
+node test/host.test.js    # Host 路由：meta / 存档读写 / 目录穿越 / 写回 / 图片清单
+node test/ui.test.js      # 界面树：9 种事件、加载态、错误态、占位块、缺 key 检查
+node test/mount.test.js   # 挂载：用会跑 effect 的迷你 React 挂一遍面板，抓渲染死循环（浏览器里会 OOM）
+```
+
+## 已知边界
+
+- 面板的**视觉**只在运行中的 Harness 里验证过注册与接口，没有截图级回归；改样式后建议看一眼亮/暗主题。
+- 小屋目前是固定的一间屋子、固定四个视角的等距画法，还不能旋转视角（参考图里的「回到全景」尚未实现）。
+- 天气没有联网数据，只显示季节与室内温度。
+- 角色是 Q 版小人：走路是 8 帧跑动循环 + 1.1 秒位置过渡；睡觉时角色不显示（被子 + Zzz 代替）。

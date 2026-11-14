@@ -1,0 +1,38 @@
+{
+  "format": "dsh-pet",
+  "formatVersion": 1,
+  "id": "bigfish-adult",
+  "name": "大肥鱼",
+  "version": "3.6.0",
+  "author": "大肥鱼家园",
+  "description": "Q 版立绘：8×5 共 40 格（192×205），含站立 / 眨眼 / 看书 / 坐着 / 玩 / 伸懒腰 / 睡觉 / 躺床 / 抱鲸鱼 / 吃东西 / 背影 / 笔记本 等动作。",
+  "canvas": {
+    "width": 293,
+    "height": 225
+  },
+  "assets": {
+    "sheet": {
+      "path": "fish-sheet.png",
+      "width": 2344,
+      "height": 1125
+    },
+    "sheet45": {
+      "path": "fish45-sheet.png",
+      "width": 1398,
+      "height": 993
+    },
+    "sheetEat": {
+      "path": "fish-eat-sheet.png",
+      "width": 1272,
+      "height": 1020
+    }
+  },
+  "animations": "animations.json",
+  "fallbacks": {
+    "idle": "fish:idle",
+    "working": "fish:work",
+    "attention": "fish:idle",
+    "success": "fish:play",
+    "error": "fish:idle"
+  }
+}

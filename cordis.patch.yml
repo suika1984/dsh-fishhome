@@ -1,0 +1,9 @@
+# 大肥鱼的家园：一个侧边栏面板 + 本地生活模拟。
+# 首次安装时由 bundle 插入；之后再改配置，请在自己 profile 的
+# cordis.patch.yml 里用同 id 的条目覆盖（本文件只作为默认值）。
+- insert:
+    - id: fishhome
+      name: dsh-fishhome
+      config:
+        characterName: 大肥鱼
+        tickSeconds: 15

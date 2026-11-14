@@ -1,0 +1,1 @@
+{"id":"idle","label":{"zh":"发呆"},"kind":"autonomous","spot":"center","anim":"idle","duration":[60,140],"log":null,"cooldown":0,"onTick":{"mood":0.003},"weight":null,"request":null,"say":null}

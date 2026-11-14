@@ -1,0 +1,36 @@
+{
+  "kind": "autonomous",
+  "duration": [
+    120,
+    240
+  ],
+  "cooldown": 600,
+  "weight": null,
+  "id": "cook",
+  "label": {
+    "zh": "做饭",
+    "en": "Cook"
+  },
+  "spot": "kitchen",
+  "anim": "work",
+  "log": "cook",
+  "onTick": {
+    "energy": -0.008,
+    "satiety": 0.02,
+    "mood": 0.01
+  },
+  "say": {
+    "chance": 0.6,
+    "lines": [
+      {
+        "zh": "今天做点什么呢～",
+        "en": "What to cook today~"
+      },
+      {
+        "zh": "闻到香味了吗？",
+        "en": "Smell that?"
+      }
+    ]
+  },
+  "request": null
+}

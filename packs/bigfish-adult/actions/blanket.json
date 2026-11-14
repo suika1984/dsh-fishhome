@@ -1,0 +1,29 @@
+{
+  "asset": "sheet",
+  "id": "blanket",
+  "name": "被子鼓包",
+  "tags": [
+    "blanket"
+  ],
+  "frames": [
+    {
+      "rect": [
+        586,
+        675,
+        293,
+        225
+      ],
+      "durationMs": 1200
+    },
+    {
+      "rect": [
+        879,
+        675,
+        293,
+        225
+      ],
+      "durationMs": 1200
+    }
+  ],
+  "loop": true
+}

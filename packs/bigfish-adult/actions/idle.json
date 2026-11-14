@@ -1,0 +1,56 @@
+{
+  "id": "idle",
+  "name": "idle",
+  "tags": [
+    "idle"
+  ],
+  "asset": "sheet",
+  "frames": [
+    {
+      "rect": [
+        0,
+        0,
+        293,
+        225
+      ],
+      "durationMs": 420
+    },
+    {
+      "rect": [
+        293,
+        0,
+        293,
+        225
+      ],
+      "durationMs": 420
+    },
+    {
+      "rect": [
+        586,
+        0,
+        293,
+        225
+      ],
+      "durationMs": 520
+    },
+    {
+      "rect": [
+        293,
+        0,
+        293,
+        225
+      ],
+      "durationMs": 420
+    },
+    {
+      "rect": [
+        1172,
+        0,
+        293,
+        225
+      ],
+      "durationMs": 420
+    }
+  ],
+  "loop": true
+}

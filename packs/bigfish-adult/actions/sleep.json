@@ -1,0 +1,29 @@
+{
+  "id": "sleep",
+  "name": "睡觉",
+  "tags": [
+    "sleep"
+  ],
+  "asset": "sheet",
+  "frames": [
+    {
+      "rect": [
+        0,
+        675,
+        293,
+        225
+      ],
+      "durationMs": 1100
+    },
+    {
+      "rect": [
+        293,
+        675,
+        293,
+        225
+      ],
+      "durationMs": 1100
+    }
+  ],
+  "loop": true
+}

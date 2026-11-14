@@ -1,0 +1,30 @@
+{
+  "layers": [
+    {
+      "id": "floor",
+      "kind": "floor",
+      "fill": {
+        "type": "linear",
+        "angle": 90,
+        "stops": [
+          {
+            "at": 0,
+            "color": "#dcefc4"
+          },
+          {
+            "at": 1,
+            "color": "#c2e2a4"
+          }
+        ]
+      },
+      "grid": {
+        "color": "#a8cc86",
+        "opacity": 0.18,
+        "step": 1
+      }
+    }
+  ],
+  "renderOrder": [
+    "floor"
+  ]
+}

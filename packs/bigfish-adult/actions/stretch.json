@@ -1,0 +1,31 @@
+{
+  "id": "stretch",
+  "name": "伸懒腰",
+  "tags": [
+    "stretch",
+    "greeting",
+    "wave"
+  ],
+  "asset": "sheet",
+  "frames": [
+    {
+      "rect": [
+        1172,
+        225,
+        293,
+        225
+      ],
+      "durationMs": 520
+    },
+    {
+      "rect": [
+        1465,
+        225,
+        293,
+        225
+      ],
+      "durationMs": 520
+    }
+  ],
+  "loop": true
+}

@@ -1,0 +1,30 @@
+{
+  "asset": "sheet",
+  "id": "inbed",
+  "name": "躺床上",
+  "tags": [
+    "inbed",
+    "in_bed"
+  ],
+  "frames": [
+    {
+      "rect": [
+        879,
+        900,
+        293,
+        225
+      ],
+      "durationMs": 1100
+    },
+    {
+      "rect": [
+        0,
+        675,
+        293,
+        225
+      ],
+      "durationMs": 1100
+    }
+  ],
+  "loop": true
+}

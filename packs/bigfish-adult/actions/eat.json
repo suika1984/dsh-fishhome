@@ -1,0 +1,29 @@
+{
+  "id": "eat",
+  "name": "吃东西",
+  "tags": [
+    "eat"
+  ],
+  "asset": "sheet",
+  "frames": [
+    {
+      "rect": [
+        0,
+        900,
+        293,
+        225
+      ],
+      "durationMs": 900
+    },
+    {
+      "rect": [
+        0,
+        900,
+        293,
+        225
+      ],
+      "durationMs": 900
+    }
+  ],
+  "loop": true
+}

@@ -1,0 +1,58 @@
+{
+  "id": "eat_main",
+  "name": "吃白饭",
+  "tags": [
+    "eat",
+    "eat_main",
+    "meal"
+  ],
+  "asset": "sheetEat",
+  "frames": [
+    {
+      "rect": [
+        0,
+        0,
+        424,
+        510
+      ],
+      "durationMs": 1200,
+      "squash": 0
+    },
+    {
+      "rect": [
+        0,
+        0,
+        424,
+        510
+      ],
+      "durationMs": 1200,
+      "squash": 5
+    },
+    {
+      "rect": [
+        424,
+        0,
+        424,
+        510
+      ],
+      "durationMs": 1200,
+      "squash": 0
+    },
+    {
+      "rect": [
+        424,
+        0,
+        424,
+        510
+      ],
+      "durationMs": 1200,
+      "squash": 5
+    }
+  ],
+  "loop": true,
+  "cell": [
+    424,
+    510
+  ],
+  "groupSize": 4
+}

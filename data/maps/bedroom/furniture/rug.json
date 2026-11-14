@@ -1,0 +1,1 @@
+{"id":"rug","name":{"zh":"地毯","en":"Rug"},"type":"surface","parts":[{"id":"body","z":5,"sprite":{"src":"rug.png","rect":[199,385,444,220]}}]}

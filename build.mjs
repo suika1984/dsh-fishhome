@@ -20,7 +20,11 @@ const ORDER = [
   'src/env.js',          // 常量
   'src/locale.js',       // 中英文字典 + makeTranslate（纯数据）
   'src/model.js',        // 纯模型：时间 / 需求 / 调度 / 离线结算 / 动画映射
-  'src/store.js',        // 存档读写 + HomeStore
+  'src/store-save.js',   // 存档读写 + 角色包载入
+  'src/store.js',        // HomeStore 核心（状态 / 订阅 / 启动）
+  'src/store-scene.js',  // 场景切换
+  'src/store-edit.js',   // 布局编辑与写回
+  'src/store-view.js',   // 动画视图 / 时钟 / 行为调度
   'src/scene-data.js',   // 场景 / 背景 / 家具数据加载
   'src/scene-geom.js',   // 等距几何
   'src/scene-art.js',    // 内置画法 preset

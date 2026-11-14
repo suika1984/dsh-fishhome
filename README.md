@@ -81,14 +81,25 @@ dsh plugin install D:\dschat\dsh-fishhome
 dsh-fishhome/
 ├── package.json          # bundle 清单 + dsh.client 声明
 ├── cordis.patch.yml      # 默认配置
-├── index.js              # Host 半：存档读写 + 角色包 / data 路由（GET + POST 写回）
+├── index.js              # Host 半：存档读写 + 角色包 / data 路由 + 打开配置文件
 ├── build.mjs             # 把 src/ 拼成 client.js（浏览器只认单文件）
-├── src/                  # Client 半源码
+├── tools/check.mjs       # 零依赖自检（构建新鲜度 / 片段完整性 / 文案 / 死代码 / 数据引用）
+├── src/                  # Client 半源码（按 build.mjs 的 ORDER 拼进同一个作用域）
 │   ├── env.js            #   常量
+│   ├── locale.js         #   中英文字典 + makeTranslate
 │   ├── model.js          #   纯模型：时间 / 需求 / 调度 / 离线结算 / 动画映射
-│   ├── store.js          #   存档读写 + HomeStore + 编辑器写入
-│   ├── scene.js          #   等距场景：几何、背景、家具、角色、合成
-│   ├── ui.js             #   面板组件 + 多语言 + 编辑模式
+│   ├── store-save.js     #   存档读写 + 角色包载入
+│   ├── store.js          #   HomeStore 核心：状态 / 订阅 / 启动
+│   ├── store-scene.js    #   场景切换（地图 / 载入 / 她在哪个房间）
+│   ├── store-edit.js     #   布局编辑：改部件、撤销、增删家具、写回 data/
+│   ├── store-view.js     #   动画视图 / 时钟 / 行为调度与互动
+│   ├── scene-data.js     #   场景 / 背景 / 家具数据的加载与默认值
+│   ├── scene-geom.js     #   等距几何（投影、多边形、立方体）
+│   ├── scene-art.js      #   内置画法 preset（书桌 / 床头灯 / 书架 / 地毯 / 绿植）
+│   ├── scene-light.js    #   光影：窗光、屏幕光、时段色
+│   ├── scene-parts.js    #   家具绘制：锚点、可见性、变形、精灵、排序
+│   ├── scene-render.js   #   SceneSvg 合成入口
+│   ├── ui.js             #   面板组件 + 编辑模式
 │   ├── styles.js         #   样式
 │   └── index.js          #   插件入口
 ├── client.js             # 生成物，别直接改
@@ -97,6 +108,7 @@ dsh-fishhome/
 ├── locale/{zh,en}.json   # 插件管理页显示的标题/描述
 ├── icon.svg              # 插件图标（侧边栏用 currentColor 跟随主题）
 ├── packs/bigfish-adult/  # 默认角色包 + 家具素材
+├── _archive/             # 归档区（gitignore）：未引用素材，需要时移回来
 └── test/                 # 纯模型 / Host 路由 / 界面树的自测
 ```
 
@@ -104,6 +116,7 @@ dsh-fishhome/
 
 ```powershell
 node build.mjs      # 重新生成 client.js（插件加载的是它）
+node tools/check.mjs  # 自检：构建是否最新、文案是否齐、有没有死代码、数据引用对不对
 node test/ui.test.js
 ```
 

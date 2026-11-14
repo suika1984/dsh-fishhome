@@ -18,10 +18,11 @@ const HERE = path.dirname(fileURLToPath(import.meta.url))
 /** 合并顺序即加载顺序：常量在被引用之前初始化。 */
 const ORDER = [
   'src/env.js',      // 常量
+  'src/locale.js',   // 中英文字典 + makeTranslate（纯数据）
   'src/model.js',    // 纯模型：时间 / 需求 / 调度 / 离线结算 / 动画映射
   'src/store.js',    // 存档读写 + HomeStore
   'src/scene.js',    // 等距场景：几何、背景、家具、角色、合成
-  'src/ui.js',       // 面板组件 + 多语言
+  'src/ui.js',       // 面板组件
   'src/styles.js',   // 样式
   'src/index.js',    // 插件入口
 ]

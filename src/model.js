@@ -323,13 +323,18 @@
         case 'nap':
           return (character.energy < 55 ? 2.1 : 0.12) * (character.energy < 35 ? 2 : 1)
         case 'sleep': {
-          if (character.energy > 88) return 0.01
-          // 白天不睡「大觉」：困意低（sleepy < 0.2，约等于 7:00-21:00）且没累垮时，睡整觉的权重直接归零，
+          // 白天不睡「大觉」：困意低（约 7:00-21:00）且没累垮时，睡整觉的权重直接归零，
           // 白天想睡就走 nap（打盹）。真的累垮（energy <= 30）才允许白天睡整觉。
-          if (sleepy < 0.2 && character.energy > 30) return 0
+          if (sleepy < 0.25 && character.energy > 30) return 0
+          // 深夜（>=23:00 / 0:00-5:00 困意 >= 0.85）：按作息睡，不能因为精力好就不睡。
+          // 精力只做小幅修正（已经睡饱了少睡点，但别完全不睡）
+          if (sleepy >= 0.85) {
+            const tired = character.energy < 55 ? 2.2 : 1
+            return 12 * tired * (character.energy >= 96 ? 0.55 : 1)
+          }
           const tired = character.energy < 55
             ? 1 + ((55 - character.energy) / 55) * 3
-            : (sleepy > 0.75 ? 0.55 : 0.05)
+            : 1.1
           return (0.15 + sleepy * 2.4) * tired
         }
         default:
@@ -493,7 +498,9 @@
       for (const behavior of BEHAVIORS) {
         // 冷却时间用模拟时间比较，离线结算时才不会把“未来”当成当前
         const cooldownUntil = character.cooldowns[behavior.id] || 0
-        if (cooldownUntil > at) continue
+        // 深夜的睡意压过冷却：否则白天残留的「睡醒冷却」会让她凌晨两点还在屋里溜达
+        const deepNightSleep = behavior.id === 'sleep' && clock.sleepiness >= 0.85
+        if (cooldownUntil > at && !deepNightSleep) continue
         let weight = behaviorWeight(behavior, character, clock, props)
         // 有会话在跑 → 她也会坐去书桌前忙
         weight *= activityWeightMul(behavior.id)
@@ -706,11 +713,15 @@
 
       // 睡饱了会自己起来（并让睡眠冷却一会儿，避免“刚醒又睡”）；
       // 没睡够就翻个身接着睡，而不是被计时器叫起来。
-      if (behavior.id === 'sleep' && character.energy >= 98) {
+      if (behavior.id === 'sleep' && character.energy >= 98 && clock.sleepiness < 0.5) {
         character.energy = 100
         character.cooldowns.sleep = now + 3 * 3600 * 1000
         pushLog(home, now, 'wake', null)
         enterBehavior(home, pickBehavior(home, clock, home.world.props, now), now)
+      } else if (behavior.id === 'sleep' && character.energy >= 98) {
+        // 夜里（含清晨 5-7 点）睡饱了也接着睡，等困意真正退了才起
+        character.energy = 100
+        character.until = now + 1800 * 1000
       } else if (behavior.id === 'nap' && character.energy >= 92) {
         character.cooldowns.nap = now + 45 * 60 * 1000
         pushLog(home, now, 'wake', null)

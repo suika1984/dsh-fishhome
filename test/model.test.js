@@ -423,6 +423,72 @@ assert.equal(zh('status.remain', { seconds: 30 }).includes('30'), true)
   assert.equal(other.behavior, null, '兜底不带行为')
   assert.equal(model.matchReply({ rules: [], fallback: [] }, '累', 'zh').text, '', '空表返回空文本不崩')
 }
+// 作息：深夜该睡、白天不睡整觉、冷却压不过困意
+{
+  const weightsAt = (hour, energy) => {
+    const at = new Date(2026, 10, 14, hour, 0, 0)
+    const home = model.createHome(at.getTime(), '大肥鱼')
+    home.character.energy = energy
+    const clock = model.timeSnapshot(at, 'zh')
+    const list = model.BEHAVIORS.map((b) => ({ id: b.id, w: model.behaviorWeight(b, home.character, clock, home.world.props) }))
+    return { home, clock, list, by: Object.fromEntries(list.map((r) => [r.id, r.w])) }
+  }
+  const deep = weightsAt(2, 90)
+  const otherMax = Math.max(...deep.list.filter((r) => r.id !== 'sleep').map((r) => r.w))
+  assert.ok(deep.by.sleep > otherMax * 5, '凌晨 2 点精力 90 也想睡（权重压倒其它行为）')
+  const noon = weightsAt(15, 80)
+  assert.equal(noon.by.sleep, 0, '下午不睡整觉')
+  const evening = weightsAt(22, 80)
+  assert.ok(evening.by.sleep > evening.by.play, '晚上 22 点开始想睡')
+  // 冷却压不过困意：凌晨带 3 小时冷却也能选到睡
+  const blocked = weightsAt(3, 88)
+  blocked.home.character.cooldowns.sleep = new Date(2026, 10, 14, 6, 0, 0).getTime()
+  // 单次 pick 有随机性：抽 60 次看比例（冷却若能压住睡，sleep 会完全抽不到）
+  const originalRandom = Math.random
+  let seed = 424242
+  Math.random = () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648
+    return seed / 2147483648
+  }
+  let sleepCount = 0
+  try {
+    for (let i = 0; i < 60; i += 1) {
+      blocked.home.character.cooldowns.sleep = new Date(2026, 10, 14, 6, 0, 0).getTime()
+      const picked = model.pickBehavior(blocked.home, blocked.clock, blocked.home.world.props, new Date(2026, 10, 14, 3, 0, 0).getTime())
+      if (picked.id === 'sleep') sleepCount += 1
+    }
+  } finally {
+    Math.random = originalRandom
+  }
+  assert.ok(sleepCount > 30, `深夜无视睡眠冷却（60 次抽到 ${sleepCount} 次睡）`)
+}
+// 连续模拟：夜里大部分时间在睡，白天不睡整觉（固定随机种子，避免测试抖动）
+{
+  const originalRandom = Math.random
+  let seed = 20261114
+  Math.random = () => {
+    seed = (seed * 1103515245 + 12345) % 2147483648
+    return seed / 2147483648
+  }
+  try {
+  const start = new Date(2026, 10, 14, 12, 0, 0).getTime()
+  const home = model.createHome(start, '大肥鱼')
+  home.character.energy = 85
+  home.updatedAt = start
+  const rows = []
+  for (let t = start; t <= start + 24 * 3600 * 1000; t += 5 * 60 * 1000) {
+    model.stepHome(home, t, 300)
+    rows.push({ hour: new Date(t).getHours(), id: home.character.behaviorId })
+  }
+  const night = rows.filter((r) => r.hour >= 23 || r.hour < 6)
+  const nightSleep = night.filter((r) => r.id === 'sleep' || r.id === 'nap').length
+  assert.ok(nightSleep / night.length > 0.7, '深夜七成以上时间在睡')
+  const day = rows.filter((r) => r.hour >= 10 && r.hour < 18)
+  assert.equal(day.filter((r) => r.id === 'sleep').length, 0, '白天不睡整觉')
+  } finally {
+    Math.random = originalRandom
+  }
+}
 console.log('model tests passed:', {
   switches,
   energy: Math.round(home.character.energy),

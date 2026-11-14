@@ -711,7 +711,7 @@ function prettySessionId(sessionId) {
   const text = typeof sessionId === 'string' ? sessionId : ''
   const bare = text.replace(/^session[-_]/i, '')
   if (bare !== text) return bare.slice(0, 8)
-  return text.length > 8 ? text.slice(-8) : text
+  return text.length > 8 ? text.slice(0, 8) : text
 }
 
 /** 用 Session 的历史消息补标题（事件没赶上时用） */
@@ -779,8 +779,13 @@ function notesSnapshot(notes, mode) {
     injected: notes.injected,
     preview: notes.preview,
     canInject: notes.shape !== null,
-    // 便条会送进哪个会话
-    target: target ? String(target).slice(0, 8) : '',
+    // 便条会送进哪个会话（给面板显示用：优先标题）
+    target: target
+      ? (() => {
+        const row = notes.sessions.get(target)
+        return row && row.label ? row.label : prettySessionId(target)
+      })()
+      : '',
     targetFull: target,
     targetFresh: target !== '',
     pinned: notes.pinned,

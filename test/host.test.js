@@ -181,8 +181,9 @@ async function call(url, method = 'GET', body = '') {
 
   const pinned = await injectTarget('pinned-session')
   assert.equal(pinned.status, 200, '可以手动指定')
-  assert.equal(pinned.json.target, 'pinned-s', '目标切到手动选的会话')
+  assert.equal(pinned.json.target, '测试会话', '目标显示会话标题')
   assert.equal(pinned.json.pinned, 'pinned-session')
+  assert.equal(pinned.json.targetFull, 'pinned-session', '快照里也有完整 id')
 
   const missing = await injectTarget('nope-session')
   assert.equal(missing.status, 404, '不存在的会话被拒')
@@ -240,7 +241,7 @@ async function call(url, method = 'GET', body = '') {
   assert.equal(other.messages.length, 0, '非目标会话不注入')
   const stillQueued = JSON.parse((await callInject('/fishhome/api/activity')).body)
   assert.equal(stillQueued.notes.pending, 1, '便条留在队列里等目标会话')
-  assert.equal(stillQueued.notes.target, 'sess-1', '快照里能看到目标会话')
+  assert.equal(stillQueued.notes.targetFull, 'sess-1', '快照里能看到目标会话（完整 id）')
 
   const decision = { kind: 'enter', messages: [] }
   const injected = await fire('agent/pre-step', { agent: { id: 'sess-1' }, messages: [], turn: 1, step: 1 }, async () => decision)

@@ -30,11 +30,22 @@
         }
         const t = (key, params) => makeTranslate(localeRef.value)(key, params)
         // 可选：客户端 sessions 服务。有它就能像聊天框一样把便条发进会话（会出现在对话里、LLM 也会回）
+        // 注意：apply 时服务可能还没挂载，所以用 inject 等它；ctx.get 只作兜底
         try {
-          const clientSessions = typeof ctx.get === 'function' ? ctx.get('sessions') : null
-          store.clientSessions = clientSessions || null
+          store.clientSessions = typeof ctx.get === 'function' ? ctx.get('sessions') || null : null
         } catch {
           store.clientSessions = null
+        }
+        try {
+          ctx.inject(['sessions'], (inner) => {
+            try {
+              store.clientSessions = inner.sessions || (typeof inner.get === 'function' ? inner.get('sessions') : null) || store.clientSessions
+            } catch {
+              /* 服务不可用就当没有 */
+            }
+          })
+        } catch {
+          /* 没有这个服务 */
         }
         try {
           ctx.effect(() => ctx.locale.register(NS, 'zh', ZH), 'dsh-fishhome: zh dictionary')

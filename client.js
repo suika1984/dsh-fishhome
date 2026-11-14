@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = 'a072df52'
+    const BUILD_REV = 'ca86fe9f'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -1141,6 +1141,8 @@ const NOTE_MARK = '【家园】'
         // 她怎么称呼用户（默认「用户」），可改
         userName: '用户',
         roomName: `${name}的小屋`,
+        // 人工指定的便条目标会话（跟着存档走，重启后还能记住）
+        noteTarget: '',
         world: {
           season: seasonOf(new Date(now)),
           period: periodOf(new Date(now).getHours()),
@@ -1217,6 +1219,7 @@ const NOTE_MARK = '【家园】'
       home.userName = typeof raw.userName === 'string' && raw.userName.trim() !== ''
         ? raw.userName.trim()
         : home.userName
+      home.noteTarget = typeof raw.noteTarget === 'string' ? raw.noteTarget : ''
       home.roomName = typeof raw.roomName === 'string' && raw.roomName.trim() !== ''
         ? raw.roomName.trim()
         : `${home.characterName}的小屋`
@@ -1686,6 +1689,7 @@ async function writeSave(home) {
           if (meta.pack) {
             this.animations = await loadCharacterActions(meta.pack)
         this.replies = await loadReplies()
+        void this.restoreNoteTarget()
             this.packWarning = null
           } else {
             this.animations = []
@@ -2397,7 +2401,9 @@ async function writeSave(home) {
         this.replyLocally(clean, now)
         // 2) 有客户端 sessions 服务时，像聊天框一样把话发进目标会话：
         //    它会出现在对话里，并让那个会话真的跑一轮（LLM 会回）
-        const targetId = (this.activity && this.activity.notes && this.activity.notes.targetId) || ''
+        const targetId =
+          (this.activity && this.activity.notes && this.activity.notes.targetId) ||
+          (this.home && typeof this.home.noteTarget === 'string' ? this.home.noteTarget : '')
         if (this.clientSessions && targetId) {
           // 带个标记：模型看到就知道这是「家园小便条」，回一句就够，别展开、别调工具
           const delivered = await this.promptSession(targetId, `${NOTE_MARK}${clean}`)
@@ -2406,7 +2412,7 @@ async function writeSave(home) {
             void fetchJson(`${ROUTE}/api/note`, {
               method: 'POST',
               headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({ text: clean, delivered: true, sessionId: targetId }),
+              body: JSON.stringify({ text: clean, delivered: true, sessionId: targetId, clientSessions: true }),
             }).catch(() => {})
             pushLog(this.home, now, 'noteDelivered', null)
             this.publish()
@@ -2418,7 +2424,7 @@ async function writeSave(home) {
           const payload = await fetchJson(`${ROUTE}/api/note`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({ text: clean }),
+            body: JSON.stringify({ text: clean, clientSessions: !!this.clientSessions, sessionId: targetId }),
           })
           this.publish()
           void this.refreshActivity()
@@ -2472,10 +2478,28 @@ async function writeSave(home) {
             this.activity = { ...(this.activity || normalizeActivity({})), notes: nextNotes.notes }
             this.publish()
           }
+          // 记住这个人选的会话（跟着存档走）
+          if (this.home) {
+            this.home.noteTarget = wanted
+            this.publish()
+            this.scheduleSave(400)
+          }
           return { ok: true }
         } catch (error) {
+          // 会话已经不在了：清掉存档里的记录，避免每次启动都白试一次
+          if (this.home && this.home.noteTarget === wanted) {
+            this.home.noteTarget = ''
+            this.publish()
+            this.scheduleSave(400)
+          }
           return { ok: false, error: error instanceof Error ? error.message : String(error) }
         }
+      },
+      /** 启动时把存档里记住的目标会话重新登记给 Host */
+      async restoreNoteTarget() {
+        const saved = this.home && typeof this.home.noteTarget === 'string' ? this.home.noteTarget : ''
+        if (saved === '') return
+        await this.setNoteTarget(saved)
       },
       /** 给面板用的活动快照（没有就是 null） */
       activityView() {
@@ -6840,11 +6864,22 @@ async function writeSave(home) {
         }
         const t = (key, params) => makeTranslate(localeRef.value)(key, params)
         // 可选：客户端 sessions 服务。有它就能像聊天框一样把便条发进会话（会出现在对话里、LLM 也会回）
+        // 注意：apply 时服务可能还没挂载，所以用 inject 等它；ctx.get 只作兜底
         try {
-          const clientSessions = typeof ctx.get === 'function' ? ctx.get('sessions') : null
-          store.clientSessions = clientSessions || null
+          store.clientSessions = typeof ctx.get === 'function' ? ctx.get('sessions') || null : null
         } catch {
           store.clientSessions = null
+        }
+        try {
+          ctx.inject(['sessions'], (inner) => {
+            try {
+              store.clientSessions = inner.sessions || (typeof inner.get === 'function' ? inner.get('sessions') : null) || store.clientSessions
+            } catch {
+              /* 服务不可用就当没有 */
+            }
+          })
+        } catch {
+          /* 没有这个服务 */
         }
         try {
           ctx.effect(() => ctx.locale.register(NS, 'zh', ZH), 'dsh-fishhome: zh dictionary')

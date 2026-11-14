@@ -375,6 +375,16 @@ async function call(url, method = 'GET', body = '') {
   assert.equal(snapshot3.lastReply.text.includes('回摸一下'), true, '别的会话不覆盖')
 }
 
+// 便条投递诊断：Host 记下这次是不是客户端投递、有没有 sessions 服务
+{
+  await call('/fishhome/api/note', 'POST', JSON.stringify({ text: '诊断', clientSessions: false, sessionId: 'session-diag' }))
+  const diag = JSON.parse((await call('/fishhome/api/activity')).body).notes
+  assert.ok(diag.lastSend, '有 lastSend')
+  assert.equal(diag.lastSend.clientSessions, false, '如实记录没有 sessions 服务')
+  assert.equal(diag.lastSend.sessionId, 'session-diag', '记录目标会话')
+  assert.equal(diag.lastSend.delivered, false, '记录这次是走队列')
+}
+
 const meta = await call('/fishhome/api/meta')
 assert.equal(meta.statusCode, 200)
 const metaJson = JSON.parse(meta.body)

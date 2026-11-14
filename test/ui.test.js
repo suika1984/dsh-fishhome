@@ -1388,6 +1388,21 @@ await (async () => {
   const text = model.fillText(model.logText(translate, { code: 'agentReply', arg: { text: '回摸一下' } }), logHome)
   assert.ok(text.includes('回摸一下'), '日志里带回复文本')
 }
+// 人工指定的会话要进存档：setNoteTarget 成功后写 home.noteTarget
+await (async () => {
+  const store = new model.HomeStore()
+  store.publish = () => {}
+  store.scheduleSave = () => {}
+  store.home = model.createHome(Date.now(), '大肥鱼')
+  globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({ ok: true, notes: { mode: 'inject', pinned: 'session-keep' } }) })
+  const before = store.home.noteTarget
+  await store.setNoteTarget('session-keep')
+  assert.equal(before, '', '默认没有指定')
+  assert.equal(store.home.noteTarget, 'session-keep', 'noteTarget 写进存档')
+  // 重启后可以从存档恢复
+  const revived = model.normalizeHome(JSON.parse(JSON.stringify(store.home)), Date.now(), '大肥鱼')
+  assert.equal(revived.noteTarget, 'session-keep', '存档归一化后仍带着目标会话')
+})()
 console.log('ui tests passed:', {
   components: Object.keys(registered),
   behaviors: model.BEHAVIORS.length,

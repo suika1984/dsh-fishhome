@@ -553,6 +553,8 @@
         // 她怎么称呼用户（默认「用户」），可改
         userName: '用户',
         roomName: `${name}的小屋`,
+        // 人工指定的便条目标会话（跟着存档走，重启后还能记住）
+        noteTarget: '',
         world: {
           season: seasonOf(new Date(now)),
           period: periodOf(new Date(now).getHours()),
@@ -629,6 +631,7 @@
       home.userName = typeof raw.userName === 'string' && raw.userName.trim() !== ''
         ? raw.userName.trim()
         : home.userName
+      home.noteTarget = typeof raw.noteTarget === 'string' ? raw.noteTarget : ''
       home.roomName = typeof raw.roomName === 'string' && raw.roomName.trim() !== ''
         ? raw.roomName.trim()
         : `${home.characterName}的小屋`

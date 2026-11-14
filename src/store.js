@@ -107,6 +107,7 @@
           if (meta.pack) {
             this.animations = await loadCharacterActions(meta.pack)
         this.replies = await loadReplies()
+        void this.restoreNoteTarget()
             this.packWarning = null
           } else {
             this.animations = []

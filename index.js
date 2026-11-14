@@ -810,6 +810,7 @@ function notesSnapshot(notes, mode) {
     pinned: notes.pinned,
     // 会话里对便条的回复（面板要把它显示成她的气泡）
     lastReply: notes.lastReply ? { at: notes.lastReply.at, text: notes.lastReply.text } : null,
+    lastSend: notes.lastSend || null,
     // 设置里的下拉框用：见过的活会话
     sessions: [...notes.sessions.values()]
       .map((item) => {
@@ -900,6 +901,14 @@ async function handleNote(req, res, settings) {
   const text = typeof (payload && payload.text) === 'string' ? payload.text.trim() : ''
   const delivered = payload && payload.delivered === true
   const sessionId = typeof (payload && payload.sessionId) === 'string' ? payload.sessionId : ''
+  // 记下这次投递的诊断信息（面板拿不到 sessions 服务时一眼能看出来）
+  notes.lastSend = {
+    at: Date.now(),
+    delivered,
+    clientSessions: payload && payload.clientSessions === true,
+    sessionId,
+    text: text.slice(0, 40),
+  }
   // 客户端已经用 session.prompt 发进会话了：只登记「等它的回话」，不进队列
   if (delivered) {
     if (sessionId !== '') notes.awaiting.add(sessionId)

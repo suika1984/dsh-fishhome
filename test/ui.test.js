@@ -1202,6 +1202,35 @@ model.applyFurniture(model.DEFAULT_FURNITURE)
   openJson.props.onClick()
   assert.deepEqual(calls[0], { kind: 'file', path: 'data/maps/living/furniture/sofa.json' }, '打开选中家具的 json')
 }
+// 会话卡：有会话在跑时显示「运行中 N」、统计数字和最近活动
+{
+  const cardHome = model.createHome(Date.now(), '大肥鱼')
+  const offline = model.ActivityCard({ t: translate, activity: null, home: cardHome, now: Date.now() })
+  assert.equal(offline, null, '没有活动数据就不显示卡片')
+  const card = model.ActivityCard({
+    t: translate,
+    home: cardHome,
+    now: Date.now(),
+    activity: {
+      running: 2, sessions: 3,
+      counters: { tools: 7, messages: 4, errors: 1, workflows: 0, subagents: 0 },
+      recent: [{ at: Date.now() - 60000, kind: 'tool', detail: 'read' }, { at: Date.now(), kind: 'error', detail: 'boom' }],
+    },
+  })
+  const texts = []
+  const walk = (n) => {
+    if (n === null || n === undefined || n === false) return
+    if (typeof n === 'string' || typeof n === 'number') { texts.push(String(n)); return }
+    if (Array.isArray(n)) { n.forEach(walk); return }
+    if (typeof n.type === 'function') { walk(n.type(n.props || {})); return }
+    walk(n.props ? n.props.children : undefined)
+  }
+  walk(card)
+  const joined = texts.join('|')
+  assert.ok(joined.includes('运行中 2') || joined.includes('2'), '显示运行中的会话数')
+  assert.ok(joined.includes('7') && joined.includes('4') && joined.includes('1'), '显示工具/消息/出错计数')
+  assert.ok(texts.some((x) => x.includes('调用工具')), '最近活动带种类标签')
+}
 console.log('ui tests passed:', {
   components: Object.keys(registered),
   behaviors: model.BEHAVIORS.length,

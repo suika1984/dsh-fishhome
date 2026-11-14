@@ -205,6 +205,27 @@ window.__ModuleLoader__.load({
       'log.bedLampOff': '床头灯关了。',
       'log.curtainOpen': '{name}把窗帘拉开了。',
       'log.curtainClose': '{name}把窗帘拉上了。',
+      'activity.title': '会话',
+      'activity.busy': '运行中 {count}',
+      'activity.idle': '空闲',
+      'activity.hintBusy': '{name}也坐到了书桌前，跟你一起忙。',
+      'activity.hintIdle': '现在没有会话在跑，她在屋里自己转悠。',
+      'activity.tools': '工具',
+      'activity.messages': '消息',
+      'activity.errors': '出错',
+      'activity.recent': '最近',
+      'activity.kind.session-start': '会话开始',
+      'activity.kind.session-end': '会话结束',
+      'activity.kind.running': '开始运行',
+      'activity.kind.idle': '空闲下来',
+      'activity.kind.tool': '调用工具',
+      'activity.kind.message': '新消息',
+      'activity.kind.error': '出错',
+      'activity.kind.subagent': '分派子任务',
+      'activity.kind.workflow': '跑工作流',
+      'log.sessionStart': '你开始干活了，{name}也坐到了书桌前。',
+      'log.sessionEnd': '你的会话结束了，{name}伸了个懒腰。',
+      'log.sessionError': '好像出了点问题，{name}有点担心。',
       'log.offline': '你离开了 {span}，{name}自己过了这段日子。',
       'log.move': '{name}凑到你面前来了。',
       'log.sit': '{name}在沙发上发了会儿呆。',
@@ -430,6 +451,27 @@ window.__ModuleLoader__.load({
       'log.bedLampOff': 'Bedside lamp off.',
       'log.curtainOpen': 'The curtain opened.',
       'log.curtainClose': 'The curtain closed.',
+      'activity.title': 'Sessions',
+      'activity.busy': '{count} running',
+      'activity.idle': 'idle',
+      'activity.hintBusy': '{name} sat down at the desk to work alongside you.',
+      'activity.hintIdle': 'No session is running; she wanders around on her own.',
+      'activity.tools': 'Tools',
+      'activity.messages': 'Messages',
+      'activity.errors': 'Errors',
+      'activity.recent': 'Recent',
+      'activity.kind.session-start': 'session started',
+      'activity.kind.session-end': 'session ended',
+      'activity.kind.running': 'started running',
+      'activity.kind.idle': 'went idle',
+      'activity.kind.tool': 'tool call',
+      'activity.kind.message': 'new message',
+      'activity.kind.error': 'error',
+      'activity.kind.subagent': 'subagent',
+      'activity.kind.workflow': 'workflow',
+      'log.sessionStart': 'You started working; {name} sat down at the desk too.',
+      'log.sessionEnd': 'Your session ended; {name} stretched.',
+      'log.sessionError': 'Something went wrong; {name} looks worried.',
       'log.offline': 'You were away for {span}; it kept living.',
       'log.move': 'It came over to you.',
       'log.sit': 'It spaced out on the sofa.',
@@ -861,6 +903,54 @@ window.__ModuleLoader__.load({
       return value
     }
 
+    /* ---------------------------------------------------------------------
+     * DSH 会话活动（运行时注入，不进存档）
+     *
+     * Host 半把「有几个会话在跑、调了多少工具、有没有出错」聚合成快照，
+     * Client 每次 tick 取回来后塞到这里；调度时用它修正权重：
+     * 你在干活，她也会去书桌前忙；没人干活她就闲下来。
+     * ------------------------------------------------------------------- */
+
+    const activityRef = { current: null }
+
+    /** 归一化 Host 返回的活动快照，形状不对就当没有 */
+    function normalizeActivity(raw) {
+      if (!raw || typeof raw !== 'object') return null
+      const counters = raw.counters && typeof raw.counters === 'object' ? raw.counters : {}
+      const pick = (key) => (Number.isFinite(Number(counters[key])) ? Number(counters[key]) : 0)
+      const recent = Array.isArray(raw.recent)
+        ? raw.recent
+          .filter((item) => item && typeof item === 'object' && typeof item.kind === 'string')
+          .slice(-8)
+          .map((item) => ({ at: Number(item.at) || 0, kind: item.kind, detail: typeof item.detail === 'string' ? item.detail : '' }))
+        : []
+      return {
+        running: Number.isFinite(Number(raw.running)) ? Number(raw.running) : 0,
+        sessions: Number.isFinite(Number(raw.sessions)) ? Number(raw.sessions) : 0,
+        counters: { messages: pick('messages'), tools: pick('tools'), errors: pick('errors'), workflows: pick('workflows'), subagents: pick('subagents') },
+        recent,
+        at: Date.now(),
+        idleMs: Number.isFinite(Number(raw.idleMs)) ? Number(raw.idleMs) : -1,
+      }
+    }
+
+    function setActivity(raw) {
+      activityRef.current = raw === null ? null : normalizeActivity(raw)
+      return activityRef.current
+    }
+
+    /** 会话活动对行为权重的修正：有人干活 → 偏向「工作」，别睡别发呆 */
+    function activityWeightMul(behaviorId) {
+      const activity = activityRef.current
+      const running = activity && Number.isFinite(activity.running) ? activity.running : 0
+      if (running <= 0) return 1
+      if (behaviorId === 'work') return 1.8 + Math.min(3, running) * 0.9
+      if (behaviorId === 'read') return 1.35
+      if (behaviorId === 'idle') return 0.4
+      if (behaviorId === 'sleep' || behaviorId === 'nap') return 0.18
+      return 1
+    }
+
     function behaviorWeight(behavior, character, clock, props) {
       if (behavior && behavior.weight) {
         const fromData = weightFromData(behavior.weight, character, clock, props)
@@ -878,6 +968,8 @@ window.__ModuleLoader__.load({
         const cooldownUntil = character.cooldowns[behavior.id] || 0
         if (cooldownUntil > at) continue
         let weight = behaviorWeight(behavior, character, clock, props)
+        // 有会话在跑 → 她也会坐去书桌前忙
+        weight *= activityWeightMul(behavior.id)
         if (character.behaviorId === behavior.id) weight *= 0.35
         weight *= 0.72 + Math.random() * 0.56
         if (weight > 0) candidates.push({ behavior, weight })
@@ -1369,6 +1461,9 @@ async function writeSave(home) {
     class HomeStore {
       constructor() {
         this.home = null
+        // DSH 会话活动（运行时，不存档）
+        this.activity = null
+        this.activityBusy = false
         this.meta = null
         this.animations = null
         this.packViews = null
@@ -1421,6 +1516,7 @@ async function writeSave(home) {
           now: Date.now(),
           meta: this.meta,
           views: this.packViews,
+          activity: this.activity,
           saveState: this.saveState,
           lastSavedAt: this.lastSavedAt || 0,
         }
@@ -2093,8 +2189,61 @@ async function writeSave(home) {
           stepHome(this.home, now)
           // 睡眠时也保持“当前行为”的可读性：行为本身在 stepHome 里切换
         }
+        // 顺带问一下 DSH 会话在干什么（异步，不阻塞时钟）
+        void this.refreshActivity()
         this.publish()
         this.scheduleSave()
+      },
+      /**
+       * 取一次 DSH 会话活动，并按「开始/结束/出错」做一次性反应。
+       * Host 没有 webserver 或没有会话服务时，这里只会拿到空快照，静默降级。
+       */
+      async refreshActivity() {
+        if (this.activityBusy) return this.activity
+        this.activityBusy = true
+        try {
+          const payload = await fetchJson(`${ROUTE}/api/activity`)
+          const next = normalizeActivity(payload)
+          if (next) this.applyActivity(next)
+        } catch {
+          /* 拿不到就保持上一次 */
+        } finally {
+          this.activityBusy = false
+        }
+        return this.activity
+      },
+      /** 活动变化 → 她的反应（只在「状态跳变」时触发，避免每 5 秒刷屏） */
+      applyActivity(next) {
+        const previous = this.activity
+        this.activity = next
+        setActivity(next)
+        if (!this.home || !this.home.character) return
+        const now = Date.now()
+        const character = this.home.character
+        const wasRunning = previous ? previous.running : 0
+        const nowRunning = next.running
+        // 你开始干活 → 她也坐到书桌前（只在她闲着/发呆/躺着的时候打断）
+        if (nowRunning > 0 && wasRunning === 0) {
+          pushLog(this.home, now, 'sessionStart', null)
+          const passive = ['idle', 'sleep', 'nap', 'read', 'stretch', 'window']
+          if (passive.includes(character.behaviorId)) this.forceBehavior('work')
+        }
+        // 会话跑完 → 她收工：心情好一点，从「工作」里松下来
+        if (nowRunning === 0 && wasRunning > 0) {
+          pushLog(this.home, now, 'sessionEnd', null)
+          character.mood = clampNumber(character.mood + 4, 0, 100, character.mood)
+          if (character.behaviorId === 'work') this.forceBehavior('stretch')
+        }
+        // 出错了 → 她有点担心
+        const previousErrors = previous ? previous.counters.errors : 0
+        if (next.counters.errors > previousErrors) {
+          pushLog(this.home, now, 'sessionError', null)
+          character.mood = clampNumber(character.mood - 5, 0, 100, character.mood)
+        }
+      },
+      /** 给面板用的活动快照（没有就是 null） */
+      activityView() {
+        return this.activity || null
       },
       scheduleSave(delayMs) {
         if (!this.home) return
@@ -4203,6 +4352,42 @@ async function writeSave(home) {
       )
     }
 
+    /** DSH 会话卡：把「真实会话」的活动显示出来，也解释她为什么在书桌前忙 */
+    function ActivityCard(props) {
+      const { t, activity, home, now } = props
+      if (!activity) return null
+      const running = Number(activity.running) || 0
+      const counters = activity.counters || {}
+      const recent = Array.isArray(activity.recent) ? activity.recent.slice(-3).reverse() : []
+      const time = (at) => {
+        const date = new Date(Number(at) || now)
+        return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+      }
+      return h(
+        'section',
+        { className: 'fh-card fh-activity' },
+        h('header', { className: 'fh-card-head' },
+          h('span', null, t('activity.title')),
+          h('span', { className: `fh-activity-dot${running > 0 ? ' is-on' : ''}` }),
+          h('span', { className: 'fh-muted' }, running > 0 ? t('activity.busy', { count: running }) : t('activity.idle')),
+        ),
+        h('p', { className: 'fh-flavor' }, fillText(t(running > 0 ? 'activity.hintBusy' : 'activity.hintIdle'), home)),
+        h('div', { className: 'fh-activity-stats' },
+          h('span', null, t('activity.tools'), h('b', null, String(Number(counters.tools) || 0))),
+          h('span', null, t('activity.messages'), h('b', null, String(Number(counters.messages) || 0))),
+          h('span', null, t('activity.errors'), h('b', null, String(Number(counters.errors) || 0))),
+        ),
+        recent.length > 0
+          ? h('ul', { className: 'fh-activity-list' },
+            recent.map((item, index) => h('li', { key: `${item.at}-${index}` },
+              h('span', { className: 'fh-activity-time' }, time(item.at)),
+              h('span', null, t(`activity.kind.${item.kind}`)),
+              item.detail ? h('span', { className: 'fh-muted' }, item.detail) : null,
+            )))
+          : null,
+      )
+    }
+
     function energyTier(v) { return v < 30 ? 'low' : v < 65 ? 'mid' : 'high' }
     function satietyTier(v) { return v < 30 ? 'low' : v < 65 ? 'mid' : 'high' }
     function moodTier(v) { return v < 35 ? 'low' : v < 70 ? 'mid' : 'high' }
@@ -5359,6 +5544,7 @@ async function writeSave(home) {
               h('div', { className: 'fh-side' },
                 h(StatusCard, { home: snapshot.home, now, t }),
                 h(NeedsCard, { home: snapshot.home, t }),
+            h(ActivityCard, { t, activity: snapshot.activity, home: snapshot.home, now }),
                 h(LogCard, { home: snapshot.home, t }),
                 h('p', { className: 'fh-foot' }, t('saved.at', { time: snapshot.lastSavedAt ? formatLogTime(snapshot.lastSavedAt) : t('saved.never') })),
               ),
@@ -6212,6 +6398,50 @@ async function writeSave(home) {
   padding: 2px 10px;
   font-size: 11.5px;
 }
+
+/* 会话卡：DSH 真实会话的活动 */
+.fh-activity-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dsw-alias-border-l1, #d8d2c6);
+  margin-left: auto;
+}
+.fh-activity-dot.is-on {
+  background: #57c07a;
+  box-shadow: 0 0 0 3px rgba(87, 192, 122, 0.18);
+  animation: fh-pulse 1.8s ease-in-out infinite;
+}
+.fh-activity-stats {
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--dsw-alias-text-secondary);
+}
+.fh-activity-stats b {
+  margin-left: 5px;
+  font-weight: 600;
+  color: var(--dsw-alias-text-primary, #2b2b2b);
+}
+.fh-activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11.5px;
+  color: var(--dsw-alias-text-secondary);
+}
+.fh-activity-list li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.fh-activity-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--dsw-alias-text-tertiary, #8a8a8a);
+}
 `
 
 
@@ -6295,6 +6525,9 @@ async function writeSave(home) {
         createHome,
         normalizeHome,
         logText,
+        normalizeActivity,
+        setActivity,
+        activityWeightMul,
         furnitureItems,
         normalizeControls,
         localizeText,
@@ -6318,6 +6551,7 @@ async function writeSave(home) {
         FishHomePanelView,
         EventForm,
         SettingsBar,
+        ActivityCard,
         EditorBar,
         WEIGHT_VOCAB,
         requestAccepted,

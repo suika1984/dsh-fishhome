@@ -7,6 +7,9 @@
     class HomeStore {
       constructor() {
         this.home = null
+        // DSH 会话活动（运行时，不存档）
+        this.activity = null
+        this.activityBusy = false
         this.meta = null
         this.animations = null
         this.packViews = null
@@ -59,6 +62,7 @@
           now: Date.now(),
           meta: this.meta,
           views: this.packViews,
+          activity: this.activity,
           saveState: this.saveState,
           lastSavedAt: this.lastSavedAt || 0,
         }

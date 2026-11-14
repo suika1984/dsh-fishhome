@@ -389,6 +389,21 @@ assert.equal(zh('status.remain', { seconds: 30 }).includes('30'), true)
   assert.equal(model.fillText('', home), '', '空字符串返回空')
 }
 
+// DSH 会话活动：有人干活时，工作权重上升、发呆/睡觉权重下降
+{
+  model.setActivity({ running: 0 })
+  assert.equal(model.activityWeightMul('work'), 1, '没有会话时权重不变')
+  model.setActivity({ running: 2, counters: { tools: 3 } })
+  assert.ok(model.activityWeightMul('work') > 1.5, '有会话时偏向工作')
+  assert.ok(model.activityWeightMul('idle') < 1, '发呆权重被压低')
+  assert.ok(model.activityWeightMul('sleep') < model.activityWeightMul('read'), '睡觉比看书更该被压低')
+  const normalized = model.normalizeActivity({ running: '2', counters: { tools: '5' }, recent: [{ at: 1, kind: 'tool', detail: 'read' }, { bad: true }] })
+  assert.equal(normalized.running, 2, '字符串数字也能归一化')
+  assert.equal(normalized.counters.tools, 5)
+  assert.equal(normalized.recent.length, 1, '坏条目被丢掉')
+  assert.equal(model.normalizeActivity(null), null, '空快照返回 null')
+  model.setActivity(null)
+}
 console.log('model tests passed:', {
   switches,
   energy: Math.round(home.character.energy),

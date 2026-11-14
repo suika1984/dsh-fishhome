@@ -836,6 +836,50 @@
   padding: 2px 10px;
   font-size: 11.5px;
 }
+
+/* 会话卡：DSH 真实会话的活动 */
+.fh-activity-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--dsw-alias-border-l1, #d8d2c6);
+  margin-left: auto;
+}
+.fh-activity-dot.is-on {
+  background: #57c07a;
+  box-shadow: 0 0 0 3px rgba(87, 192, 122, 0.18);
+  animation: fh-pulse 1.8s ease-in-out infinite;
+}
+.fh-activity-stats {
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--dsw-alias-text-secondary);
+}
+.fh-activity-stats b {
+  margin-left: 5px;
+  font-weight: 600;
+  color: var(--dsw-alias-text-primary, #2b2b2b);
+}
+.fh-activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11.5px;
+  color: var(--dsw-alias-text-secondary);
+}
+.fh-activity-list li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.fh-activity-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--dsw-alias-text-tertiary, #8a8a8a);
+}
 `
 
 

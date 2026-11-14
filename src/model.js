@@ -352,6 +352,54 @@
       return value
     }
 
+    /* ---------------------------------------------------------------------
+     * DSH 会话活动（运行时注入，不进存档）
+     *
+     * Host 半把「有几个会话在跑、调了多少工具、有没有出错」聚合成快照，
+     * Client 每次 tick 取回来后塞到这里；调度时用它修正权重：
+     * 你在干活，她也会去书桌前忙；没人干活她就闲下来。
+     * ------------------------------------------------------------------- */
+
+    const activityRef = { current: null }
+
+    /** 归一化 Host 返回的活动快照，形状不对就当没有 */
+    function normalizeActivity(raw) {
+      if (!raw || typeof raw !== 'object') return null
+      const counters = raw.counters && typeof raw.counters === 'object' ? raw.counters : {}
+      const pick = (key) => (Number.isFinite(Number(counters[key])) ? Number(counters[key]) : 0)
+      const recent = Array.isArray(raw.recent)
+        ? raw.recent
+          .filter((item) => item && typeof item === 'object' && typeof item.kind === 'string')
+          .slice(-8)
+          .map((item) => ({ at: Number(item.at) || 0, kind: item.kind, detail: typeof item.detail === 'string' ? item.detail : '' }))
+        : []
+      return {
+        running: Number.isFinite(Number(raw.running)) ? Number(raw.running) : 0,
+        sessions: Number.isFinite(Number(raw.sessions)) ? Number(raw.sessions) : 0,
+        counters: { messages: pick('messages'), tools: pick('tools'), errors: pick('errors'), workflows: pick('workflows'), subagents: pick('subagents') },
+        recent,
+        at: Date.now(),
+        idleMs: Number.isFinite(Number(raw.idleMs)) ? Number(raw.idleMs) : -1,
+      }
+    }
+
+    function setActivity(raw) {
+      activityRef.current = raw === null ? null : normalizeActivity(raw)
+      return activityRef.current
+    }
+
+    /** 会话活动对行为权重的修正：有人干活 → 偏向「工作」，别睡别发呆 */
+    function activityWeightMul(behaviorId) {
+      const activity = activityRef.current
+      const running = activity && Number.isFinite(activity.running) ? activity.running : 0
+      if (running <= 0) return 1
+      if (behaviorId === 'work') return 1.8 + Math.min(3, running) * 0.9
+      if (behaviorId === 'read') return 1.35
+      if (behaviorId === 'idle') return 0.4
+      if (behaviorId === 'sleep' || behaviorId === 'nap') return 0.18
+      return 1
+    }
+
     function behaviorWeight(behavior, character, clock, props) {
       if (behavior && behavior.weight) {
         const fromData = weightFromData(behavior.weight, character, clock, props)
@@ -369,6 +417,8 @@
         const cooldownUntil = character.cooldowns[behavior.id] || 0
         if (cooldownUntil > at) continue
         let weight = behaviorWeight(behavior, character, clock, props)
+        // 有会话在跑 → 她也会坐去书桌前忙
+        weight *= activityWeightMul(behavior.id)
         if (character.behaviorId === behavior.id) weight *= 0.35
         weight *= 0.72 + Math.random() * 0.56
         if (weight > 0) candidates.push({ behavior, weight })

@@ -351,6 +351,42 @@
       )
     }
 
+    /** DSH 会话卡：把「真实会话」的活动显示出来，也解释她为什么在书桌前忙 */
+    function ActivityCard(props) {
+      const { t, activity, home, now } = props
+      if (!activity) return null
+      const running = Number(activity.running) || 0
+      const counters = activity.counters || {}
+      const recent = Array.isArray(activity.recent) ? activity.recent.slice(-3).reverse() : []
+      const time = (at) => {
+        const date = new Date(Number(at) || now)
+        return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+      }
+      return h(
+        'section',
+        { className: 'fh-card fh-activity' },
+        h('header', { className: 'fh-card-head' },
+          h('span', null, t('activity.title')),
+          h('span', { className: `fh-activity-dot${running > 0 ? ' is-on' : ''}` }),
+          h('span', { className: 'fh-muted' }, running > 0 ? t('activity.busy', { count: running }) : t('activity.idle')),
+        ),
+        h('p', { className: 'fh-flavor' }, fillText(t(running > 0 ? 'activity.hintBusy' : 'activity.hintIdle'), home)),
+        h('div', { className: 'fh-activity-stats' },
+          h('span', null, t('activity.tools'), h('b', null, String(Number(counters.tools) || 0))),
+          h('span', null, t('activity.messages'), h('b', null, String(Number(counters.messages) || 0))),
+          h('span', null, t('activity.errors'), h('b', null, String(Number(counters.errors) || 0))),
+        ),
+        recent.length > 0
+          ? h('ul', { className: 'fh-activity-list' },
+            recent.map((item, index) => h('li', { key: `${item.at}-${index}` },
+              h('span', { className: 'fh-activity-time' }, time(item.at)),
+              h('span', null, t(`activity.kind.${item.kind}`)),
+              item.detail ? h('span', { className: 'fh-muted' }, item.detail) : null,
+            )))
+          : null,
+      )
+    }
+
     function energyTier(v) { return v < 30 ? 'low' : v < 65 ? 'mid' : 'high' }
     function satietyTier(v) { return v < 30 ? 'low' : v < 65 ? 'mid' : 'high' }
     function moodTier(v) { return v < 35 ? 'low' : v < 70 ? 'mid' : 'high' }
@@ -1507,6 +1543,7 @@
               h('div', { className: 'fh-side' },
                 h(StatusCard, { home: snapshot.home, now, t }),
                 h(NeedsCard, { home: snapshot.home, t }),
+            h(ActivityCard, { t, activity: snapshot.activity, home: snapshot.home, now }),
                 h(LogCard, { home: snapshot.home, t }),
                 h('p', { className: 'fh-foot' }, t('saved.at', { time: snapshot.lastSavedAt ? formatLogTime(snapshot.lastSavedAt) : t('saved.never') })),
               ),

@@ -39,8 +39,61 @@
           stepHome(this.home, now)
           // 睡眠时也保持“当前行为”的可读性：行为本身在 stepHome 里切换
         }
+        // 顺带问一下 DSH 会话在干什么（异步，不阻塞时钟）
+        void this.refreshActivity()
         this.publish()
         this.scheduleSave()
+      },
+      /**
+       * 取一次 DSH 会话活动，并按「开始/结束/出错」做一次性反应。
+       * Host 没有 webserver 或没有会话服务时，这里只会拿到空快照，静默降级。
+       */
+      async refreshActivity() {
+        if (this.activityBusy) return this.activity
+        this.activityBusy = true
+        try {
+          const payload = await fetchJson(`${ROUTE}/api/activity`)
+          const next = normalizeActivity(payload)
+          if (next) this.applyActivity(next)
+        } catch {
+          /* 拿不到就保持上一次 */
+        } finally {
+          this.activityBusy = false
+        }
+        return this.activity
+      },
+      /** 活动变化 → 她的反应（只在「状态跳变」时触发，避免每 5 秒刷屏） */
+      applyActivity(next) {
+        const previous = this.activity
+        this.activity = next
+        setActivity(next)
+        if (!this.home || !this.home.character) return
+        const now = Date.now()
+        const character = this.home.character
+        const wasRunning = previous ? previous.running : 0
+        const nowRunning = next.running
+        // 你开始干活 → 她也坐到书桌前（只在她闲着/发呆/躺着的时候打断）
+        if (nowRunning > 0 && wasRunning === 0) {
+          pushLog(this.home, now, 'sessionStart', null)
+          const passive = ['idle', 'sleep', 'nap', 'read', 'stretch', 'window']
+          if (passive.includes(character.behaviorId)) this.forceBehavior('work')
+        }
+        // 会话跑完 → 她收工：心情好一点，从「工作」里松下来
+        if (nowRunning === 0 && wasRunning > 0) {
+          pushLog(this.home, now, 'sessionEnd', null)
+          character.mood = clampNumber(character.mood + 4, 0, 100, character.mood)
+          if (character.behaviorId === 'work') this.forceBehavior('stretch')
+        }
+        // 出错了 → 她有点担心
+        const previousErrors = previous ? previous.counters.errors : 0
+        if (next.counters.errors > previousErrors) {
+          pushLog(this.home, now, 'sessionError', null)
+          character.mood = clampNumber(character.mood - 5, 0, 100, character.mood)
+        }
+      },
+      /** 给面板用的活动快照（没有就是 null） */
+      activityView() {
+        return this.activity || null
       },
       scheduleSave(delayMs) {
         if (!this.home) return

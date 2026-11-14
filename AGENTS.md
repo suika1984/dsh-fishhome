@@ -218,6 +218,7 @@ index.js        插件入口（返回 inject/apply）
 GET    /fishhome/api/meta          插件元信息（角色包、各目录、mapPath）
 GET    /fishhome/api/maps          可用地图列表
 GET    /fishhome/api/pack-files    角色包里的图片清单（编辑器换图下拉用）
+GET    /fishhome/api/activity      DSH 会话活动快照（运行时聚合，不落盘）
 GET    /fishhome/api/state         读存档        POST 写存档        DELETE 删存档
 POST   /fishhome/api/open          用系统程序打开配置文件 { kind: file|folder|reveal, path }
 GET    /fishhome/pack/<file>       角色包静态资源（ETag + 304）
@@ -225,6 +226,28 @@ GET    /fishhome/data/<path>       场景定义（GET / POST 写 / DELETE），�
 ```
 
 ---
+
+### DSH 会话是怎么接进来的
+
+Host 半（`index.js` 的 `apply`）订阅这些 **emit 模式**事件，聚合成内存里的活动快照：
+
+```
+api-session/added | removed | status(running) | error | activity
+agent/status | agent/error | agent/inbox/inserted
+tools/result | subagent/start | workflow/start
+```
+
+`GET /fishhome/api/activity` 返回 `{ running, sessions, counters:{messages,tools,errors,workflows,subagents}, recent[] }`。
+Client 每次 tick（5 秒）拉一次，然后：
+
+| 会话状态 | 家园里的反应 |
+| --- | --- |
+| 有会话在跑 | `activityWeightMul()` 把 work 权重 ×(1.8+0.9×运行数)，idle ×0.4、sleep ×0.18；她自己去书桌前 |
+| 0 → 有会话 | 日志 `log.sessionStart`；若她正闲着/睡着，切到 `work` |
+| 有会话 → 0 | 日志 `log.sessionEnd`、心情 +4；她正在 work 就切 `stretch` |
+| 出错数增加 | 日志 `log.sessionError`、心情 -5 |
+
+**不要**订阅 waterfall 事件（`approval/request`、`tools/pre-execute` 等）却不调用 `next()`，会卡住原有流程。
 
 ## 7. 踩过的坑（改之前先读）
 

@@ -217,6 +217,11 @@ function createHandler(settings) {
         await handleOpen(req, res, settings)
         return
       }
+      if (rest === '/api/activity' && (req.method === 'GET' || req.method === 'HEAD')) {
+        const activity = settings.activity ? settings.activity() : null
+        sendJson(res, 200, activity ? activitySnapshot(activity) : { ok: true, running: 0, sessions: 0, counters: {}, recent: [] })
+        return
+      }
       if (rest.startsWith('/pack/')) {
         await serveStatic(req, res, settings.config().packDir, decodeURIComponent(rest.slice('/pack/'.length)), 'pack')
         return
@@ -538,10 +543,22 @@ async function serveData(req, res, relative) {
 /**
  * Host 插件入口。webServer 是可选依赖：没有它插件保持静默，
  * 但不会让整个 profile 激活失败。
+ *
+ * 另外订阅 DSH 的会话事件，聚合成一份「活动快照」给面板用（仅内存，不落盘）。
  */
 export function apply(ctx, rawConfig) {
   const current = normalizeConfig(rawConfig)
-  const settings = { config: () => current }
+  const activity = createActivity()
+  const settings = { config: () => current, activity: () => activity }
+
+  // DSH 会话活动 → 聚合（事件在别的部署里可能不存在，缺了就当没有）
+  for (const [event, handler] of activityListeners(activity)) {
+    try {
+      ctx.effect(() => ctx.on(event, handler), `dsh-fishhome: listen ${event}`)
+    } catch {
+      /* 没有这个事件就跳过 */
+    }
+  }
 
   ctx.inject(['webServer'], (inner) => {
     const dispose = inner.webServer.register({
@@ -551,4 +568,123 @@ export function apply(ctx, rawConfig) {
     })
     inner.effect(() => dispose, 'dsh-fishhome: http routes')
   })
+}
+
+/* ---------------------------------------------------------------------------
+ * DSH 会话活动聚合
+ *
+ * 目标：让家园「看见」真实的 DSH 会话——有几个在跑、今天调了多少工具、有没有出错。
+ * 只存内存：这是「活动」不是「存档」，重启清零才符合语义。
+ * ------------------------------------------------------------------------- */
+
+const ACTIVITY_RECENT_MAX = 24
+
+function createActivity() {
+  return {
+    startedAt: Date.now(),
+    lastAt: 0,
+    sessions: new Set(),
+    running: new Set(),
+    counters: { messages: 0, tools: 0, errors: 0, workflows: 0, subagents: 0 },
+    recent: [],
+  }
+}
+
+function noteActivity(activity, kind, detail) {
+  const now = Date.now()
+  activity.lastAt = now
+  activity.recent.push({ at: now, kind, detail: typeof detail === 'string' ? detail.slice(0, 120) : '' })
+  if (activity.recent.length > ACTIVITY_RECENT_MAX) activity.recent.splice(0, activity.recent.length - ACTIVITY_RECENT_MAX)
+}
+
+function sessionIdOf(value) {
+  if (typeof value === 'string') return value
+  if (value && typeof value === 'object') {
+    for (const key of ['sessionId', 'id', 'session']) {
+      if (typeof value[key] === 'string' && value[key] !== '') return value[key]
+    }
+  }
+  return ''
+}
+
+/** 事件名 → 更新聚合状态。全部用 emit 模式事件，不做 waterfall 干预。 */
+function activityListeners(activity) {
+  const entries = [
+    ['api-session/added', (summary) => {
+      const id = sessionIdOf(summary)
+      if (id) activity.sessions.add(id)
+      noteActivity(activity, 'session-start', '')
+    }],
+    ['api-session/removed', (sessionId) => {
+      const id = sessionIdOf(sessionId)
+      if (id) {
+        activity.sessions.delete(id)
+        activity.running.delete(id)
+      }
+      noteActivity(activity, 'session-end', '')
+    }],
+    ['api-session/status', (sessionId, running) => {
+      const id = sessionIdOf(sessionId)
+      if (!id) return
+      if (running) activity.running.add(id)
+      else activity.running.delete(id)
+      noteActivity(activity, running ? 'running' : 'idle', '')
+    }],
+    ['api-session/error', (sessionId, message) => {
+      activity.counters.errors += 1
+      noteActivity(activity, 'error', message)
+    }],
+    ['api-session/activity', (sessionId) => {
+      activity.counters.messages += 1
+      noteActivity(activity, 'message', '')
+    }],
+    ['agent/status', (payload) => {
+      const id = sessionIdOf(payload && payload.agent)
+      const status = payload && payload.status
+      if (id && (status === 'running' || status === 'idle')) {
+        if (status === 'running') activity.running.add(id)
+        else activity.running.delete(id)
+      }
+    }],
+    ['agent/inbox/inserted', () => {
+      activity.counters.messages += 1
+      noteActivity(activity, 'message', '')
+    }],
+    ['agent/error', (payload) => {
+      activity.counters.errors += 1
+      const error = payload && payload.error
+      noteActivity(activity, 'error', error && error.message ? error.message : '')
+    }],
+    ['tools/result', (exec) => {
+      activity.counters.tools += 1
+      const name = exec && exec.name ? String(exec.name) : ''
+      noteActivity(activity, 'tool', name)
+    }],
+    ['subagent/start', () => {
+      activity.counters.subagents += 1
+      noteActivity(activity, 'subagent', '')
+    }],
+    ['workflow/start', () => {
+      activity.counters.workflows += 1
+      noteActivity(activity, 'workflow', '')
+    }],
+  ]
+  return entries
+}
+
+/** 给面板的快照：只暴露计数，不暴露会话内容 */
+function activitySnapshot(activity) {
+  const now = Date.now()
+  return {
+    ok: true,
+    now,
+    running: activity.running.size,
+    sessions: activity.sessions.size,
+    counters: { ...activity.counters },
+    recent: activity.recent.slice(-8),
+    startedAt: activity.startedAt,
+    lastAt: activity.lastAt,
+    // 已经静默多久（前端判断"还在忙吗"）
+    idleMs: activity.lastAt > 0 ? now - activity.lastAt : -1,
+  }
 }

@@ -23,7 +23,12 @@ const fakeInner = {
     return fn()
   },
 }
+const listeners = new Map()
 const ctx = {
+  on(event, handler) {
+    listeners.set(event, handler)
+    return () => listeners.delete(event)
+  },
   inject(deps, callback) {
     assert.deepEqual(deps, ['webServer'])
     callback(fakeInner)
@@ -93,6 +98,40 @@ async function call(url, method = 'GET', body = '') {
   assert.equal(badKind.statusCode, 400, '不认识的打开方式被拒绝')
   const wrongMethod = await call('/fishhome/api/open', 'GET')
   assert.equal(wrongMethod.statusCode, 405, '只允许 POST')
+}
+
+// 会话活动：Host 订阅事件 → 聚合 → /api/activity
+{
+  const empty = await call('/fishhome/api/activity')
+  assert.equal(empty.statusCode, 200)
+  const emptyJson = JSON.parse(empty.body)
+  assert.equal(emptyJson.ok, true)
+  assert.equal(emptyJson.running, 0, '一开始没有会话在跑')
+  assert.equal(typeof emptyJson.counters, 'object')
+
+  assert.ok(listeners.size > 0, '至少订阅了一些会话事件')
+  const fire = (event, ...args) => {
+    const handler = listeners.get(event)
+    assert.ok(handler, `应该有 ${event} 的订阅`)
+    handler(...args)
+  }
+  fire('api-session/added', { sessionId: 'sess-1' })
+  fire('api-session/status', 'sess-1', true)
+  fire('tools/result', { name: 'read' })
+  fire('tools/result', { name: 'write' })
+  fire('agent/inbox/inserted', {})
+  fire('api-session/error', 'sess-1', 'boom')
+
+  const busy = JSON.parse((await call('/fishhome/api/activity')).body)
+  assert.equal(busy.running, 1, '一个会话在跑')
+  assert.equal(busy.counters.tools, 2, '两次工具调用')
+  assert.equal(busy.counters.messages, 1, '一条消息')
+  assert.equal(busy.counters.errors, 1, '一次出错')
+  assert.ok(Array.isArray(busy.recent) && busy.recent.length >= 4, '有最近活动')
+
+  fire('api-session/status', 'sess-1', false)
+  const idle = JSON.parse((await call('/fishhome/api/activity')).body)
+  assert.equal(idle.running, 0, '结束后没有运行中的会话')
 }
 
 const meta = await call('/fishhome/api/meta')

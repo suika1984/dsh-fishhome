@@ -1231,6 +1231,18 @@ model.applyFurniture(model.DEFAULT_FURNITURE)
   assert.ok(joined.includes('7') && joined.includes('4') && joined.includes('1'), '显示工具/消息/出错计数')
   assert.ok(texts.some((x) => x.includes('调用工具')), '最近活动带种类标签')
 }
+// 会话结束文案：用 {user}/{name} 拼，且必须真的有渲染分支（曾缺 case 显示成「大肥鱼。」）
+{
+  const logHome = model.createHome(Date.now(), '大肥鱼')
+  logHome.userName = '小明'
+  const endText = model.fillText(model.logText(translate, { code: 'sessionEnd', arg: null }), logHome)
+  assert.ok(endText.includes('工作完成'), '结束文案是「工作完成」而不是「会话结束」')
+  assert.ok(endText.includes('小明') && endText.includes('大肥鱼'), '两个名字都替换了')
+  assert.ok(endText.includes('伸了个懒腰'), '保留伸懒腰的动作')
+  const startText = model.fillText(model.logText(translate, { code: 'sessionStart', arg: null }), logHome)
+  assert.ok(startText.includes('书桌'), '开始文案有书桌')
+  assert.ok(model.fillText(model.logText(translate, { code: 'sessionError', arg: null }), logHome).includes('担心'), '出错文案有担心')
+}
 console.log('ui tests passed:', {
   components: Object.keys(registered),
   behaviors: model.BEHAVIORS.length,

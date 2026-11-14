@@ -469,6 +469,12 @@
           return t('log.stretch')
         case 'idle':
           return t('log.idle')
+        case 'sessionStart':
+          return t('log.sessionStart')
+        case 'sessionEnd':
+          return t('log.sessionEnd')
+        case 'sessionError':
+          return t('log.sessionError')
         case 'curtainOpen':
           return t('log.curtainOpen')
         case 'curtainClose':

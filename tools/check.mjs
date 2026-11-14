@@ -108,6 +108,8 @@ for (const [key, files] of usedKeys) {
   fail('多语言', `代码用到但没有文案：${key}（${[...files].join(', ')}）`)
 }
 
+const MAPS = ['bedroom', 'living', 'garden']
+
 /* ---------------------------------------------------------------- 死代码 */
 
 if (bundle !== '') {
@@ -123,7 +125,6 @@ if (bundle !== '') {
 /* ---------------------------------------------------------------- 数据完整性 */
 
 const PACK_DIR = path.join(ROOT, 'packs', 'bigfish-adult')
-const MAPS = ['bedroom', 'living', 'garden']
 const PRESETS = new Set(['desk', 'desk_glow', 'shelf', 'rug', 'plant', 'night_lamp', 'night_lamp_glow', 'lamp_glow'])
 const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'))
 const hasFile = (file) => existsSync(file)
@@ -227,6 +228,31 @@ for (const map of MAPS) {
     const anchorIds = list.map((item) => (item && item.id) || 'default')
     if (!anchorIds.includes(anchorId)) fail('数据', `${map}/events/${id}.json 的 anchor "${event.anchor}" 在这件家具上找不到（有：${anchorIds.join(', ')}）`)
   }
+}
+
+/* ---------------------------------------------------------------- 日志码 */
+
+// 日志码必须两边都齐全：字典里有 log.<code>，ui.js 的 logText 里有 case '<code>'
+const uiSource = readFileSync(path.join(SRC, 'ui.js'), 'utf8')
+const logTextCases = new Set([...uiSource.matchAll(/case '([a-zA-Z0-9_.-]+)':/g)].map((m) => m[1]))
+const pushedCodes = new Set()
+for (const file of ORDER) {
+  const text = readFileSync(path.join(ROOT, file), 'utf8')
+  for (const m of text.matchAll(/pushLog\(\s*[^,]+,\s*[^,]+,\s*'([a-zA-Z0-9_.-]+)'/g)) pushedCodes.add(m[1])
+}
+// 事件数据里自定义的日志码
+for (const map of MAPS) {
+  const dir = path.join(DATA, 'maps', map, 'events')
+  if (!hasFile(dir)) continue
+  for (const name of readdirSync(dir)) {
+    if (!name.endsWith('.json')) continue
+    const event = JSON.parse(readFileSync(path.join(dir, name), 'utf8'))
+    if (typeof event.log === 'string' && event.log !== '') pushedCodes.add(event.log)
+  }
+}
+for (const code of pushedCodes) {
+  if (!ZH.has(`log.${code}`)) fail('日志码', `日志码 "${code}" 没有对应文案 log.${code}`)
+  if (!logTextCases.has(code)) fail('日志码', `日志码 "${code}" 没有渲染分支：src/ui.js 的 logText 里缺 case '${code}'`)
 }
 
 /* ---------------------------------------------------------------- 输出 */

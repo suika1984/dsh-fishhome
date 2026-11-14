@@ -224,7 +224,7 @@ window.__ModuleLoader__.load({
       'activity.kind.subagent': '分派子任务',
       'activity.kind.workflow': '跑工作流',
       'log.sessionStart': '你开始干活了，{name}也坐到了书桌前。',
-      'log.sessionEnd': '你的会话结束了，{name}伸了个懒腰。',
+      'log.sessionEnd': '{user}的工作完成啦，{name}伸了个懒腰。',
       'log.sessionError': '好像出了点问题，{name}有点担心。',
       'log.offline': '你离开了 {span}，{name}自己过了这段日子。',
       'log.move': '{name}凑到你面前来了。',
@@ -470,7 +470,7 @@ window.__ModuleLoader__.load({
       'activity.kind.subagent': 'subagent',
       'activity.kind.workflow': 'workflow',
       'log.sessionStart': 'You started working; {name} sat down at the desk too.',
-      'log.sessionEnd': 'Your session ended; {name} stretched.',
+      'log.sessionEnd': "{user}'s work is done — {name} stretched.",
       'log.sessionError': 'Something went wrong; {name} looks worried.',
       'log.offline': 'You were away for {span}; it kept living.',
       'log.move': 'It came over to you.',
@@ -4470,6 +4470,12 @@ async function writeSave(home) {
           return t('log.stretch')
         case 'idle':
           return t('log.idle')
+        case 'sessionStart':
+          return t('log.sessionStart')
+        case 'sessionEnd':
+          return t('log.sessionEnd')
+        case 'sessionError':
+          return t('log.sessionError')
         case 'curtainOpen':
           return t('log.curtainOpen')
         case 'curtainClose':

@@ -658,12 +658,20 @@ function rememberSession(notes, sessionId, patch) {
 }
 
 /** 用会话里第一条用户消息当标题（只写一次，之后不被覆盖） */
-function setSessionTitle(notes, sessionId, title) {
+function setSessionTitle(notes, sessionId, title, authoritative) {
   if (typeof sessionId !== 'string' || sessionId === '' || title === '') return
   const current = notes.sessions.get(sessionId)
-  if (current && current.titled) return
-  rememberSession(notes, sessionId, { label: title, titled: true })
+  if (current && current.titled && !authoritative) return
+  rememberSession(notes, sessionId, { label: title, titled: true, authoritative: authoritative === true })
 }
+
+/** 压缩/续写时注入的「假用户消息」，不该拿来当标题 */
+const SYNTHETIC_USER_HINTS = [
+  'this is an automatically generated checkpoint',
+  'this is an automatically generated',
+  'compacting an earlier span',
+  'conversation summary',
+]
 
 /** 从一条用户消息里抽「标题」：第一段文字，压平空白后截断 */
 function titleFromMessage(message) {
@@ -673,9 +681,29 @@ function titleFromMessage(message) {
     if (!block || block.type !== 'text' || typeof block.text !== 'string') continue
     const text = block.text.replace(/\s+/g, ' ').trim()
     if (text === '') continue
+    const lower = text.toLowerCase()
+    if (SYNTHETIC_USER_HINTS.some((hint) => lower.startsWith(hint) || lower.includes(hint))) continue
     return text.length > 24 ? `${text.slice(0, 24)}…` : text
   }
   return ''
+}
+
+/** 会话自己的 durable 标题（DSH 把改名/自动标题记在会话事件里，形状是 { title } ） */
+function titleFromSessionEvents(session) {
+  if (!session || typeof session !== 'object' || typeof session.snapshotEvents !== 'function') return ''
+  let events = []
+  try {
+    events = session.snapshotEvents() || []
+  } catch {
+    return ''
+  }
+  let found = ''
+  for (const event of events) {
+    const data = event && event.data
+    if (!data || typeof data !== 'object') continue
+    if (typeof data.title === 'string' && data.title.trim() !== '') found = data.title.trim()
+  }
+  return found
 }
 
 /** 会话 id 太长的部分去掉，留一段有区分度的（session-1a2b3c… → 1a2b3c…） */
@@ -689,9 +717,16 @@ function prettySessionId(sessionId) {
 /** 用 Session 的历史消息补标题（事件没赶上时用） */
 function backfillTitle(notes, sessionId) {
   const current = notes.sessions.get(sessionId)
-  if (current && current.titled) return
+  if (current && current.titled && current.authoritative) return
   const session = notes.sessionRefs.get(sessionId)
-  if (!session || typeof session.deriveMessages !== 'function') return
+  if (!session) return
+  const durable = titleFromSessionEvents(session)
+  if (durable) {
+    setSessionTitle(notes, sessionId, durable, true)
+    return
+  }
+  if (current && current.titled) return
+  if (typeof session.deriveMessages !== 'function') return
   let messages = []
   try {
     messages = session.deriveMessages() || []
@@ -968,10 +1003,15 @@ function activityListeners(activity, notes) {
       if (session && typeof session === 'object') notes.sessionRefs.set(id, session)
     }],
     ['session/event', (session, event) => {
-      // 用第一条用户消息当标题（和左侧会话列表的观感一致）
-      if (!event || event.type !== 'user/message' || !event.data) return
       const id = sessionIdOf(session)
-      if (!id) return
+      if (!id || !event || !event.data) return
+      // 1) 会话自己记的标题最权威（改名 / 自动标题都会落成带 title 的事件）
+      if (typeof event.data.title === 'string' && event.data.title.trim() !== '') {
+        setSessionTitle(notes, id, event.data.title.trim(), true)
+        return
+      }
+      // 2) 退而求其次：第一条「像人写的」用户消息
+      if (event.type !== 'user/message') return
       const title = titleFromMessage(event.data)
       if (title) setSessionTitle(notes, id, title)
     }],

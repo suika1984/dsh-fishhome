@@ -312,6 +312,44 @@ async function call(url, method = 'GET', body = '') {
   assert.equal(row.titled, true)
 }
 
+// 标题优先级：会话事件里的 title > 像人写的用户消息 > 跳过压缩注入的假消息
+{
+  const fireLocal = (event, ...args) => { for (const handler of listeners.get(event) || []) handler(...args) }
+
+  // 1) 压缩注入的假消息不该当标题
+  fireLocal('session/created', {
+    id: 'session-compacted777',
+    snapshotEvents: () => [],
+    deriveMessages: () => ([
+      { role: 'user', content: [{ type: 'text', text: 'This is an automatically generated checkpoint condensing an earlier span of the conversation.' }] },
+      { role: 'user', content: [{ type: 'text', text: '帮我做家园插件' }] },
+    ]),
+  })
+  let listed = JSON.parse((await call('/fishhome/api/activity')).body).notes
+  let row = listed.sessions.find((item) => item.id === 'session-compacted777')
+  assert.equal(row.label, '帮我做家园插件', '跳过压缩注入的假消息，用真正的人话')
+
+  // 2) 会话自己记的标题优先（durable title 事件）
+  fireLocal('session/created', {
+    id: 'session-durable888',
+    snapshotEvents: () => ([
+      { type: 'user/message', data: { role: 'user', content: [{ type: 'text', text: '随便第一句' }] } },
+      { type: 'session/title', data: { title: '大肥鱼家园插件' } },
+    ]),
+    deriveMessages: () => ([{ role: 'user', content: [{ type: 'text', text: '随便第一句' }] }]),
+  })
+  listed = JSON.parse((await call('/fishhome/api/activity')).body).notes
+  row = listed.sessions.find((item) => item.id === 'session-durable888')
+  assert.equal(row.label, '大肥鱼家园插件', 'durable 标题优先')
+
+  // 3) 实时来的 title 事件也要生效
+  fireLocal('api-session/added', { sessionId: 'session-live999' })
+  fireLocal('session/event', { id: 'session-live999' }, { type: 'session/title', data: { title: '实时标题' } })
+  listed = JSON.parse((await call('/fishhome/api/activity')).body).notes
+  row = listed.sessions.find((item) => item.id === 'session-live999')
+  assert.equal(row.label, '实时标题', '实时 title 事件生效')
+}
+
 const meta = await call('/fishhome/api/meta')
 assert.equal(meta.statusCode, 200)
 const metaJson = JSON.parse(meta.body)

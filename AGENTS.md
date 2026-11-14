@@ -18,7 +18,7 @@
 | 路径 | 是什么 | 改完要做什么 |
 | --- | --- | --- |
 | `index.js` | **Host**：路由、存档读写、静态资源发布 | **重启 Harness** |
-| `src/*.js` | **Client 源码**（17 个片段，见 §2） | `node build.mjs` 后刷新面板 |
+| `src/*.js` | **Client 源码**（17 个片段，见 §3） | `node build.mjs` 后刷新面板 |
 | `client.js` | **生成物**，浏览器加载的就是它 | ❌ 永远不要直接编辑 |
 | `data/maps/<map>/` | 场景定义：`scene.json` / `background.json` / `furniture/` / `events/` | 刷新面板（编辑器里保存也行） |
 | `packs/<pack>/` | 角色包：`pet.json` + `actions/` + PNG 素材 | 刷新面板 |
@@ -28,7 +28,55 @@
 
 ---
 
-## 1. 常用命令（照着抄）
+## 1. 安装 / 启用（照着做就行）
+
+插件有两种装法，**装完都要重启 Harness**（Host 半只在启动时注册路由）。
+
+### 方式 A：作为 bundle 安装（给最终用户）
+
+1. 用 DSH 的插件管理把本包装进当前 profile（包名 `dsh-fishhome`，`package.json` 里 `dsh.bundle.patch` 指向 `cordis.patch.yml`）。
+2. 确认插件的 `client.js` 存在（仓库里已提交；若是从源码拿的，先 `node build.mjs`）。
+3. 重启 Harness → 侧边栏出现「家园」入口。
+
+### 方式 B：本地开发链接（改代码时用）
+
+1. 把仓库链接进 profile：
+   `%USERPROFILE%\.dsh\profiles\<profile>\node_modules\dsh-fishhome` → 本仓库目录（Windows 用 junction）。
+2. 在 profile 的 `cordis.patch.yml` 里启用（同 id 覆盖默认值）：
+
+```yaml
+- insert:
+    - id: fishhome
+      name: dsh-fishhome
+      config:
+        characterName: 大肥鱼
+        tickSeconds: 15
+```
+
+3. 重启 Harness。之后改 `src/` → `node build.mjs` → 刷新面板；改 `index.js` → 要再重启。
+
+### 配置项（`cordis.patch.yml` 的 `config`）
+
+| 字段 | 默认 | 说明 |
+| --- | --- | --- |
+| `characterName` | `大肥鱼` | 角色默认名（运行时可在面板「设置」里改） |
+| `tickSeconds` | `15` | 模拟时钟推进间隔（秒） |
+| `packDir` | 仓库内 `packs/bigfish-adult` | 角色包目录 |
+| `saveDir` | `%USERPROFILE%\.dsh\fishhome\saves` | 存档目录 |
+| `map` | `bedroom` | 首次进入的房间 id |
+
+### 装完自检
+
+| 现象 | 先查什么 |
+| --- | --- |
+| 面板白屏 / 报错 | `client.js` 是否存在且比 `src/` 新（`node tools/check.mjs` 会说） |
+| 侧边栏没有入口 | profile 的 `cordis.patch.yml` 是否启用了 `fishhome`；是否重启过 |
+| 面板出来了但房间空 | 角色包 `packDir` 是否正确；`GET /fishhome/api/meta` 的 `packReady` |
+| 图片全是占位块 | 素材文件名 / `rect` 是否对（`node tools/check.mjs` 会报缺图） |
+
+---
+
+## 2. 常用命令（照着抄）
 
 ```bash
 # 构建（改了 src/ 之后必跑；不跑的话面板还是旧的）
@@ -50,7 +98,7 @@ node test/mount.test.js    # 挂载冒烟：面板能渲染、不无限重渲染
 
 ---
 
-## 2. Client 片段与构建顺序
+## 3. Client 片段与构建顺序
 
 `build.mjs` 里的 `ORDER` 决定拼接顺序（顺序有意义：常量要先于使用）。
 
@@ -81,7 +129,7 @@ index.js        插件入口（返回 inject/apply）
 
 ---
 
-## 3. 三条铁律
+## 4. 三条铁律
 
 1. **不要手改 `client.js`**。它由 `src/` 生成；改了会被下一次 `node build.mjs` 覆盖。
 2. **Host（`index.js`）改动需要重启 Harness**；Client / 数据改动只需刷新面板。
@@ -89,15 +137,15 @@ index.js        插件入口（返回 inject/apply）
 
 ---
 
-## 4. 常见任务的配方
+## 5. 常见任务的配方
 
-### 4.1 改角色名字 / 房间名 / 自称
+### 5.1 改角色名字 / 房间名 / 自称
 
 - 运行时：面板「设置」里改，存进存档。
 - 默认值：`index.js` 的 `normalizeConfig()` 与 `cordis.patch.yml` 的 `config`。
 - 文案里的占位符：`{name}`（角色名）、`{self}`（自称）、`{user}`（她怎么叫你），由 `model.js` 的 `fillText()` 替换。
 
-### 4.2 加一件家具
+### 5.2 加一件家具
 
 1. 素材 PNG 放进 `packs/bigfish-adult/`。
 2. 新建 `data/maps/<map>/furniture/<id>.json`：
@@ -119,7 +167,7 @@ index.js        插件入口（返回 inject/apply）
 
 细节字段（`skew` / `flipX` / `rotate` / `surface` / `attach` / `repeat` / `animations`（内含锚点）/ `screenGlow`）见 [docs/SCHEMA.md §3.4](docs/SCHEMA.md)。
 
-### 4.3 加一个行为（事件）
+### 5.3 加一个行为（事件）
 
 1. 新建 `data/maps/<map>/events/<id>.json`（字段：`spot` / `anim` / `duration` / `onTick` / `cooldown` / `weight` / `say` / `log` / `anchor`）。
 2. 把 `id` 加进 `scene.json` 的 `events`。
@@ -128,7 +176,7 @@ index.js        插件入口（返回 inject/apply）
    - 如果事件的 `log` 是自定义码，再加 `log.<code>`
 4. `node tools/check.mjs` 会检查这三件事。
 
-### 4.4 改灯光
+### 5.4 改灯光
 
 | 想改什么 | 写在哪 |
 | --- | --- |
@@ -140,13 +188,13 @@ index.js        插件入口（返回 inject/apply）
 
 **坑**：发光件必须画在**光源层**（`layer: "light"` 或代码里推入 `lightParts`），否则会被家具精灵本身盖住。
 
-### 4.5 加一个场景（地图）
+### 5.5 加一个场景（地图）
 
 1. 建 `data/maps/<id>/`，至少要有 `scene.json` + `background.json`。
 2. 把 `<id>` 加进 `data/maps/index.json` 的地图清单。
 3. `scene.json` 关键字段：`room`（`cols`/`rows`/`wallHeight`/`canvas`/`projection`/`camera`）、`spots`、`spawn`、`furniture`、`events`、`controls`。
 
-### 4.6 换角色素材 / 切片
+### 5.6 换角色素材 / 切片
 
 - 角色包 `pet.json` 的 `assets` 声明图纸尺寸，`actions/*.json` 里每帧用 `rect` 从图纸裁一格。
 - 动画可带 `bubble`（独立气泡素材）、帧级 `squash`（压高度 px）、`groupSize`（组内循环）、`randomStart` / `hold`。
@@ -154,7 +202,7 @@ index.js        插件入口（返回 inject/apply）
 
 ---
 
-## 5. 调试入口
+## 6. 调试入口
 
 | 想知道 | 怎么做 |
 | --- | --- |
@@ -178,7 +226,7 @@ GET    /fishhome/data/<path>       场景定义（GET / POST 写 / DELETE），�
 
 ---
 
-## 6. 踩过的坑（改之前先读）
+## 7. 踩过的坑（改之前先读）
 
 1. **`filter().sort()` 结果必须赋回去**——曾经 `items.sort(...)` 丢弃返回值，导致 z 排序完全没生效。
 2. **z 排序是全局的**：角色固定 `CHARACTER_Z = 100`；家具 `z` 75～95 之间会盖住角色（用来做「坐在沙发后面」）。
@@ -193,7 +241,7 @@ GET    /fishhome/data/<path>       场景定义（GET / POST 写 / DELETE），�
 
 ---
 
-## 7. 提交前检查清单
+## 8. 提交前检查清单
 
 ```
 [ ] node build.mjs          生成物已更新
@@ -204,7 +252,7 @@ GET    /fishhome/data/<path>       场景定义（GET / POST 写 / DELETE），�
 [ ] 新增的文案中英都有
 ```
 
-## 8. 参考文档
+## 9. 参考文档
 
 - [README.md](README.md) —— 面向人类：安装、玩法、功能清单
 - [docs/SCHEMA.md](docs/SCHEMA.md) —— 数据规范：场景 / 背景 / 家具 / 事件 / 条件与权重 / z 轴

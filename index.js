@@ -638,10 +638,32 @@ function createNotes() {
 /** 记一个活会话（供设置里的下拉框选） */
 function rememberSession(notes, sessionId, patch) {
   if (typeof sessionId !== 'string' || sessionId === '') return
-  const current = notes.sessions.get(sessionId) || { id: sessionId, running: false, lastAt: 0, label: '' }
+  const current = notes.sessions.get(sessionId) || { id: sessionId, running: false, lastAt: 0, label: '', titled: false }
   const next = { ...current, ...patch }
+  // 还没有标题时先用短 id 占位
   if (!next.label) next.label = prettySessionId(sessionId)
   notes.sessions.set(sessionId, next)
+}
+
+/** 用会话里第一条用户消息当标题（只写一次，之后不被覆盖） */
+function setSessionTitle(notes, sessionId, title) {
+  if (typeof sessionId !== 'string' || sessionId === '' || title === '') return
+  const current = notes.sessions.get(sessionId)
+  if (current && current.titled) return
+  rememberSession(notes, sessionId, { label: title, titled: true })
+}
+
+/** 从一条用户消息里抽「标题」：第一段文字，压平空白后截断 */
+function titleFromMessage(message) {
+  if (!message || typeof message !== 'object' || message.role !== 'user') return ''
+  const blocks = Array.isArray(message.content) ? message.content : []
+  for (const block of blocks) {
+    if (!block || block.type !== 'text' || typeof block.text !== 'string') continue
+    const text = block.text.replace(/\s+/g, ' ').trim()
+    if (text === '') continue
+    return text.length > 24 ? `${text.slice(0, 24)}…` : text
+  }
+  return ''
 }
 
 /** 会话 id 太长的部分去掉，留一段有区分度的（session-1a2b3c… → 1a2b3c…） */
@@ -698,7 +720,7 @@ function notesSnapshot(notes, mode) {
     sessions: [...notes.sessions.values()]
       .sort((a, b) => (b.running ? 1 : 0) - (a.running ? 1 : 0) || b.lastAt - a.lastAt)
       .slice(0, 12)
-      .map((item) => ({ id: item.id, label: item.label, running: item.running, lastAt: item.lastAt })),
+      .map((item) => ({ id: item.id, label: item.label, titled: item.titled === true, running: item.running, lastAt: item.lastAt })),
   }
 }
 
@@ -893,9 +915,24 @@ function activityListeners(activity, notes) {
         }
       }
     }],
-    ['agent/inbox/inserted', () => {
+    ['agent/inbox/inserted', (payload) => {
       activity.counters.messages += 1
+      const id = sessionIdOf(payload && payload.agent)
+      const title = titleFromMessage(payload && payload.message)
+      if (id && title) setSessionTitle(notes, id, title)
       noteActivity(activity, 'message', '')
+    }],
+    ['session/created', (session) => {
+      const id = sessionIdOf(session)
+      if (id) rememberSession(notes, id, {})
+    }],
+    ['session/event', (session, event) => {
+      // 用第一条用户消息当标题（和左侧会话列表的观感一致）
+      if (!event || event.type !== 'user/message' || !event.data) return
+      const id = sessionIdOf(session)
+      if (!id) return
+      const title = titleFromMessage(event.data)
+      if (title) setSessionTitle(notes, id, title)
     }],
     ['agent/error', (payload) => {
       activity.counters.errors += 1

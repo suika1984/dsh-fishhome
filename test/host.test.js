@@ -254,6 +254,35 @@ async function call(url, method = 'GET', body = '') {
   assert.equal(again.messages.length, 0, '没有待递便条时不追加')
 }
 
+// 会话标题：用第一条用户消息当标题（左侧列表的观感），之后不被覆盖
+{
+  const fireLocal = (event, ...args) => { for (const handler of listeners.get(event) || []) handler(...args) }
+  fireLocal('api-session/added', { sessionId: 'session-title123456' })
+  let listed = JSON.parse((await call('/fishhome/api/activity')).body).notes
+  let row = listed.sessions.find((item) => item.id === 'session-title123456')
+  assert.equal(row.titled, false, '还没有标题')
+  assert.equal(row.label, 'title123', '先用短 id 占位')
+
+  // 第一条用户消息 → 成为标题
+  fireLocal('session/event', { id: 'session-title123456' }, {
+    type: 'user/message',
+    data: { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: '帮我实现大肥鱼家园插件\n顺便写个 README' }] },
+  })
+  listed = JSON.parse((await call('/fishhome/api/activity')).body).notes
+  row = listed.sessions.find((item) => item.id === 'session-title123456')
+  assert.equal(row.titled, true, '有标题了')
+  assert.equal(row.label, '帮我实现大肥鱼家园插件 顺便写个 README', '标题取第一条消息并压平换行')
+
+  // 后面的消息不能改标题
+  fireLocal('session/event', { id: 'session-title123456' }, {
+    type: 'user/message',
+    data: { role: 'user', source: { kind: 'user' }, content: [{ type: 'text', text: '继续' }] },
+  })
+  listed = JSON.parse((await call('/fishhome/api/activity')).body).notes
+  row = listed.sessions.find((item) => item.id === 'session-title123456')
+  assert.equal(row.label, '帮我实现大肥鱼家园插件 顺便写个 README', '标题只写一次')
+}
+
 // 会话标签：去掉 session- 前缀，否则下拉框里全是 "session-" 分不清
 {
   const fireLocal = (event, ...args) => { for (const handler of listeners.get(event) || []) handler(...args) }

@@ -52,21 +52,6 @@
       ],
       "facing": "front",
       "renderLayer": "front"
-    },
-    {
-      "id": "work",
-      "animation": "work45",
-      "position": {
-        "x": 0.5,
-        "y": 0.95
-      },
-      "pivot": [
-        0,
-        -8
-      ],
-      "facing": "front",
-      "pose": "sit",
-      "renderLayer": "front"
     }
   ]
 }

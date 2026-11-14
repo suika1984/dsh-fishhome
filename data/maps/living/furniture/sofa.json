@@ -71,6 +71,21 @@
       "facing": "front_left",
       "pose": "lie",
       "renderLayer": "behind_furniture"
+    },
+    {
+      "id": "work",
+      "animation": "sofa_work45",
+      "position": {
+        "x": 0.5,
+        "y": 0.62
+      },
+      "pivot": [
+        0,
+        -46
+      ],
+      "facing": "front",
+      "pose": "sit",
+      "renderLayer": "behind_furniture"
     }
   ]
 }

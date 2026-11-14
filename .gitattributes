@@ -1,0 +1,11 @@
+# 统一换行：仓库里存 LF，检出时按平台转
+* text=auto eol=lf
+
+# 图片 / 字体当二进制，别做换行转换，也别在 diff 里展开
+*.png binary
+*.webp binary
+*.jpg binary
+*.svg text
+
+# 生成物：在 GitHub 上折叠 diff、不参与语言统计
+client.js linguist-generated=true

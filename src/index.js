@@ -126,6 +126,7 @@
         EventForm,
         SettingsBar,
         ActivityCard,
+        wrapBubbleText,
         EditorBar,
         WEIGHT_VOCAB,
         requestAccepted,

@@ -187,8 +187,14 @@
         say
           ? (() => {
             const text = fillText(String(say.text), home)
-            const boxW = Math.max(90, Math.min(320, text.length * 17 + 28))
-            const boxH = 44
+            const fontSize = 18
+            const lineHeight = 26
+            const padX = 16
+            const padY = 10
+            // 多行 + 高度自适应：SVG 不会自动换行，得自己排
+            const wrapped = wrapBubbleText(text, { fontSize, maxWidth: 250, maxLines: 3 })
+            const boxW = Math.max(90, Math.min(282, wrapped.width + padX * 2))
+            const boxH = wrapped.lines.length * lineHeight + padY * 2
             const top = -Math.round(sceneRef.value && Number.isFinite(sceneRef.value.characterHeight) ? sceneRef.value.characterHeight : (geom.wall || 280) * 0.62) - 18 - boxH
             return h(
               'g',
@@ -211,15 +217,77 @@
               }),
               h('text', {
                 x: 0,
-                y: top + boxH / 2 + 6,
+                y: top + padY + fontSize,
                 textAnchor: 'middle',
-                fontSize: 18,
+                fontSize,
                 fill: '#5b4636',
-              }, text),
+              }, wrapped.lines.map((line, index) => h('tspan', {
+                key: index,
+                x: 0,
+                dy: index === 0 ? 0 : lineHeight,
+              }, line))),
             )
           })()
           : null,
       )
+    }
+
+    /**
+     * 气泡文本排版：按字符估宽 + 贪心换行。
+     * SVG 的 <text> 不会自动换行，只能自己算——中日韩字符按 1 个字宽，ASCII 窄一些。
+     */
+    function wrapBubbleText(text, options) {
+      const config = options || {}
+      const fontSize = Number(config.fontSize) > 0 ? Number(config.fontSize) : 18
+      const maxWidth = Number(config.maxWidth) > 0 ? Number(config.maxWidth) : 250
+      const maxLines = Number(config.maxLines) > 0 ? Number(config.maxLines) : 3
+      const charWidth = (ch) => {
+        const code = ch.codePointAt(0)
+        if (code >= 0x2e80) return fontSize // 中日韩 / 全角
+        if (ch === ' ') return fontSize * 0.3
+        if (/[iIl1.,'!|:;]/.test(ch)) return fontSize * 0.32
+        if (/[A-Z0-9]/.test(ch)) return fontSize * 0.64
+        return fontSize * 0.54
+      }
+      const widthOf = (line) => {
+        let width = 0
+        for (const ch of line) width += charWidth(ch)
+        return width
+      }
+      const source = typeof text === 'string' ? text : ''
+      const lines = []
+      let line = ''
+      let width = 0
+      // 行首行尾的空格去掉（英文换行时常见）
+      const push = (value) => lines.push(value.replace(/^\s+/, '').replace(/\s+$/, ''))
+      for (const ch of source) {
+        if (ch === '\n') {
+          push(line)
+          line = ''
+          width = 0
+          continue
+        }
+        const w = charWidth(ch)
+        if (width + w > maxWidth && line !== '') {
+          push(line)
+          line = ''
+          width = 0
+          // 注意：不要 continue——这个字符要作为新行的第一个字符
+        }
+        line += ch
+        width += w
+      }
+      if (line !== '') push(line)
+      if (lines.length === 0) lines.push('')
+      const truncated = lines.length > maxLines
+      const kept = truncated ? lines.slice(0, maxLines) : lines
+      if (truncated) {
+        // 最后一行收尾加省略号
+        const last = kept[kept.length - 1]
+        kept[kept.length - 1] = last.length > 1 ? `${last.slice(0, -1)}…` : '…'
+      }
+      const boxWidth = Math.max(...kept.map((item) => widthOf(item)))
+      return { lines: kept, width: boxWidth, truncated }
     }
 
     function RoomStage(props) {

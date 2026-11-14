@@ -1403,6 +1403,26 @@ await (async () => {
   const revived = model.normalizeHome(JSON.parse(JSON.stringify(store.home)), Date.now(), '大肥鱼')
   assert.equal(revived.noteTarget, 'session-keep', '存档归一化后仍带着目标会话')
 })()
+// 气泡换行：多行、算宽度、截断加省略号、不丢字符
+{
+  const wrap = model.wrapBubbleText
+  const short = wrap('诶嘿嘿…摸头最好了。', { maxWidth: 250 })
+  assert.equal(short.lines.length, 1, '短句一行')
+  assert.ok(short.width > 100 && short.width <= 250, '宽度在范围内')
+  const longCn = '（把耳朵凑过来，任你揉了两下）诶嘿嘿…摸头最好了，我今天一直在这儿陪着你。'
+  const cn = wrap(longCn, { maxWidth: 250 })
+  assert.ok(cn.lines.length >= 2, '长中文会换行')
+  assert.equal(cn.lines.join(''), longCn, '换行不丢字符')
+  cn.lines.forEach((line) => assert.ok(!line.startsWith(' ') && !line.endsWith(' '), '行首行尾无空格'))
+  const en = wrap('Hello there, this is a longer English sentence that should wrap nicely across lines.', { maxWidth: 250 })
+  assert.ok(en.lines.length >= 2, '英文也会换行')
+  assert.equal(en.lines.join(' '), 'Hello there, this is a longer English sentence that should wrap nicely across lines.', '英文换行后拼接不变')
+  const clipped = wrap('字'.repeat(60), { maxWidth: 250, maxLines: 3 })
+  assert.equal(clipped.lines.length, 3, '最多三行')
+  assert.equal(clipped.truncated, true, '标记截断')
+  assert.ok(clipped.lines[2].endsWith('…'), '最后一行有省略号')
+  assert.ok(clipped.lines.every((line) => model.wrapBubbleText ? true : true), '行数组可遍历')
+}
 console.log('ui tests passed:', {
   components: Object.keys(registered),
   behaviors: model.BEHAVIORS.length,

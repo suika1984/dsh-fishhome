@@ -352,6 +352,57 @@
       return value
     }
 
+
+    /* ---------------------------------------------------------------------
+     * 小屋便条的回复（data/replies.json）
+     *
+     * 她先在屋里回一句，再去判断要不要把话送进会话——这样即使会话空闲、
+     * 或者 noteMode 是 preview，你也能立刻看到她的反应。
+     * ------------------------------------------------------------------- */
+
+    /** 归一化 replies.json */
+    function normalizeReplies(raw) {
+      if (!raw || typeof raw !== 'object') return { rules: [], fallback: [] }
+      const pickLines = (value) => (Array.isArray(value)
+        ? value
+          .filter((line) => line && (typeof line === 'string' || typeof line === 'object'))
+          .map((line) => (typeof line === 'string' ? { zh: line, en: line } : line))
+        : [])
+      const rules = (Array.isArray(raw.rules) ? raw.rules : [])
+        .filter((rule) => rule && typeof rule === 'object')
+        .map((rule) => ({
+          contains: (Array.isArray(rule.contains) ? rule.contains : []).filter((word) => typeof word === 'string' && word !== ''),
+          behavior: typeof rule.behavior === 'string' && rule.behavior !== '' ? rule.behavior : null,
+          say: pickLines(rule.say),
+        }))
+      return { rules, fallback: pickLines(raw.fallback) }
+    }
+
+    /** 按关键词挑一句回复：{ text, behavior } */
+    function matchReply(doc, text, locale) {
+      const source = doc && typeof doc === 'object' ? doc : { rules: [], fallback: [] }
+      const lower = typeof text === 'string' ? text.toLowerCase() : ''
+      const zh = isZhLocale(locale)
+      const lineOf = (line) => {
+        if (!line) return ''
+        if (typeof line === 'string') return line
+        const picked = zh ? line.zh : line.en
+        return typeof picked === 'string' && picked !== '' ? picked : (typeof line.zh === 'string' ? line.zh : '')
+      }
+      const choose = (lines) => {
+        if (!Array.isArray(lines) || lines.length === 0) return ''
+        return lineOf(lines[Math.floor(Math.random() * lines.length)])
+      }
+      if (lower !== '') {
+        for (const rule of Array.isArray(source.rules) ? source.rules : []) {
+          if (!rule || !Array.isArray(rule.contains) || rule.contains.length === 0) continue
+          if (!rule.contains.some((word) => lower.includes(String(word).toLowerCase()))) continue
+          const text2 = choose(rule.say) || choose(source.fallback)
+          return { text: text2, behavior: rule.behavior || null }
+        }
+      }
+      return { text: choose(source.fallback), behavior: null }
+    }
     /* ---------------------------------------------------------------------
      * DSH 会话活动（运行时注入，不进存档）
      *

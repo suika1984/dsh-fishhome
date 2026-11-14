@@ -252,6 +252,8 @@ Client 每次 tick（5 秒）拉一次，然后：
 
 面板「会话」卡下面的输入框 → `POST /fishhome/api/note`。
 
+**她先在屋里回一句**：`data/replies.json` 是回复表（关键词 → 台词 + 可选行为），发便条时立刻走 `matchReply()` 在头顶气泡里回你，跟有没有会话、`noteMode` 是什么无关。回复带 `behavior`（比如「累了」→ `nap`）且她正闲着时会顺势切过去。
+
 | `noteMode` | 行为 |
 | --- | --- |
 | `preview`（默认） | 只在她头顶的气泡里说 + 写日志 `log.noteQueued`，不进会话 |

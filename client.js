@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = 'f3744243'
+    const BUILD_REV = 'd0eec258'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -239,7 +239,8 @@ window.__ModuleLoader__.load({
       'activity.notePending': '{count} 张待递',
       'activity.noteTarget': '会送进会话 {target}',
       'activity.noteNoTarget': '当前没有运行中的会话，便条会等她开始',
-      'log.noteQueued': '{name}把你的话记下了。',
+      'log.noteQueued': '你把话递给了{name}。',
+      'log.noteReply': '{name}回你：{text}',
       'log.offline': '你离开了 {span}，{name}自己过了这段日子。',
       'log.move': '{name}凑到你面前来了。',
       'log.sit': '{name}在沙发上发了会儿呆。',
@@ -498,7 +499,8 @@ window.__ModuleLoader__.load({
       'activity.notePending': '{count} pending',
       'activity.noteTarget': 'Delivered to session {target}',
       'activity.noteNoTarget': 'No session is running; the note waits for her',
-      'log.noteQueued': '{name} took note of what you said.',
+      'log.noteQueued': 'You handed {name} a note.',
+      'log.noteReply': '{name} replied: {text}',
       'log.offline': 'You were away for {span}; it kept living.',
       'log.move': 'It came over to you.',
       'log.sit': 'It spaced out on the sofa.',
@@ -930,6 +932,57 @@ window.__ModuleLoader__.load({
       return value
     }
 
+
+    /* ---------------------------------------------------------------------
+     * 小屋便条的回复（data/replies.json）
+     *
+     * 她先在屋里回一句，再去判断要不要把话送进会话——这样即使会话空闲、
+     * 或者 noteMode 是 preview，你也能立刻看到她的反应。
+     * ------------------------------------------------------------------- */
+
+    /** 归一化 replies.json */
+    function normalizeReplies(raw) {
+      if (!raw || typeof raw !== 'object') return { rules: [], fallback: [] }
+      const pickLines = (value) => (Array.isArray(value)
+        ? value
+          .filter((line) => line && (typeof line === 'string' || typeof line === 'object'))
+          .map((line) => (typeof line === 'string' ? { zh: line, en: line } : line))
+        : [])
+      const rules = (Array.isArray(raw.rules) ? raw.rules : [])
+        .filter((rule) => rule && typeof rule === 'object')
+        .map((rule) => ({
+          contains: (Array.isArray(rule.contains) ? rule.contains : []).filter((word) => typeof word === 'string' && word !== ''),
+          behavior: typeof rule.behavior === 'string' && rule.behavior !== '' ? rule.behavior : null,
+          say: pickLines(rule.say),
+        }))
+      return { rules, fallback: pickLines(raw.fallback) }
+    }
+
+    /** 按关键词挑一句回复：{ text, behavior } */
+    function matchReply(doc, text, locale) {
+      const source = doc && typeof doc === 'object' ? doc : { rules: [], fallback: [] }
+      const lower = typeof text === 'string' ? text.toLowerCase() : ''
+      const zh = isZhLocale(locale)
+      const lineOf = (line) => {
+        if (!line) return ''
+        if (typeof line === 'string') return line
+        const picked = zh ? line.zh : line.en
+        return typeof picked === 'string' && picked !== '' ? picked : (typeof line.zh === 'string' ? line.zh : '')
+      }
+      const choose = (lines) => {
+        if (!Array.isArray(lines) || lines.length === 0) return ''
+        return lineOf(lines[Math.floor(Math.random() * lines.length)])
+      }
+      if (lower !== '') {
+        for (const rule of Array.isArray(source.rules) ? source.rules : []) {
+          if (!rule || !Array.isArray(rule.contains) || rule.contains.length === 0) continue
+          if (!rule.contains.some((word) => lower.includes(String(word).toLowerCase()))) continue
+          const text2 = choose(rule.say) || choose(source.fallback)
+          return { text: text2, behavior: rule.behavior || null }
+        }
+      }
+      return { text: choose(source.fallback), behavior: null }
+    }
     /* ---------------------------------------------------------------------
      * DSH 会话活动（运行时注入，不进存档）
      *
@@ -1390,6 +1443,16 @@ window.__ModuleLoader__.load({
       }
     }
 
+    /** 载入小屋便条的回复表（data/replies.json）；拿不到就用空表 */
+    async function loadReplies() {
+      try {
+        const payload = await fetchJson(`${ROUTE}/data/replies.json`)
+        return normalizeReplies(payload)
+      } catch {
+        return { rules: [], fallback: [] }
+      }
+    }
+
     async function readSave() {
       try {
         const payload = await fetchJson(`${ROUTE}/api/state`)
@@ -1513,6 +1576,8 @@ async function writeSave(home) {
         this.home = null
         // DSH 会话活动（运行时，不存档）
         this.activity = null
+        // 便条回复表（data/replies.json）
+        this.replies = { rules: [], fallback: [] }
         this.activityBusy = false
         this.meta = null
         this.animations = null
@@ -1606,6 +1671,7 @@ async function writeSave(home) {
           // 角色包缺失不拦启动：角色会画成占位块，方便先调房间和逻辑
           if (meta.pack) {
             this.animations = await loadCharacterActions(meta.pack)
+        this.replies = await loadReplies()
             this.packWarning = null
           } else {
             this.animations = []
@@ -2306,9 +2372,19 @@ async function writeSave(home) {
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ text: clean }),
           })
-          if (this.home.character) {
-            this.home.character.say = { text: clean, until: now + 6000 }
+          const character = this.home.character
+          if (character) {
+            // 先在屋里回一句（跟 Host 有没有会话、是不是 inject 无关）
+            const reply = matchReply(this.replies, clean, localeRef.value)
             pushLog(this.home, now, 'noteQueued', null)
+            if (reply.text) pushLog(this.home, now, 'noteReply', { text: reply.text })
+            // 回复带动作（比如「累了」→ 她去打盹）时，如果她正闲着就顺势切过去。
+            // 注意顺序：先切行为再写气泡，否则切换被拒时的提示会盖掉她的回复。
+            const passive = ['idle', 'read', 'stretch', 'window']
+            if (reply.behavior && passive.includes(character.behaviorId)) {
+              this.forceBehavior(reply.behavior)
+            }
+            character.say = { text: reply.text || clean, until: now + 6000 }
             this.publish()
           }
           void this.refreshActivity()
@@ -4612,6 +4688,10 @@ async function writeSave(home) {
           return t('log.stretch')
         case 'idle':
           return t('log.idle')
+        case 'noteReply': {
+          const text = entry.arg && typeof entry.arg.text === 'string' ? entry.arg.text : ''
+          return t('log.noteReply', { text })
+        }
         case 'noteQueued':
           return t('log.noteQueued')
         case 'sessionStart':
@@ -6733,6 +6813,9 @@ async function writeSave(home) {
         normalizeHome,
         logText,
         normalizeActivity,
+        normalizeReplies,
+        matchReply,
+        loadReplies,
         setActivity,
         activityWeightMul,
         furnitureItems,

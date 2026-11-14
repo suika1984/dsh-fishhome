@@ -1334,6 +1334,13 @@ model.applyFurniture(model.DEFAULT_FURNITURE)
   assert.ok(text.includes('host1234'), '显示 Host 版本')
   assert.ok(/[0-9a-f]{8}/.test(text), '显示界面版本')
 }
+// 便条回复日志：{text} 要真的渲染进句子里
+{
+  const logHome = model.createHome(Date.now(), '大肥鱼')
+  const text = model.fillText(model.logText(translate, { code: 'noteReply', arg: { text: '那我躺一下' } }), logHome)
+  assert.ok(text.includes('那我躺一下'), '引用了她的回复')
+  assert.ok(text.includes('大肥鱼'), '带上名字')
+}
 console.log('ui tests passed:', {
   components: Object.keys(registered),
   behaviors: model.BEHAVIORS.length,

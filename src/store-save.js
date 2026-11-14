@@ -22,6 +22,16 @@
       }
     }
 
+    /** 载入小屋便条的回复表（data/replies.json）；拿不到就用空表 */
+    async function loadReplies() {
+      try {
+        const payload = await fetchJson(`${ROUTE}/data/replies.json`)
+        return normalizeReplies(payload)
+      } catch {
+        return { rules: [], fallback: [] }
+      }
+    }
+
     async function readSave() {
       try {
         const payload = await fetchJson(`${ROUTE}/api/state`)

@@ -106,9 +106,19 @@
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ text: clean }),
           })
-          if (this.home.character) {
-            this.home.character.say = { text: clean, until: now + 6000 }
+          const character = this.home.character
+          if (character) {
+            // 先在屋里回一句（跟 Host 有没有会话、是不是 inject 无关）
+            const reply = matchReply(this.replies, clean, localeRef.value)
             pushLog(this.home, now, 'noteQueued', null)
+            if (reply.text) pushLog(this.home, now, 'noteReply', { text: reply.text })
+            // 回复带动作（比如「累了」→ 她去打盹）时，如果她正闲着就顺势切过去。
+            // 注意顺序：先切行为再写气泡，否则切换被拒时的提示会盖掉她的回复。
+            const passive = ['idle', 'read', 'stretch', 'window']
+            if (reply.behavior && passive.includes(character.behaviorId)) {
+              this.forceBehavior(reply.behavior)
+            }
+            character.say = { text: reply.text || clean, until: now + 6000 }
             this.publish()
           }
           void this.refreshActivity()

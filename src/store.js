@@ -9,6 +9,8 @@
         this.home = null
         // DSH 会话活动（运行时，不存档）
         this.activity = null
+        // 便条回复表（data/replies.json）
+        this.replies = { rules: [], fallback: [] }
         this.activityBusy = false
         this.meta = null
         this.animations = null
@@ -102,6 +104,7 @@
           // 角色包缺失不拦启动：角色会画成占位块，方便先调房间和逻辑
           if (meta.pack) {
             this.animations = await loadCharacterActions(meta.pack)
+        this.replies = await loadReplies()
             this.packWarning = null
           } else {
             this.animations = []

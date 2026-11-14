@@ -404,6 +404,25 @@ assert.equal(zh('status.remain', { seconds: 30 }).includes('30'), true)
   assert.equal(model.normalizeActivity(null), null, '空快照返回 null')
   model.setActivity(null)
 }
+// 便条回复：关键词命中规则、没命中用兜底、中英文都取得到
+{
+  const doc = model.normalizeReplies({
+    fallback: [{ zh: '嗯嗯', en: 'Mm' }],
+    rules: [
+      { contains: ['累', '睡'], behavior: 'nap', say: [{ zh: '那我躺一下', en: 'Lying down' }] },
+      { contains: ['吃'], behavior: 'eat', say: [{ zh: '吃饭！', en: 'Food!' }] },
+    ],
+  })
+  assert.equal(doc.rules.length, 2, '规则解析出来了')
+  const nap = model.matchReply(doc, '我好累', 'zh')
+  assert.equal(nap.text, '那我躺一下', '命中「累」')
+  assert.equal(nap.behavior, 'nap', '带上行为')
+  assert.equal(model.matchReply(doc, '吃饭时间', 'en').text, 'Food!', '英文取 en')
+  const other = model.matchReply(doc, '随便聊聊', 'zh')
+  assert.equal(other.text, '嗯嗯', '没命中用兜底')
+  assert.equal(other.behavior, null, '兜底不带行为')
+  assert.equal(model.matchReply({ rules: [], fallback: [] }, '累', 'zh').text, '', '空表返回空文本不崩')
+}
 console.log('model tests passed:', {
   switches,
   energy: Math.round(home.character.energy),

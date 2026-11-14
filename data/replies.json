@@ -1,0 +1,62 @@
+{
+  "fallback": [
+    { "zh": "嗯嗯，我记下啦。", "en": "Mm, noted." },
+    { "zh": "收到～我在听。", "en": "Got it, I'm listening." },
+    { "zh": "好，我陪着你。", "en": "Okay, I'm right here." },
+    { "zh": "（认真点头）", "en": "(nods seriously)" }
+  ],
+  "rules": [
+    {
+      "contains": ["睡", "休息", "晚安", "累", "熬夜", "困"],
+      "behavior": "nap",
+      "say": [
+        { "zh": "那我先眯一会儿…你也早点休息呀。", "en": "Then I'll nap a bit… you rest early too." },
+        { "zh": "好困…那我躺一下下。", "en": "So sleepy… lying down for a moment." }
+      ]
+    },
+    {
+      "contains": ["吃", "饿", "饭", "零食", "点心"],
+      "behavior": "eat",
+      "say": [
+        { "zh": "吃饭！我马上过去～", "en": "Food! Coming right over~" },
+        { "zh": "肚子确实叫了…", "en": "My stomach did growl…" }
+      ]
+    },
+    {
+      "contains": ["喝水", "水", "茶", "咖啡"],
+      "say": [
+        { "zh": "好，我去倒一杯。", "en": "Okay, pouring myself a cup." },
+        { "zh": "你也记得喝水呀。", "en": "You drink some water too." }
+      ]
+    },
+    {
+      "contains": ["工作", "干活", "加班", "忙"],
+      "behavior": "work",
+      "say": [
+        { "zh": "那我也去书桌前忙一会儿。", "en": "Then I'll go be busy at the desk too." },
+        { "zh": "一起加油～", "en": "Let's do our best~" }
+      ]
+    },
+    {
+      "contains": ["陪", "抱抱", "摸摸", "亲亲", "喜欢你", "可爱"],
+      "say": [
+        { "zh": "诶嘿嘿…被摸到了。", "en": "Ehehe… you caught me." },
+        { "zh": "那我一直待在这儿。", "en": "Then I'll stay right here." }
+      ]
+    },
+    {
+      "contains": ["过去", "过来", "在哪", "叫你"],
+      "say": [
+        { "zh": "我过来了！", "en": "Coming!" },
+        { "zh": "在的在的～", "en": "Here, here~" }
+      ]
+    },
+    {
+      "contains": ["好看", "漂亮", "厉害", "棒"],
+      "say": [
+        { "zh": "真的吗…有点开心。", "en": "Really…? That makes me happy." },
+        { "zh": "嘿嘿，你也很厉害。", "en": "Hehe, you're amazing too." }
+      ]
+    }
+  ]
+}

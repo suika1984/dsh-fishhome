@@ -514,6 +514,10 @@
           return t('log.stretch')
         case 'idle':
           return t('log.idle')
+        case 'noteReply': {
+          const text = entry.arg && typeof entry.arg.text === 'string' ? entry.arg.text : ''
+          return t('log.noteReply', { text })
+        }
         case 'noteQueued':
           return t('log.noteQueued')
         case 'sessionStart':

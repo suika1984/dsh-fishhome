@@ -626,7 +626,7 @@
 
     /** 设置：称呼 / 自称 / 房间名，改完立刻存档 */
     function SettingsBar(props) {
-      const { t, profile, onChange, onSave, onClose, paths, configs, onOpen, openTip } = props
+      const { t, profile, onChange, onSave, onClose, paths, configs, onOpen, openTip, sessionTargets, noteTarget, onNoteTarget } = props
       const field = (label, key, placeholder) => h('label', { className: 'fh-field' },
         h('span', { className: 'fh-field-label' }, label),
         h('input', {
@@ -685,6 +685,21 @@
                   onClick: () => onOpen('reveal', item.path),
                 }, t('settings.reveal'))))),
             openTip ? h('span', { className: 'fh-muted' }, openTip) : null)
+          : null,
+        // 便条送进哪个会话（有活会话时才列出来）
+        sessionTargets && sessionTargets.length > 0
+          ? h('div', { className: 'fh-form' },
+            h('label', { className: 'fh-field' },
+              h('span', { className: 'fh-field-label' }, t('settings.noteTarget')),
+              h('select', {
+                className: 'fh-editor-select',
+                value: noteTarget || '',
+                onChange: (event) => onNoteTarget(event.target.value),
+              },
+              h('option', { value: '' }, t('settings.noteTargetAuto')),
+              sessionTargets.map((item) => h('option', { key: item.id, value: item.id },
+                `${item.label}${item.running ? ' · 运行中' : ''}`)))),
+            h('span', { className: 'fh-muted' }, t('settings.noteTargetHint')))
           : null,
         h('div', { className: 'fh-editor-actions' },
           h('button', { type: 'button', className: 'fh-toggle', onClick: onSave }, t('settings.save')),
@@ -1411,6 +1426,13 @@
                   ]
                 })(),
                 openTip,
+                sessionTargets: (snapshot.activity && snapshot.activity.notes && snapshot.activity.notes.sessions) || [],
+                noteTarget: (snapshot.activity && snapshot.activity.notes && snapshot.activity.notes.pinned) || '',
+                onNoteTarget: (id) => {
+                  void store.setNoteTarget(id).then(() => {
+                    setOpenTip(id === '' ? t('settings.noteTargetAuto') : id.slice(0, 8))
+                  })
+                },
                 onOpen: (kind, target) => {
                   void store.openPath(kind, target).then((result) => {
                     setOpenTip(result.ok

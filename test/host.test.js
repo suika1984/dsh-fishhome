@@ -160,6 +160,38 @@ async function call(url, method = 'GET', body = '') {
   assert.equal(snapshot.notes.preview, 1)
 }
 
+// 设置里指定目标会话：手动指定优先于「最近活跃」
+{
+  const injectTarget = async (sessionId) => {
+    const res = await call('/fishhome/api/note-target', 'POST', JSON.stringify({ sessionId }))
+    return { status: res.statusCode, json: JSON.parse(res.body) }
+  }
+  // 先让两个会话出现
+  const mainFire = (event, ...args) => {
+    for (const handler of listeners.get(event) || []) handler(...args)
+  }
+  mainFire('api-session/added', { sessionId: 'pinned-session', title: '测试会话' })
+  mainFire('api-session/status', 'pinned-session', false)
+  mainFire('api-session/added', { sessionId: 'auto-session' })
+  mainFire('api-session/status', 'auto-session', true)
+
+  const listed = JSON.parse((await call('/fishhome/api/activity')).body).notes
+  assert.ok(Array.isArray(listed.sessions) && listed.sessions.length >= 2, '快照里有会话列表可选')
+  assert.equal(listed.target, 'auto-ses', '默认挑最近活跃的')
+
+  const pinned = await injectTarget('pinned-session')
+  assert.equal(pinned.status, 200, '可以手动指定')
+  assert.equal(pinned.json.target, 'pinned-s', '目标切到手动选的会话')
+  assert.equal(pinned.json.pinned, 'pinned-session')
+
+  const missing = await injectTarget('nope-session')
+  assert.equal(missing.status, 404, '不存在的会话被拒')
+
+  const auto = await injectTarget('')
+  assert.equal(auto.json.pinned, '', '清空回到自动')
+  assert.equal(auto.json.target, 'auto-ses', '自动模式又回到最活跃的')
+}
+
 // 注入模式：另起一个插件实例
 {
   const injectListeners = new Map()

@@ -390,6 +390,17 @@
             canInject: raw.notes.canInject === true,
             target: typeof raw.notes.target === 'string' ? raw.notes.target : '',
             targetFresh: raw.notes.targetFresh === true,
+            pinned: typeof raw.notes.pinned === 'string' ? raw.notes.pinned : '',
+            sessions: Array.isArray(raw.notes.sessions)
+              ? raw.notes.sessions
+                .filter((item) => item && typeof item.id === 'string')
+                .slice(0, 12)
+                .map((item) => ({
+                  id: item.id,
+                  label: typeof item.label === 'string' && item.label !== '' ? item.label : item.id.slice(0, 8),
+                  running: item.running === true,
+                }))
+              : [],
           }
           : null,
       }

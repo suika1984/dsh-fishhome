@@ -12,7 +12,7 @@
     再把 `data/maps/garden/events/work.json` 的 `anchor` 指过去。花园本身还是占位场景，可能要一并补家具。
   - 为什么先不：花园场景本身还没做完，单独加工位意义不大。
 
-- [ ] **L3 小屋便条的注入模式实测**
+- [ ] **L3 小屋便条的注入模式实测**（目标会话已可在「设置」里手动选，自动=最近活跃）
   - 现状：`noteMode` 默认 `preview`（只在屋里说，不进会话）。`inject` 走 `agent/pre-step` 水位追加一条用户消息，代码和 host 测试都通了，但**没在真实会话里跑过**。
   - 回来时：profile 的 `cordis.patch.yml` 加 `config.noteMode: inject` → 重启 Harness → 面板递一句 → 看下一轮是否收到这条用户消息。
   - 风险：会往真实会话里写消息，测的时候挑一个无关紧要的会话。

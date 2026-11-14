@@ -118,6 +118,21 @@
           return { ok: false, error: message }
         }
       },
+      /** 设置里的下拉框：指定便条送进哪个会话（空 = 自动） */
+      async setNoteTarget(sessionId) {
+        const wanted = typeof sessionId === 'string' ? sessionId : ''
+        try {
+          await fetchJson(`${ROUTE}/api/note-target`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ sessionId: wanted }),
+          })
+          await this.refreshActivity()
+          return { ok: true }
+        } catch (error) {
+          return { ok: false, error: error instanceof Error ? error.message : String(error) }
+        }
+      },
       /** 给面板用的活动快照（没有就是 null） */
       activityView() {
         return this.activity || null

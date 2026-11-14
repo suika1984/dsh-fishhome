@@ -82,6 +82,9 @@ window.__ModuleLoader__.load({
       'settings.file.pet': '角色包',
       'settings.file.actions': '动作目录',
       'settings.file.save': '存档',
+      'settings.noteTarget': '便条送进哪个会话',
+      'settings.noteTargetAuto': '自动（最近活跃的会话）',
+      'settings.noteTargetHint': '只有 noteMode 为 inject 时才会真的送进会话',
       'edit.title': '布局编辑',
       'edit.none': '点一下家具选中它',
       'edit.save': '保存',
@@ -337,6 +340,9 @@ window.__ModuleLoader__.load({
       'settings.file.pet': 'Character pack',
       'settings.file.actions': 'Actions folder',
       'settings.file.save': 'Save file',
+      'settings.noteTarget': 'Which session gets the note',
+      'settings.noteTargetAuto': 'Auto (most recent session)',
+      'settings.noteTargetHint': 'Only delivered when noteMode is inject',
       'edit.title': 'Layout editor',
       'edit.none': 'Click a piece of furniture to select it',
       'edit.save': 'Save',
@@ -959,6 +965,17 @@ window.__ModuleLoader__.load({
             canInject: raw.notes.canInject === true,
             target: typeof raw.notes.target === 'string' ? raw.notes.target : '',
             targetFresh: raw.notes.targetFresh === true,
+            pinned: typeof raw.notes.pinned === 'string' ? raw.notes.pinned : '',
+            sessions: Array.isArray(raw.notes.sessions)
+              ? raw.notes.sessions
+                .filter((item) => item && typeof item.id === 'string')
+                .slice(0, 12)
+                .map((item) => ({
+                  id: item.id,
+                  label: typeof item.label === 'string' && item.label !== '' ? item.label : item.id.slice(0, 8),
+                  running: item.running === true,
+                }))
+              : [],
           }
           : null,
       }
@@ -2296,6 +2313,21 @@ async function writeSave(home) {
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error)
           return { ok: false, error: message }
+        }
+      },
+      /** 设置里的下拉框：指定便条送进哪个会话（空 = 自动） */
+      async setNoteTarget(sessionId) {
+        const wanted = typeof sessionId === 'string' ? sessionId : ''
+        try {
+          await fetchJson(`${ROUTE}/api/note-target`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ sessionId: wanted }),
+          })
+          await this.refreshActivity()
+          return { ok: true }
+        } catch (error) {
+          return { ok: false, error: error instanceof Error ? error.message : String(error) }
         }
       },
       /** 给面板用的活动快照（没有就是 null） */
@@ -4684,7 +4716,7 @@ async function writeSave(home) {
 
     /** 设置：称呼 / 自称 / 房间名，改完立刻存档 */
     function SettingsBar(props) {
-      const { t, profile, onChange, onSave, onClose, paths, configs, onOpen, openTip } = props
+      const { t, profile, onChange, onSave, onClose, paths, configs, onOpen, openTip, sessionTargets, noteTarget, onNoteTarget } = props
       const field = (label, key, placeholder) => h('label', { className: 'fh-field' },
         h('span', { className: 'fh-field-label' }, label),
         h('input', {
@@ -4743,6 +4775,21 @@ async function writeSave(home) {
                   onClick: () => onOpen('reveal', item.path),
                 }, t('settings.reveal'))))),
             openTip ? h('span', { className: 'fh-muted' }, openTip) : null)
+          : null,
+        // 便条送进哪个会话（有活会话时才列出来）
+        sessionTargets && sessionTargets.length > 0
+          ? h('div', { className: 'fh-form' },
+            h('label', { className: 'fh-field' },
+              h('span', { className: 'fh-field-label' }, t('settings.noteTarget')),
+              h('select', {
+                className: 'fh-editor-select',
+                value: noteTarget || '',
+                onChange: (event) => onNoteTarget(event.target.value),
+              },
+              h('option', { value: '' }, t('settings.noteTargetAuto')),
+              sessionTargets.map((item) => h('option', { key: item.id, value: item.id },
+                `${item.label}${item.running ? ' · 运行中' : ''}`)))),
+            h('span', { className: 'fh-muted' }, t('settings.noteTargetHint')))
           : null,
         h('div', { className: 'fh-editor-actions' },
           h('button', { type: 'button', className: 'fh-toggle', onClick: onSave }, t('settings.save')),
@@ -5469,6 +5516,13 @@ async function writeSave(home) {
                   ]
                 })(),
                 openTip,
+                sessionTargets: (snapshot.activity && snapshot.activity.notes && snapshot.activity.notes.sessions) || [],
+                noteTarget: (snapshot.activity && snapshot.activity.notes && snapshot.activity.notes.pinned) || '',
+                onNoteTarget: (id) => {
+                  void store.setNoteTarget(id).then(() => {
+                    setOpenTip(id === '' ? t('settings.noteTargetAuto') : id.slice(0, 8))
+                  })
+                },
                 onOpen: (kind, target) => {
                   void store.openPath(kind, target).then((result) => {
                     setOpenTip(result.ok

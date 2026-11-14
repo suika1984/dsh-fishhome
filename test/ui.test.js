@@ -1279,6 +1279,40 @@ model.applyFurniture(model.DEFAULT_FURNITURE)
   assert.ok(inject.texts.some((x) => x.includes(translate('activity.noteInject'))), '注入模式提示不同')
   assert.ok(inject.texts.some((x) => x.includes('2')), '显示待递张数')
 }
+// 设置里能选会话：下拉框列出活会话，切换时把 id 回调出去
+{
+  const calls = []
+  const bar = model.SettingsBar({
+    t: translate,
+    profile: { characterName: '大肥鱼' },
+    paths: [], configs: [], openTip: '',
+    sessionTargets: [
+      { id: 'abc12345-9999', label: '测试会话', running: true },
+      { id: 'def67890-1111', label: 'def67890', running: false },
+    ],
+    noteTarget: 'abc12345-9999',
+    onNoteTarget: (id) => calls.push(id),
+    onOpen() {}, onChange() {}, onSave() {}, onClose() {},
+  })
+  const selects = []
+  const options = []
+  const walk = (n) => {
+    if (!n || typeof n !== 'object') return
+    if (Array.isArray(n)) { n.forEach(walk); return }
+    if (typeof n.type === 'function') { walk(n.type(n.props || {})); return }
+    if (n.type === 'select') selects.push(n)
+    if (n.type === 'option') options.push(n)
+    walk(n.children)
+  }
+  walk(bar)
+  assert.equal(selects.length, 1, '有一个会话下拉框')
+  assert.equal(selects[0].props.value, 'abc12345-9999', '默认选中当前指定会话')
+  const labels = options.map((o) => [].concat(o.children).flat().join(''))
+  assert.ok(labels.includes(translate('settings.noteTargetAuto')), '有「自动」选项')
+  assert.ok(labels.some((x) => x.includes('运行中')), '运行中的会话有标记')
+  selects[0].props.onChange({ target: { value: 'def67890-1111' } })
+  assert.deepEqual(calls, ['def67890-1111'], '切换会回调出去')
+}
 console.log('ui tests passed:', {
   components: Object.keys(registered),
   behaviors: model.BEHAVIORS.length,

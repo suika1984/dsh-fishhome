@@ -257,7 +257,9 @@ Client 每次 tick（5 秒）拉一次，然后：
 | `preview`（默认） | 只在她头顶的气泡里说 + 写日志 `log.noteQueued`，不进会话 |
 | `inject` | 额外把她的话作为**一条用户消息**送进当前正在跑的会话 |
 
-**目标会话是唯一的**：Host 记录「最近一次开始运行/有新消息的会话」（`api-session/status(running)`、`agent/status`、`api-session/activity`），便条只会注入到这个会话的 `agent/pre-step`；别的 agent 进步骤时便把条留在队列里。目标超过 10 分钟没动静视为失效，只预览不注入。
+**目标会话可以在设置里指定**：`POST /fishhome/api/note-target { sessionId }`（空字符串 = 自动）。手动指定优先于自动，指定的会话被关掉时自动清空。
+
+**自动时目标会话是唯一的**：Host 记录「最近一次开始运行/有新消息的会话」（`api-session/status(running)`、`agent/status`、`api-session/activity`），便条只会注入到这个会话的 `agent/pre-step`；别的 agent 进步骤时便把条留在队列里。目标超过 10 分钟没动静视为失效，只预览不注入。
 
 注入走的是文档化水位 `agent/pre-step`（waterfall）：**先 `await next()` 拿到决策**，只在 `decision.kind === 'enter'` 时往 `messages` 里 push，绝不改写原有内容；任何异常都退回原决策。
 消息形状照抄 `agent/inbox/inserted` 里最近一条真实 `UserMessage`（模板），没有模板就只预览。队列上限 5 条、每条 ≤200 字。

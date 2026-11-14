@@ -223,6 +223,10 @@ function createHandler(settings) {
         await handleNote(req, res, settings)
         return
       }
+      if (rest === '/api/note-target') {
+        await handleNoteTarget(req, res, settings)
+        return
+      }
       if (rest === '/api/activity' && (req.method === 'GET' || req.method === 'HEAD')) {
         const activity = settings.activity ? settings.activity() : null
         if (!activity) {
@@ -624,7 +628,28 @@ function createNotes() {
     // 便条要送进哪个会话：最近一次「开始运行 / 有新消息」的那个
     target: null,
     targetAt: 0,
+    // 用户在设置里手动指定的会话（空字符串 = 自动）
+    pinned: '',
+    // 见过的活会话：id → { id, running, lastAt, label }
+    sessions: new Map(),
   }
+}
+
+/** 记一个活会话（供设置里的下拉框选） */
+function rememberSession(notes, sessionId, patch) {
+  if (typeof sessionId !== 'string' || sessionId === '') return
+  const current = notes.sessions.get(sessionId) || { id: sessionId, running: false, lastAt: 0, label: '' }
+  const next = { ...current, ...patch }
+  if (!next.label) next.label = sessionId.slice(0, 8)
+  notes.sessions.set(sessionId, next)
+}
+
+/** 便条最终送去哪个会话：手动指定的优先，其次最近活跃的 */
+function resolveNoteTarget(notes) {
+  if (typeof notes.pinned === 'string' && notes.pinned !== '') {
+    return notes.sessions.has(notes.pinned) ? notes.pinned : ''
+  }
+  return noteTargetFresh(notes) ? notes.target : ''
 }
 
 /** 记下「当前会话」：谁最近开始跑，便条就归谁 */
@@ -632,6 +657,7 @@ function noteTarget(notes, sessionId) {
   if (typeof sessionId !== 'string' || sessionId === '') return
   notes.target = sessionId
   notes.targetAt = Date.now()
+  rememberSession(notes, sessionId, { lastAt: Date.now() })
 }
 
 /** 便条目标是否还新鲜（会话可能早结束了，别把话送进不相干的步骤） */
@@ -648,16 +674,23 @@ function rememberUserShape(notes, message) {
 }
 
 function notesSnapshot(notes, mode) {
-  const fresh = noteTargetFresh(notes)
+  const target = resolveNoteTarget(notes)
   return {
     mode: mode === 'inject' ? 'inject' : 'preview',
     pending: notes.queue.length,
     injected: notes.injected,
     preview: notes.preview,
     canInject: notes.shape !== null,
-    // 便条会送进哪个会话：只暴露短 id，不暴露内容
-    target: fresh ? String(notes.target).slice(0, 8) : '',
-    targetFresh: fresh,
+    // 便条会送进哪个会话
+    target: target ? String(target).slice(0, 8) : '',
+    targetFull: target,
+    targetFresh: target !== '',
+    pinned: notes.pinned,
+    // 设置里的下拉框用：见过的活会话
+    sessions: [...notes.sessions.values()]
+      .sort((a, b) => (b.running ? 1 : 0) - (a.running ? 1 : 0) || b.lastAt - a.lastAt)
+      .slice(0, 12)
+      .map((item) => ({ id: item.id, label: item.label, running: item.running, lastAt: item.lastAt })),
   }
 }
 
@@ -674,10 +707,12 @@ function queueNote(notes, text) {
 function injectNote(notes, config, payload, decision) {
   if (!decision || decision.kind !== 'enter' || !Array.isArray(decision.messages)) return decision
   const mode = config && config.noteMode === 'inject' ? 'inject' : 'preview'
-  if (mode !== 'inject' || !notes.shape || !noteTargetFresh(notes)) return decision
+  if (mode !== 'inject' || !notes.shape) return decision
+  const wanted = resolveNoteTarget(notes)
+  if (!wanted) return decision
   const agentId = payload && payload.agent && typeof payload.agent.id === 'string' ? payload.agent.id : ''
   // 只在「便条的目标会话」进入下一步时注入；别的 agent 一律不碰（便条留着）
-  if (agentId !== notes.target) return decision
+  if (agentId !== wanted) return decision
   const note = notes.queue.shift()
   if (!note) return decision
   const template = notes.shape
@@ -690,6 +725,32 @@ function injectNote(notes, config, payload, decision) {
   decision.messages.push(message)
   notes.injected += 1
   return decision
+}
+
+/** 设置里选「便条送进哪个会话」：{ sessionId }（空字符串 = 自动挑最活跃的） */
+async function handleNoteTarget(req, res, settings) {
+  if (req.method !== 'POST') {
+    res.setHeader('allow', 'POST')
+    sendJson(res, 405, { ok: false, error: 'method not allowed' })
+    return
+  }
+  let payload
+  try {
+    payload = JSON.parse(await readBody(req))
+  } catch (error) {
+    const tooLarge = error && error.code === 'E_TOO_LARGE'
+    sendJson(res, tooLarge ? 413 : 400, { ok: false, error: tooLarge ? '请求体过大' : '请求体不是合法 JSON' })
+    return
+  }
+  const notes = settings.notes()
+  const wanted = typeof (payload && payload.sessionId) === 'string' ? payload.sessionId.trim() : ''
+  if (wanted !== '' && !notes.sessions.has(wanted)) {
+    sendJson(res, 404, { ok: false, error: '这个会话已经不在了' })
+    return
+  }
+  notes.pinned = wanted
+  const { noteMode } = settings.config()
+  sendJson(res, 200, { ok: true, ...notesSnapshot(notes, noteMode) })
 }
 
 async function handleNote(req, res, settings) {
@@ -771,6 +832,8 @@ function activityListeners(activity, notes) {
       const id = sessionIdOf(summary)
       if (id) {
         activity.sessions.add(id)
+        const title = summary && typeof summary === 'object' && typeof summary.title === 'string' ? summary.title : ''
+        rememberSession(notes, id, { label: title, lastAt: Date.now() })
         noteTarget(notes, id)
       }
       noteActivity(activity, 'session-start', '')
@@ -780,8 +843,10 @@ function activityListeners(activity, notes) {
       if (id) {
         activity.sessions.delete(id)
         activity.running.delete(id)
-        // 目标会话被关掉了，便条不再有去处
+        notes.sessions.delete(id)
+        // 目标会话被关掉了，便条不再有去处；手动指定的也一并清掉
         if (notes.target === id) notes.target = null
+        if (notes.pinned === id) notes.pinned = ''
       }
       noteActivity(activity, 'session-end', '')
     }],
@@ -794,6 +859,7 @@ function activityListeners(activity, notes) {
       } else {
         activity.running.delete(id)
       }
+      rememberSession(notes, id, { running: !!running })
       noteActivity(activity, running ? 'running' : 'idle', '')
     }],
     ['api-session/error', (sessionId, message) => {
@@ -808,6 +874,7 @@ function activityListeners(activity, notes) {
     }],
     ['agent/status', (payload) => {
       const id = sessionIdOf(payload && payload.agent)
+      if (id) rememberSession(notes, id, { running: (payload && payload.status) === 'running' })
       const status = payload && payload.status
       if (id && (status === 'running' || status === 'idle')) {
         if (status === 'running') {

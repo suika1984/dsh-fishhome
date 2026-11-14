@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = 'd38a700e'
+    const BUILD_REV = 'f5f754c7'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -28,6 +28,8 @@ window.__ModuleLoader__.load({
     const OFFLINE_CAP_MS = 12 * 60 * 60 * 1000
     const OFFLINE_STEP_MS = 5 * 60 * 1000
     const MAX_LOG = 40
+/** 便条发进会话时带的前缀：提示模型这是小屋来的小便条，简短回应即可 */
+const NOTE_MARK = '【家园】'
 
     /* ======================================================================
      * 8. 多语言（内联字典：即使 locale 服务不可用也能显示）
@@ -234,8 +236,8 @@ window.__ModuleLoader__.load({
       'activity.noteTitle': '跟她说一句',
       'activity.notePlaceholder': '想对她说点什么…',
       'activity.noteSend': '递给她',
-      'activity.notePreview': '只在屋子里说（不会进会话）',
-      'activity.noteInject': '会作为一条消息送进当前会话',
+      'activity.notePreview': '只在屋子里说',
+      'activity.noteInject': '会作为一条消息发进会话',
       'activity.notePending': '{count} 张待递',
       'activity.noteTarget': '会送进会话 {target}',
       'activity.noteNoTarget': '当前没有运行中的会话，便条会等她开始',
@@ -496,8 +498,8 @@ window.__ModuleLoader__.load({
       'activity.noteTitle': 'Say something to her',
       'activity.notePlaceholder': 'A few words for her…',
       'activity.noteSend': 'Hand it over',
-      'activity.notePreview': 'Only in the room (not sent to the session)',
-      'activity.noteInject': 'Will be delivered into the current session',
+      'activity.notePreview': 'Only in the room',
+      'activity.noteInject': 'Will be sent into the session',
       'activity.notePending': '{count} pending',
       'activity.noteTarget': 'Delivered to session {target}',
       'activity.noteNoTarget': 'No session is running; the note waits for her',
@@ -2379,7 +2381,8 @@ async function writeSave(home) {
         //    它会出现在对话里，并让那个会话真的跑一轮（LLM 会回）
         const targetId = (this.activity && this.activity.notes && this.activity.notes.targetId) || ''
         if (this.clientSessions && targetId) {
-          const delivered = await this.promptSession(targetId, clean)
+          // 带个标记：模型看到就知道这是「家园小便条」，回一句就够，别展开、别调工具
+          const delivered = await this.promptSession(targetId, `${NOTE_MARK}${clean}`)
           if (delivered) {
             pushLog(this.home, now, 'noteDelivered', null)
             this.publish()
@@ -4626,7 +4629,9 @@ async function writeSave(home) {
           : null,
         props.onNote
           ? h('p', { className: 'fh-note-hint' },
-            t((activity.notes && activity.notes.mode) === 'inject' ? 'activity.noteInject' : 'activity.notePreview'),
+            t((props.canDeliver !== undefined
+              ? props.canDeliver
+              : !!(activity.notes && activity.notes.mode === 'inject')) ? 'activity.noteInject' : 'activity.notePreview'),
             activity.notes && activity.notes.mode === 'inject'
               ? ` · ${activity.notes.targetFresh
                 ? t('activity.noteTarget', { target: activity.notes.target })
@@ -5846,6 +5851,7 @@ async function writeSave(home) {
               home: snapshot.home,
               now,
               onNote: (text) => store.sendNote(text),
+              canDeliver: !!(store.clientSessions || (snapshot.activity && snapshot.activity.notes && snapshot.activity.notes.mode === 'inject')),
             }),
                 h(LogCard, { home: snapshot.home, t }),
                 h('p', { className: 'fh-foot' }, t('saved.at', { time: snapshot.lastSavedAt ? formatLogTime(snapshot.lastSavedAt) : t('saved.never') })),

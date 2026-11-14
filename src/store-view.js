@@ -106,7 +106,8 @@
         //    它会出现在对话里，并让那个会话真的跑一轮（LLM 会回）
         const targetId = (this.activity && this.activity.notes && this.activity.notes.targetId) || ''
         if (this.clientSessions && targetId) {
-          const delivered = await this.promptSession(targetId, clean)
+          // 带个标记：模型看到就知道这是「家园小便条」，回一句就够，别展开、别调工具
+          const delivered = await this.promptSession(targetId, `${NOTE_MARK}${clean}`)
           if (delivered) {
             pushLog(this.home, now, 'noteDelivered', null)
             this.publish()

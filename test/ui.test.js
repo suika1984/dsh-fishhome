@@ -1364,7 +1364,7 @@ await (async () => {
   const result = await store.sendNote('一起吃个饭吧')
   assert.equal(result.delivered, true, '标记为已送达会话')
   assert.deepEqual(calls[0], ['using', 'session-target-1', 'gateway'], '按会话 id 取引用')
-  assert.deepEqual(calls[1], ['prompt', '一起吃个饭吧', 'queue'], '用聊天框同款 prompt 发出去')
+  assert.deepEqual(calls[1], ['prompt', '【家园】一起吃个饭吧', 'queue'], '用聊天框同款 prompt 发出去，带家园标记')
   assert.ok(store.home.character.say.text.length > 0, '屋里也回了一句')
   assert.equal(store.home.log[0].code, 'noteDelivered', '日志记了送达')
 })()

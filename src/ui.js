@@ -416,7 +416,9 @@
           : null,
         props.onNote
           ? h('p', { className: 'fh-note-hint' },
-            t((activity.notes && activity.notes.mode) === 'inject' ? 'activity.noteInject' : 'activity.notePreview'),
+            t((props.canDeliver !== undefined
+              ? props.canDeliver
+              : !!(activity.notes && activity.notes.mode === 'inject')) ? 'activity.noteInject' : 'activity.notePreview'),
             activity.notes && activity.notes.mode === 'inject'
               ? ` · ${activity.notes.targetFresh
                 ? t('activity.noteTarget', { target: activity.notes.target })
@@ -1636,6 +1638,7 @@
               home: snapshot.home,
               now,
               onNote: (text) => store.sendNote(text),
+              canDeliver: !!(store.clientSessions || (snapshot.activity && snapshot.activity.notes && snapshot.activity.notes.mode === 'inject')),
             }),
                 h(LogCard, { home: snapshot.home, t }),
                 h('p', { className: 'fh-foot' }, t('saved.at', { time: snapshot.lastSavedAt ? formatLogTime(snapshot.lastSavedAt) : t('saved.never') })),

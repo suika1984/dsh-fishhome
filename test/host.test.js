@@ -351,6 +351,30 @@ async function call(url, method = 'GET', body = '') {
   assert.equal(row.label, '实时标题', '实时 title 事件生效')
 }
 
+// 便条的回复要回传到屋里：delivered 登记 → 助手消息 → notes.lastReply
+{
+  const fireLocal = (event, ...args) => { for (const handler of listeners.get(event) || []) handler(...args) }
+  fireLocal('api-session/added', { sessionId: 'session-reply111' })
+  // 客户端已经发进会话了，只登记等回话
+  const sent = JSON.parse((await call('/fishhome/api/note', 'POST', JSON.stringify({ text: '摸摸头', delivered: true, sessionId: 'session-reply111' }))).body)
+  assert.equal(sent.delivered, true, '登记为已投递')
+  // 助手回了一句
+  fireLocal('session/event', { id: 'session-reply111' }, {
+    type: 'assistant/message',
+    data: { role: 'assistant', content: [{ type: 'text', text: '（眯起眼睛）诶嘿嘿…那我也回摸一下。' }] },
+  })
+  const snapshot2 = JSON.parse((await call('/fishhome/api/activity')).body).notes
+  assert.ok(snapshot2.lastReply, '快照里带着回话')
+  assert.ok(snapshot2.lastReply.text.includes('回摸一下'), '回话内容对')
+  // 不是等回话的会话发的助手消息，不该覆盖
+  fireLocal('session/event', { id: 'session-other' }, {
+    type: 'assistant/message',
+    data: { role: 'assistant', content: [{ type: 'text', text: '别的话' }] },
+  })
+  const snapshot3 = JSON.parse((await call('/fishhome/api/activity')).body).notes
+  assert.equal(snapshot3.lastReply.text.includes('回摸一下'), true, '别的会话不覆盖')
+}
+
 const meta = await call('/fishhome/api/meta')
 assert.equal(meta.statusCode, 200)
 const metaJson = JSON.parse(meta.body)

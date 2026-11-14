@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = 'f5f754c7'
+    const BUILD_REV = 'a072df52'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -244,6 +244,7 @@ const NOTE_MARK = '【家园】'
       'log.noteQueued': '你把话递给了{name}。',
       'log.noteReply': '{name}回你：{text}',
       'log.noteDelivered': '{name}的话已经发进会话了。',
+      'log.agentReply': '会话里回了一句，{name}念给你听：{text}',
       'activity.noteSent': '已发送到会话',
       'log.offline': '你离开了 {span}，{name}自己过了这段日子。',
       'log.move': '{name}凑到你面前来了。',
@@ -506,6 +507,7 @@ const NOTE_MARK = '【家园】'
       'log.noteQueued': 'You handed {name} a note.',
       'log.noteReply': '{name} replied: {text}',
       'log.noteDelivered': 'Your note was sent into the session.',
+      'log.agentReply': 'A reply came back — {name} reads it aloud: {text}',
       'activity.noteSent': 'Sent to session',
       'log.offline': 'You were away for {span}; it kept living.',
       'log.move': 'It came over to you.',
@@ -1029,6 +1031,9 @@ const NOTE_MARK = '【家园】'
             targetId: typeof raw.notes.targetFull === 'string' ? raw.notes.targetFull : '',
             targetFresh: raw.notes.targetFresh === true,
             pinned: typeof raw.notes.pinned === 'string' ? raw.notes.pinned : '',
+            lastReply: raw.notes.lastReply && typeof raw.notes.lastReply === 'object' && typeof raw.notes.lastReply.text === 'string'
+              ? { at: Number(raw.notes.lastReply.at) || 0, text: raw.notes.lastReply.text.slice(0, 240) }
+              : null,
             sessions: Array.isArray(raw.notes.sessions)
               ? raw.notes.sessions
                 .filter((item) => item && typeof item.id === 'string')
@@ -2337,8 +2342,21 @@ async function writeSave(home) {
         }
         return this.activity
       },
+      /** 会话里对便条的回复 → 让她在屋里说出来（气泡 + 日志） */
+      surfaceReply(reply) {
+        if (!reply || typeof reply.text !== 'string' || reply.text === '') return
+        if (this.lastReplyAt === reply.at) return
+        this.lastReplyAt = reply.at
+        const now = Date.now()
+        if (this.home && this.home.character) {
+          this.home.character.say = { text: reply.text, until: now + 9000 }
+          pushLog(this.home, now, 'agentReply', { text: reply.text })
+          this.publish()
+        }
+      },
       /** 活动变化 → 她的反应（只在「状态跳变」时触发，避免每 5 秒刷屏） */
       applyActivity(next) {
+        if (next.notes && next.notes.lastReply) this.surfaceReply(next.notes.lastReply)
         const previous = this.activity
         this.activity = next
         setActivity(next)
@@ -2384,6 +2402,12 @@ async function writeSave(home) {
           // 带个标记：模型看到就知道这是「家园小便条」，回一句就够，别展开、别调工具
           const delivered = await this.promptSession(targetId, `${NOTE_MARK}${clean}`)
           if (delivered) {
+            // 告诉 Host「这个会话在等回话」，好把她的回复捞回来显示在屋里
+            void fetchJson(`${ROUTE}/api/note`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({ text: clean, delivered: true, sessionId: targetId }),
+            }).catch(() => {})
             pushLog(this.home, now, 'noteDelivered', null)
             this.publish()
             return { ok: true, delivered: true, target: targetId }
@@ -4733,6 +4757,10 @@ async function writeSave(home) {
           return t('log.stretch')
         case 'idle':
           return t('log.idle')
+        case 'agentReply': {
+          const text = entry.arg && typeof entry.arg.text === 'string' ? entry.arg.text : ''
+          return t('log.agentReply', { text })
+        }
         case 'noteDelivered':
           return t('log.noteDelivered')
         case 'noteReply': {

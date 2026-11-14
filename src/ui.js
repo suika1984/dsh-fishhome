@@ -520,6 +520,10 @@
           return t('log.stretch')
         case 'idle':
           return t('log.idle')
+        case 'agentReply': {
+          const text = entry.arg && typeof entry.arg.text === 'string' ? entry.arg.text : ''
+          return t('log.agentReply', { text })
+        }
         case 'noteDelivered':
           return t('log.noteDelivered')
         case 'noteReply': {

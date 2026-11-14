@@ -443,6 +443,9 @@
             targetId: typeof raw.notes.targetFull === 'string' ? raw.notes.targetFull : '',
             targetFresh: raw.notes.targetFresh === true,
             pinned: typeof raw.notes.pinned === 'string' ? raw.notes.pinned : '',
+            lastReply: raw.notes.lastReply && typeof raw.notes.lastReply === 'object' && typeof raw.notes.lastReply.text === 'string'
+              ? { at: Number(raw.notes.lastReply.at) || 0, text: raw.notes.lastReply.text.slice(0, 240) }
+              : null,
             sessions: Array.isArray(raw.notes.sessions)
               ? raw.notes.sessions
                 .filter((item) => item && typeof item.id === 'string')

@@ -263,6 +263,8 @@ Client 每次 tick（5 秒）拉一次，然后：
 | `preview`（默认） | 只在她头顶的气泡里说 + 写日志 `log.noteQueued`，不进会话 |
 | `inject` | 额外把她的话作为**一条用户消息**送进当前正在跑的会话 |
 
+**回话也会回到屋里**：便条发进会话后，Host 在 `session/event` 里等这个会话的第一条 `assistant/message`（`notes.awaiting` 记录在等谁），把文本放进 `notes.lastReply`；面板轮询到就在她头顶气泡里念出来并记 `log.agentReply`——所以「递便条 → 会话里回 → 她念给你听」是一个闭环。
+
 **目标会话可以在设置里指定**：`POST /fishhome/api/note-target { sessionId }`（空字符串 = 自动）。手动指定优先于自动，指定的会话被关掉时自动清空。
 
 **会话标题**：`SessionSummary` 里没有标题字段，所以标题靠两条路取：`session/event` 的第一条 `user/message`，或者用 `session/created` 存下的 Session 引用调 `deriveMessages()` 回溯（插件启动前就发过消息的会话也能补上）。压平换行、截 24 字、只写一次；实在拿不到就退回短 id。

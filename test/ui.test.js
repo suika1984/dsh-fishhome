@@ -1368,6 +1368,26 @@ await (async () => {
   assert.ok(store.home.character.say.text.length > 0, '屋里也回了一句')
   assert.equal(store.home.log[0].code, 'noteDelivered', '日志记了送达')
 })()
+// 会话回复：日志要念出来，气泡只更新一次
+await (async () => {
+  const store = new model.HomeStore()
+  store.publish = () => {}
+  store.scheduleSave = () => {}
+  store.home = model.createHome(Date.now(), '大肥鱼')
+  store.surfaceReply({ at: 111, text: '（眯起眼睛）诶嘿嘿…那我也回摸一下。' })
+  assert.ok(store.home.character.say.text.includes('回摸一下'), '气泡换成会话的回复')
+  assert.equal(store.home.log[0].code, 'agentReply', '日志记了 agentReply')
+  const count = store.home.log.length
+  store.surfaceReply({ at: 111, text: '同一句' })
+  assert.equal(store.home.log.length, count, '同一时间戳不重复播')
+})()
+
+// agentReply 日志文本带出回复内容
+{
+  const logHome = model.createHome(Date.now(), '大肥鱼')
+  const text = model.fillText(model.logText(translate, { code: 'agentReply', arg: { text: '回摸一下' } }), logHome)
+  assert.ok(text.includes('回摸一下'), '日志里带回复文本')
+}
 console.log('ui tests passed:', {
   components: Object.keys(registered),
   behaviors: model.BEHAVIORS.length,

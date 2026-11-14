@@ -642,6 +642,10 @@ function createNotes() {
     pinned: '',
     // 见过的活会话：id → { id, running, lastAt, label }
     sessions: new Map(),
+    // 便条发出去之后，等着会话回话的 id
+    awaiting: new Set(),
+    // 最近一条「对便条的回复」：{ at, sessionId, text }
+    lastReply: null,
     // 活会话的 Session 对象：拿不到实时事件时，用 deriveMessages() 补标题
     sessionRefs: new Map(),
   }
@@ -704,6 +708,21 @@ function titleFromSessionEvents(session) {
     if (typeof data.title === 'string' && data.title.trim() !== '') found = data.title.trim()
   }
   return found
+}
+
+/** 从助手消息里抽文本（回话要显示在屋里，截 200 字） */
+function textFromAssistant(message) {
+  if (!message || typeof message !== 'object' || message.role !== 'assistant') return ''
+  const blocks = Array.isArray(message.content) ? message.content : []
+  const parts = []
+  for (const block of blocks) {
+    if (!block || block.type !== 'text' || typeof block.text !== 'string') continue
+    const text = block.text.replace(/\s+/g, ' ').trim()
+    if (text !== '') parts.push(text)
+  }
+  const joined = parts.join(' ')
+  if (joined === '') return ''
+  return joined.length > 200 ? `${joined.slice(0, 200)}…` : joined
 }
 
 /** 会话 id 太长的部分去掉，留一段有区分度的（session-1a2b3c… → 1a2b3c…） */
@@ -789,6 +808,8 @@ function notesSnapshot(notes, mode) {
     targetFull: target,
     targetFresh: target !== '',
     pinned: notes.pinned,
+    // 会话里对便条的回复（面板要把它显示成她的气泡）
+    lastReply: notes.lastReply ? { at: notes.lastReply.at, text: notes.lastReply.text } : null,
     // 设置里的下拉框用：见过的活会话
     sessions: [...notes.sessions.values()]
       .map((item) => {
@@ -877,6 +898,14 @@ async function handleNote(req, res, settings) {
   const notes = settings.notes()
   const { noteMode } = settings.config()
   const text = typeof (payload && payload.text) === 'string' ? payload.text.trim() : ''
+  const delivered = payload && payload.delivered === true
+  const sessionId = typeof (payload && payload.sessionId) === 'string' ? payload.sessionId : ''
+  // 客户端已经用 session.prompt 发进会话了：只登记「等它的回话」，不进队列
+  if (delivered) {
+    if (sessionId !== '') notes.awaiting.add(sessionId)
+    sendJson(res, 200, { ok: true, delivered: true, ...notesSnapshot(notes, noteMode) })
+    return
+  }
   if (text === '' || text.length > NOTE_MAX_CHARS) {
     sendJson(res, 400, { ok: false, error: `便条要 1~${NOTE_MAX_CHARS} 个字` })
     return
@@ -955,6 +984,8 @@ function activityListeners(activity, notes) {
         // 目标会话被关掉了，便条不再有去处；手动指定的也一并清掉
         if (notes.target === id) notes.target = null
         if (notes.pinned === id) notes.pinned = ''
+        notes.awaiting.delete(id)
+        if (notes.lastReply && notes.lastReply.sessionId === id) notes.lastReply = null
       }
       noteActivity(activity, 'session-end', '')
     }],
@@ -1015,7 +1046,18 @@ function activityListeners(activity, notes) {
         setSessionTitle(notes, id, event.data.title.trim(), true)
         return
       }
-      // 2) 退而求其次：第一条「像人写的」用户消息
+      // 2) 助手回复：如果这个会话正在等便条的回话，就把这句话捞出来给屋里显示
+      if (event.type === 'assistant/message') {
+        const raw = event.data
+        const message = raw && typeof raw === 'object' && raw.message ? raw.message : raw
+        const text = textFromAssistant(message)
+        if (text && notes.awaiting.has(id)) {
+          notes.awaiting.delete(id)
+          notes.lastReply = { at: Date.now(), sessionId: id, text }
+        }
+        return
+      }
+      // 3) 退而求其次：第一条「像人写的」用户消息
       if (event.type !== 'user/message') return
       const title = titleFromMessage(event.data)
       if (title) setSessionTitle(notes, id, title)

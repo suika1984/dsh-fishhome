@@ -122,12 +122,17 @@
       async setNoteTarget(sessionId) {
         const wanted = typeof sessionId === 'string' ? sessionId : ''
         try {
-          await fetchJson(`${ROUTE}/api/note-target`, {
+          const payload = await fetchJson(`${ROUTE}/api/note-target`, {
             method: 'POST',
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ sessionId: wanted }),
           })
-          await this.refreshActivity()
+          // 立刻用返回的便条状态刷新（不等 5 秒轮询，否则下拉框看起来像"没选上"）
+          const nextNotes = normalizeActivity({ notes: payload }) 
+          if (nextNotes && nextNotes.notes) {
+            this.activity = { ...(this.activity || normalizeActivity({})), notes: nextNotes.notes }
+            this.publish()
+          }
           return { ok: true }
         } catch (error) {
           return { ok: false, error: error instanceof Error ? error.message : String(error) }

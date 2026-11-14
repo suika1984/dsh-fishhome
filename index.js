@@ -640,8 +640,16 @@ function rememberSession(notes, sessionId, patch) {
   if (typeof sessionId !== 'string' || sessionId === '') return
   const current = notes.sessions.get(sessionId) || { id: sessionId, running: false, lastAt: 0, label: '' }
   const next = { ...current, ...patch }
-  if (!next.label) next.label = sessionId.slice(0, 8)
+  if (!next.label) next.label = prettySessionId(sessionId)
   notes.sessions.set(sessionId, next)
+}
+
+/** 会话 id 太长的部分去掉，留一段有区分度的（session-1a2b3c… → 1a2b3c…） */
+function prettySessionId(sessionId) {
+  const text = typeof sessionId === 'string' ? sessionId : ''
+  const bare = text.replace(/^session[-_]/i, '')
+  if (bare !== text) return bare.slice(0, 8)
+  return text.length > 8 ? text.slice(-8) : text
 }
 
 /** 便条最终送去哪个会话：手动指定的优先，其次最近活跃的 */

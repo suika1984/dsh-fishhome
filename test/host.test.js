@@ -254,6 +254,17 @@ async function call(url, method = 'GET', body = '') {
   assert.equal(again.messages.length, 0, '没有待递便条时不追加')
 }
 
+// 会话标签：去掉 session- 前缀，否则下拉框里全是 "session-" 分不清
+{
+  const fireLocal = (event, ...args) => { for (const handler of listeners.get(event) || []) handler(...args) }
+  fireLocal('api-session/added', { sessionId: 'session-abcdef123456' })
+  const listed = JSON.parse((await call('/fishhome/api/activity')).body).notes
+  const row = listed.sessions.find((item) => item.id === 'session-abcdef123456')
+  assert.ok(row, '会话出现在列表里')
+  assert.equal(row.label, 'abcdef12', '标签去掉了 session- 前缀')
+  assert.ok(!row.label.includes('session-'), '标签里没有前缀')
+}
+
 const meta = await call('/fishhome/api/meta')
 assert.equal(meta.statusCode, 200)
 const metaJson = JSON.parse(meta.body)

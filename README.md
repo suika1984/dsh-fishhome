@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/suika1984/dsh-fishhome/actions/workflows/ci.yml/badge.svg)](https://github.com/suika1984/dsh-fishhome/actions/workflows/ci.yml)
 
-仓库：<https://github.com/suika1984/dsh-fishhome>（private）
+仓库：<https://github.com/suika1984/dsh-fishhome> · MIT License
 
 给大肥鱼一间**跟着现实时间过日子**的小屋：它会自己发呆、看书、敲键盘、和小鲸鱼玩、按季节和时段换心情，也会在没人看的时候打盹。你打开 Harness 时，看到的是它「这段时间自己过到了哪一步」。
 
@@ -59,13 +59,36 @@
 
 ## 安装
 
-插件是 `D:\dschat\dsh-fishhome` 这个目录（已经通过 Plugin Manager 装进 `desktop` profile）：
+前提：桌面上装了 DeepSeek Harness（DSH）。
 
 ```powershell
-dsh plugin install D:\dschat\dsh-fishhome
+# 1. 克隆（仓库里已经带好构建产物 client.js，不用先跑 build）
+git clone https://github.com/suika1984/dsh-fishhome.git
+
+# 2. 装进当前 profile（把 <克隆出来的目录> 换成实际路径）
+dsh plugin install <克隆出来的目录>
 ```
 
-或者在 Harness 里用 Plugin Manager 以「本地目录」安装。装好后刷新页面，侧边栏就有「家园」。
+也可以打开 Harness →「插件」→ Plugin Manager，选「**本地目录**」安装克隆下来的文件夹。
+
+装完**重启 Harness**（Host 半只在启动时注册路由），侧边栏就会出现「家园」。
+
+> 想改代码的话：改 `src/` 后跑 `node build.mjs` 再刷新面板；改 `index.js` 要重启。
+> 完整开发流程见 [AGENTS.md](AGENTS.md)。
+
+## 反馈 / 参与
+
+- **有问题或建议**：直接开 [Issue](https://github.com/suika1984/dsh-fishhome/issues)，附上截图 / 存档里的日志更好排查
+- **想改东西**：先看 [AGENTS.md](AGENTS.md)（给 AI 助手/编码代理的操作索引）和 [docs/SCHEMA.md](docs/SCHEMA.md)（数据结构）
+- **本地自测**（改完必须全过）：
+
+```bash
+node build.mjs        # 生成 client.js
+node tools/check.mjs  # 自检：文案缺失 / 死代码 / 数据引用 / 构建新鲜度
+node test/model.test.js && node test/ui.test.js && node test/host.test.js && node test/mount.test.js
+```
+
+> 还没做完的事（含「回来时从哪下手」）记在 [TODO.md](TODO.md)。
 
 ## 配置
 
@@ -81,11 +104,9 @@ dsh plugin install D:\dschat\dsh-fishhome
     saveDir: ''                   # 存档目录；留空 = <DSH_HOME>/fishhome/saves
 ```
 
-> 还没做完的事（含「回来时从哪下手」）记在 [TODO.md](TODO.md)。
-
 ## 为什么长这样
 
-概念文档（`D:\download\大肥鱼家园-dsh-fishhome.md`）里的几条硬约束，在这个实现里是这样落的：
+概念文档里的几条硬约束，在这个实现里是这样落的：
 
 | 文档里的原则 | 这里的落点 |
 | --- | --- |

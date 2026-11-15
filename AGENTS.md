@@ -92,7 +92,7 @@ node test/host.test.js     # Host 路由：存档、静态资源、路径穿越�
 node test/mount.test.js    # 挂载冒烟：面板能渲染、不无限重渲染
 ```
 
-> Node 可执行文件在本机是 `D:\deepseek\.dsh\dsh-runtimes\dsh-primary-runtime\dependencies\node\bin\node.exe`；如果 `node` 不在 PATH 里就用全路径。
+> 如果 `node` 不在 PATH 里，用本机 Node 的完整路径调用同样的命令即可。
 
 **改动完成后必须全部通过**：`node build.mjs` → `node tools/check.mjs` → 四个测试。
 

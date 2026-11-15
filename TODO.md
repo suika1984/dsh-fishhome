@@ -39,7 +39,7 @@
 - [x] 拆 `locale.js` / `scene.js`×6 / `store.js`×5
 - [x] `tools/check.mjs` 零依赖自检（构建新鲜度 / 片段登记 / 文案 / 死代码 / 数据引用 / 日志码渲染分支）
 - [x] `package.json` 占位符填成 `suika1984`，提交作者统一
-- [x] 推到 GitHub（private）：https://github.com/suika1984/dsh-fishhome
+- [x] 推到 GitHub：https://github.com/suika1984/dsh-fishhome
 - [x] GitHub Actions：`.github/workflows/ci.yml` 跑构建 + 自检 + 四套测试
 - [x] 客厅落地窗改推拉门（三段拼接 + 横版天空 + 三段窗帘杆）
 - [x] 会话联动修复：`activitySignature` 漏定义导致权重失效

@@ -59,19 +59,37 @@
 
 ## 安装
 
-前提：桌面上装了 DeepSeek Harness（DSH）。
+前提：桌面上装了 **DeepSeek Harness（DSH）**，Node 20+（一般随 DSH 自带）。
 
 ```powershell
-# 1. 克隆（仓库里已经带好构建产物 client.js，不用先跑 build）
-git clone https://github.com/suika1984/dsh-fishhome.git
-
-# 2. 装进当前 profile（把 <克隆出来的目录> 换成实际路径）
-dsh plugin install <克隆出来的目录>
+# 克隆（仓库里已经带好构建产物 client.js，不用先 build）
+git clone https://github.com/suika1984/dsh-fishhome.git D:\plugins\dsh-fishhome
 ```
 
-也可以打开 Harness →「插件」→ Plugin Manager，选「**本地目录**」安装克隆下来的文件夹。
+**方式 A：插件管理界面（推荐）**
 
-装完**重启 Harness**（Host 半只在启动时注册路由），侧边栏就会出现「家园」。
+打开 Harness →「插件」→ 插件管理器 → **安装 → 本地目录** → 选中刚克隆的 `dsh-fishhome` 文件夹 → 装好**重启 Harness**（Host 半只在启动时注册路由）。
+
+**方式 B：手动挂到 profile 上**
+
+编辑 `%USERPROFILE%\.dsh\profiles\<你的 profile>\package.json`：
+
+```jsonc
+{
+  "dependencies": {
+    "dsh-fishhome": "link:D:/plugins/dsh-fishhome"
+  },
+  "dsh": {
+    "profile": {
+      "bundles": ["@deepseek-ai/dsh-base", "@deepseek-ai/dsh-web-app", "dsh-fishhome"]
+    }
+  }
+}
+```
+
+然后在那个 profile 目录里装依赖（`pnpm install`），再重启 Harness。
+
+装好后侧边栏出现「家园」，第一次打开会建存档到 `%USERPROFILE%\.dsh\fishhome\saves\state.json`。
 
 > 想改代码的话：改 `src/` 后跑 `node build.mjs` 再刷新面板；改 `index.js` 要重启。
 > 完整开发流程见 [AGENTS.md](AGENTS.md)。
@@ -414,3 +432,7 @@ node test/mount.test.js   # 挂载：用会跑 effect 的迷你 React 挂一遍�
 - 小屋目前是固定的一间屋子、固定四个视角的等距画法，还不能旋转视角（参考图里的「回到全景」尚未实现）。
 - 天气没有联网数据，只显示季节与室内温度。
 - 角色是 Q 版小人：走路是 8 帧跑动循环 + 1.1 秒位置过渡；睡觉时角色不显示（被子 + Zzz 代替）。
+- **验证环境**：Windows + DSH 0.2.x（rc3）实测通过；Linux/macOS 理论上可用（测试是纯 Node），但没实测。
+- **素材**：立绘与房间素材基于个人参考图制作，**仅限个人试用交流，请勿二次分发或商用**。
+- **卧室/客厅/花园**三间房目前都能逛（点门切换）；花园还是占位场景，家具与行为都很少。
+- 房间/家具/事件/角色包全是 `data/` 与 `packs/` 下的 JSON + PNG，改完刷新面板即可（只有 `index.js` 改动才要重启）。

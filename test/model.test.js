@@ -533,6 +533,17 @@ assert.equal(zh('status.remain', { seconds: 30 }).includes('30'), true)
   const garden = JSON.parse(readFileSync(path.join(root, 'garden', 'scene.json'), 'utf8'))
   assert.ok(!garden.furniture.includes('door'), '花园不需要门')
 }
+// 客厅落地窗：框体是 W-03 + W-01 拼的推拉门，天空层还透得出来
+{
+  const root = path.join(here, '..', 'data', 'maps', 'living', 'furniture')
+  const win = JSON.parse(readFileSync(path.join(root, 'living_window.json'), 'utf8'))
+  const frame = win.parts.find((part) => part.id === 'frame')
+  assert.ok(frame, '有框体')
+  assert.equal(frame.sprite.src, 'win-slider.png', '框体用拼接好的推拉门素材')
+  const sky = win.parts.filter((part) => /^sky-/.test(part.id))
+  assert.ok(sky.length >= 3, '天空还是按时间段分层')
+  assert.ok(sky.every((part) => part.z < frame.z), '天空在框体下面')
+}
 console.log('model tests passed:', {
   switches,
   energy: Math.round(home.character.energy),

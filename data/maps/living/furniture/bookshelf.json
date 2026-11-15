@@ -1,1 +1,1 @@
-{"id":"bookshelf","name":{"zh":"bookshelf","en":"bookshelf"},"type":"furniture","parts":[{"id":"body","z":78,"sprite":{"src":"act-bookshelf.png","rect":[144.40730124707443,235.38638657740057,149,315]}}],"click":{"type":"event","id":"idle"}}
+{"id":"bookshelf","name":{"zh":"bookshelf","en":"bookshelf"},"type":"furniture","parts":[{"id":"body","z":78,"sprite":{"src":"act-bookshelf.png","rect":[161.94957721612013,217.84411060835464,149,315]}}],"click":{"type":"event","id":"idle"}}

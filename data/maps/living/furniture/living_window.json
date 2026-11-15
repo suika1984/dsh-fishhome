@@ -1,1 +1,233 @@
-{"id":"living_window","name":{"zh":"落地窗","en":"Big window"},"type":"surface","parts":[{"id":"sky-morning","z":-106,"sprite":{"src":"win-sky-sunny.png","rect":[866,137,270,250]},"visibleWhen":{"period":["morning","noon","afternoon"]}},{"id":"sky-evening","z":-106,"sprite":{"src":"win-sky-sunset.png","rect":[866,137,270,250]},"visibleWhen":{"period":["evening","dawn"]}},{"id":"sky-night","z":-106,"sprite":{"src":"win-sky-night.png","rect":[866,137,270,250]},"visibleWhen":{"period":["night","deepNight"]}},{"id":"frame","z":-105,"sprite":{"src":"win-frame.png","rect":[866,137,270,250]}},{"id":"curtain-white-closed-left","z":-104,"sprite":{"src":"win-curtain-white-closed.png","rect":[860,131,161,266]},"visibleWhen":{"state":{"curtainWhiteClosed":true}}},{"id":"curtain-white-closed-right","z":-104,"sprite":{"src":"win-curtain-white-closed.png","rect":[975,131,161,266]},"visibleWhen":{"state":{"curtainWhiteClosed":true}}},{"id":"curtain-white-left","z":-103,"sprite":{"src":"win-curtain-white.png","rect":[896,133,88,238]},"visibleWhen":{"state":{"curtainWhiteClosed":false}}},{"id":"curtain-white-right","z":-103,"sprite":{"src":"win-curtain-white.png","rect":[1018,133,88,238]},"visibleWhen":{"state":{"curtainWhiteClosed":false}}},{"id":"curtain-blue-closed-left","z":-102,"sprite":{"src":"win-curtain-blue-closed.png","rect":[860,129,161,266]},"visibleWhen":{"state":{"curtainBlueClosed":true}}},{"id":"curtain-blue-closed-right","z":-102,"sprite":{"src":"win-curtain-blue-closed.png","rect":[975,129,161,266]},"visibleWhen":{"state":{"curtainBlueClosed":true}}},{"id":"curtain-blue-left","z":-101,"sprite":{"src":"win-curtain-blue.png","rect":[862,129,103,243]},"visibleWhen":{"state":{"curtainBlueClosed":false}}},{"id":"curtain-blue-right","z":-101,"sprite":{"src":"win-curtain-blue.png","rect":[1037,129,103,243]},"visibleWhen":{"state":{"curtainBlueClosed":false}}}],"click":{"type":"toggle","key":"curtainBlueClosed"},"surface":{"attach":"wallRight"},"editAsOne":true}
+{
+  "id": "living_window",
+  "name": {
+    "zh": "落地窗",
+    "en": "Big window"
+  },
+  "type": "surface",
+  "parts": [
+    {
+      "id": "sky-morning",
+      "z": -106,
+      "sprite": {
+        "src": "win-sky-sunny.png",
+        "rect": [
+          866,
+          137,
+          270,
+          250
+        ]
+      },
+      "visibleWhen": {
+        "period": [
+          "morning",
+          "noon",
+          "afternoon"
+        ]
+      }
+    },
+    {
+      "id": "sky-evening",
+      "z": -106,
+      "sprite": {
+        "src": "win-sky-sunset.png",
+        "rect": [
+          866,
+          137,
+          270,
+          250
+        ]
+      },
+      "visibleWhen": {
+        "period": [
+          "evening",
+          "dawn"
+        ]
+      }
+    },
+    {
+      "id": "sky-night",
+      "z": -106,
+      "sprite": {
+        "src": "win-sky-night.png",
+        "rect": [
+          866,
+          137,
+          270,
+          250
+        ]
+      },
+      "visibleWhen": {
+        "period": [
+          "night",
+          "deepNight"
+        ]
+      }
+    },
+    {
+      "id": "frame",
+      "z": -105,
+      "sprite": {
+        "src": "win-slider.png",
+        "rect": [
+          866,
+          137,
+          270,
+          250
+        ]
+      }
+    },
+    {
+      "id": "curtain-white-closed-left",
+      "z": -104,
+      "sprite": {
+        "src": "win-curtain-white-closed.png",
+        "rect": [
+          860,
+          131,
+          161,
+          266
+        ]
+      },
+      "visibleWhen": {
+        "state": {
+          "curtainWhiteClosed": true
+        }
+      }
+    },
+    {
+      "id": "curtain-white-closed-right",
+      "z": -104,
+      "sprite": {
+        "src": "win-curtain-white-closed.png",
+        "rect": [
+          975,
+          131,
+          161,
+          266
+        ]
+      },
+      "visibleWhen": {
+        "state": {
+          "curtainWhiteClosed": true
+        }
+      }
+    },
+    {
+      "id": "curtain-white-left",
+      "z": -103,
+      "sprite": {
+        "src": "win-curtain-white.png",
+        "rect": [
+          896,
+          133,
+          88,
+          238
+        ]
+      },
+      "visibleWhen": {
+        "state": {
+          "curtainWhiteClosed": false
+        }
+      }
+    },
+    {
+      "id": "curtain-white-right",
+      "z": -103,
+      "sprite": {
+        "src": "win-curtain-white.png",
+        "rect": [
+          1018,
+          133,
+          88,
+          238
+        ]
+      },
+      "visibleWhen": {
+        "state": {
+          "curtainWhiteClosed": false
+        }
+      }
+    },
+    {
+      "id": "curtain-blue-closed-left",
+      "z": -102,
+      "sprite": {
+        "src": "win-curtain-blue-closed.png",
+        "rect": [
+          860,
+          129,
+          161,
+          266
+        ]
+      },
+      "visibleWhen": {
+        "state": {
+          "curtainBlueClosed": true
+        }
+      }
+    },
+    {
+      "id": "curtain-blue-closed-right",
+      "z": -102,
+      "sprite": {
+        "src": "win-curtain-blue-closed.png",
+        "rect": [
+          975,
+          129,
+          161,
+          266
+        ]
+      },
+      "visibleWhen": {
+        "state": {
+          "curtainBlueClosed": true
+        }
+      }
+    },
+    {
+      "id": "curtain-blue-left",
+      "z": -101,
+      "sprite": {
+        "src": "win-curtain-blue.png",
+        "rect": [
+          862,
+          129,
+          103,
+          243
+        ]
+      },
+      "visibleWhen": {
+        "state": {
+          "curtainBlueClosed": false
+        }
+      }
+    },
+    {
+      "id": "curtain-blue-right",
+      "z": -101,
+      "sprite": {
+        "src": "win-curtain-blue.png",
+        "rect": [
+          1037,
+          129,
+          103,
+          243
+        ]
+      },
+      "visibleWhen": {
+        "state": {
+          "curtainBlueClosed": false
+        }
+      }
+    }
+  ],
+  "click": {
+    "type": "toggle",
+    "key": "curtainBlueClosed"
+  },
+  "surface": {
+    "attach": "wallRight"
+  },
+  "editAsOne": true
+}

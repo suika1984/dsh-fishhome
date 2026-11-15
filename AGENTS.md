@@ -186,6 +186,8 @@ index.js        插件入口（返回 inject/apply）
 | 房间灯何时亮 | `scene.json` → `roomLight: { mode: "prop", prop: "livingLamp" }`（否则按天黑自动） |
 | 一次性关掉全部氛围特效 | `scene.json` → `"effects": false` |
 
+**窗框素材**：客厅落地窗的框是 `win-slider.png`（`packs/_source/window/w-03.png` 外框 + `w-01.png` 的双开门扇合成，灰色玻璃丢掉、只留蓝色骨架，这样天空层能透出来）。改框体就换这个 PNG，rect 不用动。
+
 **坑**：发光件必须画在**光源层**（`layer: "light"` 或代码里推入 `lightParts`），否则会被家具精灵本身盖住。
 
 ### 5.5 加一个场景（地图）

@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = 'a923cb0d'
+    const BUILD_REV = '6613a13c'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -3114,11 +3114,7 @@ async function writeSave(home) {
           h('stop', { offset: '58%', stopColor: '#ffd9a6', stopOpacity: 0.16 }),
           h('stop', { offset: '100%', stopColor: '#ffd9a6', stopOpacity: 0 }),
         ),
-        // 门外的暖光：门洞里透出来的光，暗示「那边还有一间屋」
-        h('linearGradient', { id: 'fh-door-glow', x1: '0%', y1: '0%', x2: '0%', y2: '100%' },
-          h('stop', { offset: '0%', stopColor: '#fff6dd', stopOpacity: 0.9 }),
-          h('stop', { offset: '100%', stopColor: '#ffd9a6', stopOpacity: 0.35 }),
-        ),
+
         h('linearGradient', { id: 'fh-sky-dawn', x1: '0', y1: '0', x2: '0', y2: '1' },
           h('stop', { offset: '0%', stopColor: '#5d5a86' }),
           h('stop', { offset: '55%', stopColor: '#d79a86' }),
@@ -3284,63 +3280,6 @@ async function writeSave(home) {
     }
 
 
-    /**
-     * 出门用的门：前景里一扇半开的木门（等距场景的「切面」画法，
-     * 不追求透视正确，只求一眼看出「从这里出去」）。
-     * 位置用 part.rect 给（画布绝对坐标），和精灵件一致。
-     */
-    function DoorView(props) {
-      const part = props.part || {}
-      const r = Array.isArray(part.rect) ? part.rect.map(Number) : [0, 0, 120, 280]
-      const x = Number.isFinite(r[0]) ? r[0] : 0
-      const y = Number.isFinite(r[1]) ? r[1] : 0
-      const w = Number.isFinite(r[2]) && r[2] > 20 ? r[2] : 120
-      const hh = Number.isFinite(r[3]) && r[3] > 40 ? r[3] : 280
-      const post = Math.max(10, w * 0.11)
-      const frameTop = y + hh * 0.07
-      // 门框：两根立柱 + 上梁（深一点的原木色，和房间墙裙同色系）
-      const frameColor = PALETTE.wallTrimDark
-      const leafColor = PALETTE.woodLeft
-      const leafLight = PALETTE.woodRight
-      const open = w * 0.34
-      return h('g', { className: 'fh-door' },
-        // 地面阴影
-        h('ellipse', { className: 'fh-door-shadow', cx: x + w / 2, cy: y + hh, rx: w * 0.62, ry: hh * 0.045, fill: '#000', opacity: 0.14 }),
-        // 门洞（房间外面的暖光）
-        h('rect', { x: x + post, y: frameTop + post, width: w - post * 2, height: hh - post * 1.4, rx: 3, fill: '#f6e6c8' }),
-        h('rect', { x: x + post, y: frameTop + post, width: w - post * 2, height: hh - post * 1.4, rx: 3, fill: 'url(#fh-door-glow)' }),
-        // 门扇（向里推开一点，用平行四边形暗示角度）
-        h('polygon', {
-          className: 'fh-door-leaf',
-          points: points([
-            [x + post, frameTop + post],
-            [x + post + open, frameTop + post + hh * 0.06],
-            [x + post + open, y + hh - post * 0.5],
-            [x + post, y + hh - post * 0.4],
-          ]),
-          fill: leafColor,
-          stroke: '#5d4530',
-          strokeWidth: 1,
-        }),
-        // 门扇上的一块亮面 + 门把手
-        h('polygon', {
-          points: points([
-            [x + post + w * 0.06, frameTop + post + hh * 0.1],
-            [x + post + open - w * 0.04, frameTop + post + hh * 0.14],
-            [x + post + open - w * 0.04, frameTop + post + hh * 0.52],
-            [x + post + w * 0.06, frameTop + post + hh * 0.5],
-          ]),
-          fill: leafLight,
-          opacity: 0.55,
-        }),
-        h('circle', { cx: x + post + open - w * 0.055, cy: frameTop + post + hh * 0.55, r: Math.max(3, w * 0.028), fill: '#e8c477', stroke: '#8a6748', strokeWidth: 1 }),
-        // 门框
-        h('rect', { x: x, y: frameTop, width: post, height: hh * 0.95, rx: 2, fill: frameColor }),
-        h('rect', { x: x + w - post, y: frameTop, width: post, height: hh * 0.95, rx: 2, fill: frameColor }),
-        h('rect', { x: x, y: frameTop, width: w, height: post, rx: 2, fill: frameColor }),
-        h('rect', { x: x, y: frameTop, width: w, height: post * 0.45, rx: 2, fill: '#8a6748', opacity: 0.8 }),
-      )
-    }
     function DeskView(props) {
       const { lamp, glow } = props
       const lampBase = project(2.0, 5.6)
@@ -3772,8 +3711,6 @@ async function writeSave(home) {
         glow: props.home.world.props.deskLamp || props.home.world.props.bedLamp,
       }),
       shelf: () => h(ShelfView, null),
-      // 出门用的门：画在前景，用 part.rect 定位（画布绝对坐标）
-      door_out: (props) => h(DoorView, { part: props.part }),
       rug: () => h(RugView, null),
       plant: () => h(PlantView, null),
       night_lamp: (props) => h(NightLampView, { lamp: props.home.world.props.bedLamp }),
@@ -7076,11 +7013,10 @@ async function writeSave(home) {
   font-variant-numeric: tabular-nums;
 }
 
-/* 门：可点击的出门入口 */
+/* 门：可点击的出门入口（素材是精灵，悬停时整体亮一点） */
 .fh-prop-door { cursor: pointer; }
-.fh-prop-door .fh-door-leaf { transition: filter 160ms ease; }
-.fh-prop-door:hover .fh-door-leaf { filter: brightness(1.12); }
-.fh-prop-door:hover .fh-door-shadow { opacity: 0.22; }
+.fh-prop-door image { transition: filter 160ms ease; }
+.fh-prop-door:hover image { filter: brightness(1.07) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.18)); }
 `
 
 

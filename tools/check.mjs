@@ -127,7 +127,7 @@ if (bundle !== '') {
 /* ---------------------------------------------------------------- 数据完整性 */
 
 const PACK_DIR = path.join(ROOT, 'packs', 'bigfish-adult')
-const PRESETS = new Set(['desk', 'desk_glow', 'shelf', 'rug', 'plant', 'night_lamp', 'night_lamp_glow', 'lamp_glow', 'door_out'])
+const PRESETS = new Set(['desk', 'desk_glow', 'shelf', 'rug', 'plant', 'night_lamp', 'night_lamp_glow', 'lamp_glow'])
 const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'))
 const hasFile = (file) => existsSync(file)
 

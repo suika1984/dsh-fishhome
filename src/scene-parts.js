@@ -64,8 +64,6 @@
         glow: props.home.world.props.deskLamp || props.home.world.props.bedLamp,
       }),
       shelf: () => h(ShelfView, null),
-      // 出门用的门：画在前景，用 part.rect 定位（画布绝对坐标）
-      door_out: (props) => h(DoorView, { part: props.part }),
       rug: () => h(RugView, null),
       plant: () => h(PlantView, null),
       night_lamp: (props) => h(NightLampView, { lamp: props.home.world.props.bedLamp }),

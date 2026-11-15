@@ -4,10 +4,9 @@
   "type": "furniture",
   "parts": [
     {
-      "id": "frame",
-      "preset": "door_out",
-      "rect": [1640, 566, 150, 320],
-      "z": 94
+      "id": "body",
+      "z": 94,
+      "sprite": { "src": "door-whale.png", "rect": [1630, 733, 170, 254] }
     }
   ],
   "click": { "type": "scene", "id": "bedroom" }

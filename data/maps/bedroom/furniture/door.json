@@ -1,25 +1,13 @@
 {
   "id": "door",
-  "name": {
-    "zh": "门",
-    "en": "Door"
-  },
+  "name": { "zh": "门", "en": "Door" },
   "type": "furniture",
   "parts": [
     {
-      "id": "frame",
-      "preset": "door_out",
-      "rect": [
-        866,
-        292,
-        126,
-        306
-      ],
-      "z": 94
+      "id": "body",
+      "z": 94,
+      "sprite": { "src": "door-whale.png", "rect": [866, 443, 134, 200] }
     }
   ],
-  "click": {
-    "type": "scene",
-    "id": "living"
-  }
+  "click": { "type": "scene", "id": "living" }
 }

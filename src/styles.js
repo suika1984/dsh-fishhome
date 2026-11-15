@@ -919,11 +919,10 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* 门：可点击的出门入口 */
+/* 门：可点击的出门入口（素材是精灵，悬停时整体亮一点） */
 .fh-prop-door { cursor: pointer; }
-.fh-prop-door .fh-door-leaf { transition: filter 160ms ease; }
-.fh-prop-door:hover .fh-door-leaf { filter: brightness(1.12); }
-.fh-prop-door:hover .fh-door-shadow { opacity: 0.22; }
+.fh-prop-door image { transition: filter 160ms ease; }
+.fh-prop-door:hover image { filter: brightness(1.07) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.18)); }
 `
 
 

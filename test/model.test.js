@@ -517,18 +517,21 @@ assert.equal(zh('status.remain', { seconds: 30 }).includes('30'), true)
     model.setActivity(null)
   }
 }
-// 门：每间屋都能从门走到别处，点的 click.type = scene
+// 门：卧室和客厅之间互通，用的是鲸鱼门素材；花园不需要门
 {
   const root = path.join(here, '..', 'data', 'maps')
-  const maps = ['bedroom', 'living', 'garden']
+  const maps = ['bedroom', 'living']
   for (const map of maps) {
     const scene = JSON.parse(readFileSync(path.join(root, map, 'scene.json'), 'utf8'))
     assert.ok(scene.furniture.includes('door'), `${map} 有门`)
     const door = JSON.parse(readFileSync(path.join(root, map, 'furniture', 'door.json'), 'utf8'))
     assert.equal(door.click.type, 'scene', `${map} 的门点了切场景`)
     assert.ok(maps.includes(door.click.id), `${map} 的门指向存在的场景`)
-    assert.equal(door.parts[0].preset, 'door_out', `${map} 的门用门预设`)
+    assert.equal(door.parts[0].sprite.src, 'door-whale.png', `${map} 的门用鲸鱼门素材`)
+    assert.equal(door.parts[0].preset, undefined, `${map} 的门不再用内置画法`)
   }
+  const garden = JSON.parse(readFileSync(path.join(root, 'garden', 'scene.json'), 'utf8'))
+  assert.ok(!garden.furniture.includes('door'), '花园不需要门')
 }
 console.log('model tests passed:', {
   switches,

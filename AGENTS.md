@@ -158,7 +158,7 @@ index.js        插件入口（返回 inject/apply）
   "parts": [
     { "id": "body", "z": 74, "sprite": { "src": "my-thing.png", "rect": [x, y, w, h] } }
   ],
-  "click": { "type": "toggle", "key": "myThingOn" }   // 或 { "type": "event", "id": "read" }
+  "click": { "type": "toggle", "key": "myThingOn" }   // 或 { "type": "event", "id": "read" } / { "type": "scene", "id": "living" }（切房间）
 }
 ```
 

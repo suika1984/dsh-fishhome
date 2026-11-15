@@ -299,6 +299,8 @@ Client 每次 tick（5 秒）拉一次，然后：
 9. **性能**：不要给压在动画 SVG 上的浮层加 `backdrop-filter`（曾导致渲染进程 OOM）；场景层已加 `contain: paint`。
 10. **拼接作用域里漏定义的函数只会在运行时炸，而且会被 `catch {}` 吞掉**：`applyActivity` 调了 `activitySignature()` 但函数体没写进去，`refreshActivity` 的 `catch {}` 把它当网络错误静默吃掉了——结果「有会话在跑」的权重整整失效了几小时，表现是「连续第二次工作她不回书桌」。现在 `test/ui.test.js` 直接调 `applyActivity`，漏定义会立刻测挂。
 11. **`_source/` 与 `_archive/` 不进仓库**：原始大图和归档素材在 `.gitignore` 里。
+12. **测试里的时间要用本地时间构造**：`new Date('2026-11-02T02:00:00+08:00')` 在 UTC 的 CI 上会变成「傍晚」，night/noon 断言直接翻转。用 `new Date(2026, 10, 2, 2, 0, 0)`（本地 2 点），本地和 CI 都成立。验证命令：`$env:TZ='UTC'; node test/model.test.js`。
+13. **CI 说「生成物必须和 src 一致」但本地一致**：多半是工作区里混了 CRLF（`git ls-files --eol` 能看出来）。`build.mjs` / `tools/check.mjs` 现在都会把行尾归一成 LF，正常不会再犯。
 
 ---
 

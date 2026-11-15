@@ -39,6 +39,8 @@ const HOUR = 3600 * 1000
 
 /* ---- 1. 创建 ---- */
 const t0 = new Date('2026-11-02T13:10:00+08:00').getTime()
+// 用「本地时间」构造，避免 CI（UTC）和本地（+08:00）时区不同导致 night/noon 判断翻转
+const localAt = (hour, minute = 0) => new Date(2026, 10, 2, hour, minute, 0)
 const home = model.createHome(t0, '大肥鱼')
 assert.equal(home.kind, 'fishhome-state')
 assert.equal(home.version, 1)
@@ -77,8 +79,8 @@ assert.equal(offlineHome.log[0].code, 'offline')
 assert.ok(offlineHome.updatedAt === now + 6 * HOUR)
 
 /* ---- 4. 调度权重 ---- */
-const clockNight = model.timeSnapshot(new Date('2026-11-02T02:00:00+08:00'), 'zh')
-const clockNoon = model.timeSnapshot(new Date('2026-11-02T12:00:00+08:00'), 'zh')
+const clockNight = model.timeSnapshot(localAt(2), 'zh')
+const clockNoon = model.timeSnapshot(localAt(12), 'zh')
 const sleepy = { energy: 20, satiety: 80, mood: 60, behaviorId: 'idle', cooldowns: {} }
 const rested = { energy: 95, satiety: 80, mood: 60, behaviorId: 'idle', cooldowns: {} }
 const sleepAtNight = model.behaviorWeight(model.BEHAVIOR_BY_ID.sleep, sleepy, clockNight, { deskLamp: false, curtainOpen: true })
@@ -99,7 +101,7 @@ assert.deepEqual(view.frames[0].rect, { x: 38, y: 512, w: 372, h: 512 })
 assert.deepEqual(view.frames[0].sheet, { w: 1536, h: 1024 })
 
 /* ---- 6. 时间与环境 ---- */
-const snap = model.timeSnapshot(new Date('2026-11-02T22:32:00+08:00'), 'zh')
+const snap = model.timeSnapshot(localAt(22, 32), 'zh')
 assert.equal(snap.clock, '22:32')
 assert.equal(snap.season, 'autumn')
 assert.equal(snap.period, 'night')

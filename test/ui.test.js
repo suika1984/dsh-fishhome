@@ -1423,6 +1423,47 @@ await (async () => {
   assert.ok(clipped.lines[2].endsWith('…'), '最后一行有省略号')
   assert.ok(clipped.lines.every((line) => model.wrapBubbleText ? true : true), '行数组可遍历')
 }
+// 会话卡合并重复事件：连着 3 次「调用工具 pwsh」只显示一行 ×3
+{
+  const now = Date.now()
+  const activity = model.normalizeActivity({
+    running: 2,
+    counters: { messages: 8, tools: 23, errors: 0 },
+    recent: [
+      { at: now - 5000, kind: 'tool', detail: 'pwsh' },
+      { at: now - 4000, kind: 'tool', detail: 'pwsh' },
+      { at: now - 3000, kind: 'tool', detail: 'pwsh' },
+      { at: now - 2000, kind: 'message', detail: '' },
+      { at: now - 1000, kind: 'idle', detail: '' },
+    ],
+    notes: { mode: 'inject', target: '会话A' },
+  })
+  const tree = model.ActivityCard({ t: translate, activity, home: model.createHome(now, '大肥鱼'), now, onNote: async () => ({ ok: true }), canDeliver: true })
+  const text = (node) => {
+    if (node === null || node === undefined || node === false) return ''
+    if (typeof node === 'string' || typeof node === 'number') return String(node)
+    if (Array.isArray(node)) return node.map(text).join('')
+    if (typeof node === 'object') {
+      if (typeof node.type === 'function') return text(node.type(node.props || {}))
+      return text(node.children)
+    }
+    return ''
+  }
+  const rows = []
+  const walk = (n) => {
+    if (!n || typeof n !== 'object') return
+    if (Array.isArray(n)) { n.forEach(walk); return }
+    if (typeof n.type === 'function') { walk(n.type(n.props || {})); return }
+    if (n.type === 'li') rows.push(text(n))
+    walk(n.children)
+  }
+  walk(tree)
+  assert.equal(rows.length, 3, '最近事件最多三行')
+  const toolRow = rows.find((row) => row.includes('pwsh'))
+  assert.ok(toolRow, '有工具那一行')
+  assert.ok(toolRow.includes('×3'), '重复的合并成 ×3')
+  assert.equal(rows.filter((row) => row.includes('pwsh')).length, 1, '不再连刷三行')
+}
 console.log('ui tests passed:', {
   components: Object.keys(registered),
   behaviors: model.BEHAVIORS.length,

@@ -427,7 +427,19 @@
       if (!activity) return null
       const running = Number(activity.running) || 0
       const counters = activity.counters || {}
-      const recent = Array.isArray(activity.recent) ? activity.recent.slice(-3).reverse() : []
+      // 最近事件：同类合并成一行带次数，别让「调用工具 pwsh」连刷三行
+      const rawRecent = Array.isArray(activity.recent) ? activity.recent.slice(-8).reverse() : []
+      const recent = []
+      for (const item of rawRecent) {
+        const key = `${item.kind}|${item.detail || ''}`
+        const found = recent.find((row) => row.key === key)
+        if (found) {
+          found.count += 1
+          continue
+        }
+        if (recent.length >= 3) continue
+        recent.push({ key, kind: item.kind, detail: item.detail, at: item.at, count: 1 })
+      }
       const time = (at) => {
         const date = new Date(Number(at) || now)
         return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
@@ -497,10 +509,11 @@
           : null,
         recent.length > 0
           ? h('ul', { className: 'fh-activity-list' },
-            recent.map((item, index) => h('li', { key: `${item.at}-${index}` },
+            recent.map((item) => h('li', { key: item.key },
               h('span', { className: 'fh-activity-time' }, time(item.at)),
               h('span', null, t(`activity.kind.${item.kind}`)),
               item.detail ? h('span', { className: 'fh-muted' }, item.detail) : null,
+              item.count > 1 ? h('span', { className: 'fh-activity-count' }, `×${item.count}`) : null,
             )))
           : null,
       )

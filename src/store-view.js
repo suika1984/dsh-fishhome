@@ -77,7 +77,12 @@
       /** 活动变化 → 她的反应（只在「状态跳变」时触发，避免每 5 秒刷屏） */
       applyActivity(next) {
         if (next.notes && next.notes.lastReply) this.surfaceReply(next.notes.lastReply)
+        // 快照没变（每 5 秒轮询一次）就不要重复 setActivity/publish，否则整块面板白重渲染
+        const signature = activitySignature(next)
+        const unchanged = signature === this.activitySignature
+        this.activitySignature = signature
         const previous = this.activity
+        if (unchanged && previous) return
         this.activity = next
         setActivity(next)
         if (!this.home || !this.home.character) return

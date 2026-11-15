@@ -293,9 +293,9 @@ assert.ok(model.behaviorWeight(model.BEHAVIOR_BY_ID.sleep, charTired, night, {})
   model.enterBehavior(home, windowSeat, now + 12000)
   assert.equal(home.log.length, 2, '换了事件要记')
   model.enterBehavior(home, read, now + 20000)
-  assert.equal(home.log.length, 3, '中间换过事件后再回来要记')
-  model.enterBehavior(home, read, now + 60 * 60 * 1000)
-  assert.equal(home.log.length, 4, '隔了一小时再发生要记')
+  assert.equal(home.log.length, 2, '同一种事件在窗口内再回来也不重复记（不然会刷屏）')
+  model.enterBehavior(home, read, now + 46 * 60 * 1000)
+  assert.equal(home.log.length, 3, '过了去重窗口再发生要记')
 }
 
 /* ---- 14. 用户请求可能被拒绝 ---- */
@@ -487,6 +487,34 @@ assert.equal(zh('status.remain', { seconds: 30 }).includes('30'), true)
   assert.equal(day.filter((r) => r.id === 'sleep').length, 0, '白天不睡整觉')
   } finally {
     Math.random = originalRandom
+  }
+}
+// 日志不刷屏：同类事件在窗口内只记一次，便条/会话这类该每次都记
+{
+  const originalRandom = Math.random
+  let seed = 777
+  Math.random = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648 }
+  try {
+    model.setActivity({ running: 1, sessions: 1, counters: { messages: 3, tools: 8, errors: 0 }, recent: [], notes: null })
+    const start = new Date(2026, 10, 15, 10, 0, 0).getTime()
+    const home = model.createHome(start, '大肥鱼')
+    home.updatedAt = start
+    for (let t = start; t <= start + 2 * 3600 * 1000; t += 60 * 1000) model.stepHome(home, t, 60)
+    assert.ok(home.log.length <= 14, `2 小时日志不该刷屏（实际 ${home.log.length} 条）`)
+    const workEntries = home.log.filter((e) => e.code === 'work')
+    assert.ok(workEntries.length <= 3, '工作日志被合并（一小时内最多一条）')
+    for (let i = 1; i < workEntries.length; i += 1) {
+      assert.ok(workEntries[i - 1].at - workEntries[i].at >= 60 * 60 * 1000 - 1000, '工作日志间隔不少于一小时')
+    }
+    // 便条这类用户触发的必须每次都记
+    const countNotes = () => home.log.filter((e) => e.code === 'noteReply').length
+    const before = countNotes()
+    model.pushLog(home, start + 1000, 'noteReply', { text: 'a' })
+    model.pushLog(home, start + 2000, 'noteReply', { text: 'b' })
+    assert.equal(countNotes() - before, 2, '便条回复不合并')
+  } finally {
+    Math.random = originalRandom
+    model.setActivity(null)
   }
 }
 console.log('model tests passed:', {

@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = 'df5f95ec'
+    const BUILD_REV = '88b8e17f'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -1115,7 +1115,52 @@ const NOTE_MARK = '【家园】'
     /** 同一个事件连续发生（中间没有别的事件）时不重复记日志；隔了 20 分钟以上才算新一轮 */
     const LOG_DEDUPE_MS = 20 * 60 * 1000
 
+    /**
+     * 每种日志的最小间隔（毫秒）。同一种事件在这段时间内重复出现就不再记录——
+     * 不然「工作 → 看书 → 工作」这种节奏会把日志刷满，把真正有意义的事挤掉。
+     */
+    const LOG_WINDOWS = {
+      work: 60 * 60 * 1000,
+      idle: 60 * 60 * 1000,
+      nap: 60 * 60 * 1000,
+      cook: 60 * 60 * 1000,
+      watch_tv: 60 * 60 * 1000,
+      read: 45 * 60 * 1000,
+      window: 45 * 60 * 1000,
+      play: 45 * 60 * 1000,
+      snack: 45 * 60 * 1000,
+      stretch: 45 * 60 * 1000,
+      sit: 45 * 60 * 1000,
+      sofa_play: 45 * 60 * 1000,
+      // 这几类必须每次都记：睡眠、醒来、便条、会话起停、出错
+      sleep: 0,
+      wake: 0,
+      eat: 0,
+      boot: 0,
+      offline: 0,
+      sessionStart: 0,
+      sessionEnd: 0,
+      sessionError: 0,
+      noteQueued: 0,
+      noteReply: 0,
+      noteDelivered: 0,
+      agentReply: 0,
+    }
+    const LOG_DEDUPE_DEFAULT = 20 * 60 * 1000
+
     function pushLog(home, at, code, arg) {
+      const window = LOG_WINDOWS[code] !== undefined ? LOG_WINDOWS[code] : LOG_DEDUPE_DEFAULT
+      if (window > 0) {
+        // log 是倒序的，遇到比自己更早的记录就可以停
+        for (const entry of home.log) {
+          if (entry.code !== code) {
+            if (at - entry.at >= window) break
+            continue
+          }
+          if (at - entry.at < window) return
+          break
+        }
+      }
       home.log.unshift({ at, code, arg: arg === undefined ? null : arg })
       if (home.log.length > MAX_LOG) home.log.length = MAX_LOG
     }
@@ -2372,7 +2417,12 @@ async function writeSave(home) {
       /** 活动变化 → 她的反应（只在「状态跳变」时触发，避免每 5 秒刷屏） */
       applyActivity(next) {
         if (next.notes && next.notes.lastReply) this.surfaceReply(next.notes.lastReply)
+        // 快照没变（每 5 秒轮询一次）就不要重复 setActivity/publish，否则整块面板白重渲染
+        const signature = activitySignature(next)
+        const unchanged = signature === this.activitySignature
+        this.activitySignature = signature
         const previous = this.activity
+        if (unchanged && previous) return
         this.activity = next
         setActivity(next)
         if (!this.home || !this.home.character) return
@@ -4699,7 +4749,19 @@ async function writeSave(home) {
       if (!activity) return null
       const running = Number(activity.running) || 0
       const counters = activity.counters || {}
-      const recent = Array.isArray(activity.recent) ? activity.recent.slice(-3).reverse() : []
+      // 最近事件：同类合并成一行带次数，别让「调用工具 pwsh」连刷三行
+      const rawRecent = Array.isArray(activity.recent) ? activity.recent.slice(-8).reverse() : []
+      const recent = []
+      for (const item of rawRecent) {
+        const key = `${item.kind}|${item.detail || ''}`
+        const found = recent.find((row) => row.key === key)
+        if (found) {
+          found.count += 1
+          continue
+        }
+        if (recent.length >= 3) continue
+        recent.push({ key, kind: item.kind, detail: item.detail, at: item.at, count: 1 })
+      }
       const time = (at) => {
         const date = new Date(Number(at) || now)
         return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
@@ -4769,10 +4831,11 @@ async function writeSave(home) {
           : null,
         recent.length > 0
           ? h('ul', { className: 'fh-activity-list' },
-            recent.map((item, index) => h('li', { key: `${item.at}-${index}` },
+            recent.map((item) => h('li', { key: item.key },
               h('span', { className: 'fh-activity-time' }, time(item.at)),
               h('span', null, t(`activity.kind.${item.kind}`)),
               item.detail ? h('span', { className: 'fh-muted' }, item.detail) : null,
+              item.count > 1 ? h('span', { className: 'fh-activity-count' }, `×${item.count}`) : null,
             )))
           : null,
       )
@@ -6906,6 +6969,17 @@ async function writeSave(home) {
   margin: 10px 0 0;
   font-size: 11px;
   color: var(--dsw-alias-text-tertiary, #9a9a9a);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 会话卡里合并后的次数（调用工具 ×3） */
+.fh-activity-count {
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(150, 150, 150, 0.16);
+  font-size: 11px;
+  color: var(--dsw-alias-text-secondary, #7a7a7a);
   font-variant-numeric: tabular-nums;
 }
 `

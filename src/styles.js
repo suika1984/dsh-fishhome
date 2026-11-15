@@ -907,6 +907,17 @@
   color: var(--dsw-alias-text-tertiary, #9a9a9a);
   font-variant-numeric: tabular-nums;
 }
+
+/* 会话卡里合并后的次数（调用工具 ×3） */
+.fh-activity-count {
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(150, 150, 150, 0.16);
+  font-size: 11px;
+  color: var(--dsw-alias-text-secondary, #7a7a7a);
+  font-variant-numeric: tabular-nums;
+}
 `
 
 

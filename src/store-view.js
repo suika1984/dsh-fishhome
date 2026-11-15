@@ -67,10 +67,38 @@
           stepHome(this.home, now)
           // 睡眠时也保持“当前行为”的可读性：行为本身在 stepHome 里切换
         }
+        this.syncSleepRoom(now)
         // 顺带问一下 DSH 会话在干什么（异步，不阻塞时钟）
         void this.refreshActivity()
         this.publish()
         this.scheduleSave()
+      },
+      /**
+       * 睡觉回卧室：床只在卧室，所以在别的房间睡着时把她送回卧室（她不在客厅/花园里"站着睡"）；
+       * 醒来后再回到你正在看的房间，免得早上看不见人。
+       */
+      syncSleepRoom(now) {
+        const home = this.home
+        if (!home || !home.character || !home.world) return
+        const sleeping = home.character.behaviorId === 'sleep' || home.character.behaviorId === 'nap'
+        const current = typeof home.world.map === 'string' && home.world.map !== '' ? home.world.map : SLEEP_ROOM
+        if (sleeping) {
+          if (current !== SLEEP_ROOM) {
+            home.world.map = SLEEP_ROOM
+            pushLog(home, now, 'goBedroom', null)
+            this.lastSleeping = true
+          }
+          return
+        }
+        // 刚醒：回到你正在看的房间（她"下楼找你"）
+        if (this.lastSleeping) {
+          this.lastSleeping = false
+          const viewed = this.currentMap()
+          if (viewed && viewed !== home.world.map) {
+            home.world.map = viewed
+            pushLog(home, now, 'backHere', null)
+          }
+        }
       },
       /**
        * 取一次 DSH 会话活动，并按「开始/结束/出错」做一次性反应。

@@ -192,6 +192,8 @@ index.js        插件入口（返回 inject/apply）
 
 **窗框素材**：客厅落地窗分**左中右三段**（各 137px，总 411px）——`win-panel.png` 是普通细门扇（透明玻璃），中间那段是 `win-door.png`（W-01 双开推拉门：剪掉灰色玻璃只留蓝色骨架，天空能透出来）。三段 rect 首尾相接；天空用横版全景 `win-sky-wide-*.png`——**整体拉伸，不要平铺**：背景里有太阳/月亮，镜像平铺会变成「多个太阳」（踩过）。关帘时两片帘子必须在中间合拢盖住整条窗——**注意素材里帘身左右有留白**（蓝帘 15/14px、白纱 7/6px，顶部还有杆子），按 rect 宽度对齐会露出 30px 的缝；要按帘身占比反推 rect 宽度（现在两片各画到 241/242 宽、在 x≈935 处交叠）。想把窗户拉更长：改 `count`、同步改天空 rect 宽度、帘子宽度和 `scene.light.sources` 的 spread/reach。
 
+**睡觉回卧室**：床只在卧室，`store-view.js` 的 `syncSleepRoom()` 会在她 `sleep`/`nap` 时把 `home.world.map` 拉回 `SLEEP_ROOM`（`env.js`，默认 `bedroom`），醒来再回到你正在看的房间；两条日志 `goBedroom` / `backHere`。
+
 **坑**：发光件必须画在**光源层**（`layer: "light"` 或代码里推入 `lightParts`），否则会被家具精灵本身盖住。
 
 ### 5.5 加一个场景（地图）

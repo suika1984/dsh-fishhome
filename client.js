@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = '3d9fd5df'
+    const BUILD_REV = '4e0104ac'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -28,6 +28,8 @@ window.__ModuleLoader__.load({
     const OFFLINE_CAP_MS = 12 * 60 * 60 * 1000
     const OFFLINE_STEP_MS = 5 * 60 * 1000
     const MAX_LOG = 40
+/** 有床的房间：睡觉一律回这里（床只在卧室） */
+const SLEEP_ROOM = 'bedroom'
 /** 会话「一轮一停」的抖动窗口：这段时间内的起停只算一次，避免日志出现两条一样的 */
 const SESSION_FLAP_MS = 5 * 60 * 1000
 /** 有会话在跑时，把她推回书桌的最小间隔（防止每 5 秒轮询反复推） */
@@ -215,6 +217,8 @@ const NOTE_MARK = '【家园】'
       'log.nap': '{name}躺在床上打了个小盹。',
       'log.sleep': '{name}把灯关了，睡下了。',
       'log.roomOut': '你推开门，去了{room}。',
+      'log.goBedroom': '{name}回卧室睡觉了。',
+      'log.backHere': '{name}睡醒了，回到你这边。',
       'door.leave': '要走啦？我送你到门口。',
       'log.wake': '{name}睡醒啦，伸了个懒腰。',
       'log.pat': '你摸了摸{name}的头。',
@@ -484,6 +488,8 @@ const NOTE_MARK = '【家园】'
       'log.nap': 'It lay down for a short nap.',
       'log.sleep': 'It turned the light off and went to sleep.',
       'log.roomOut': 'You opened the door and went to {room}.',
+      'log.goBedroom': '{name} went to the bedroom to sleep.',
+      'log.backHere': '{name} woke up and came back to you.',
       'door.leave': 'Leaving already? I\'ll see you to the door.',
       'log.wake': 'It woke up and stretched.',
       'log.pat': 'You patted its head.',
@@ -2437,10 +2443,38 @@ async function writeSave(home) {
           stepHome(this.home, now)
           // 睡眠时也保持“当前行为”的可读性：行为本身在 stepHome 里切换
         }
+        this.syncSleepRoom(now)
         // 顺带问一下 DSH 会话在干什么（异步，不阻塞时钟）
         void this.refreshActivity()
         this.publish()
         this.scheduleSave()
+      },
+      /**
+       * 睡觉回卧室：床只在卧室，所以在别的房间睡着时把她送回卧室（她不在客厅/花园里"站着睡"）；
+       * 醒来后再回到你正在看的房间，免得早上看不见人。
+       */
+      syncSleepRoom(now) {
+        const home = this.home
+        if (!home || !home.character || !home.world) return
+        const sleeping = home.character.behaviorId === 'sleep' || home.character.behaviorId === 'nap'
+        const current = typeof home.world.map === 'string' && home.world.map !== '' ? home.world.map : SLEEP_ROOM
+        if (sleeping) {
+          if (current !== SLEEP_ROOM) {
+            home.world.map = SLEEP_ROOM
+            pushLog(home, now, 'goBedroom', null)
+            this.lastSleeping = true
+          }
+          return
+        }
+        // 刚醒：回到你正在看的房间（她"下楼找你"）
+        if (this.lastSleeping) {
+          this.lastSleeping = false
+          const viewed = this.currentMap()
+          if (viewed && viewed !== home.world.map) {
+            home.world.map = viewed
+            pushLog(home, now, 'backHere', null)
+          }
+        }
       },
       /**
        * 取一次 DSH 会话活动，并按「开始/结束/出错」做一次性反应。
@@ -4983,6 +5017,10 @@ async function writeSave(home) {
           return t('log.sleep')
         case 'wake':
           return t('log.wake')
+        case 'goBedroom':
+          return t('log.goBedroom')
+        case 'backHere':
+          return t('log.backHere')
         case 'roomOut': {
           const mapId = entry.arg && typeof entry.arg.map === 'string' ? entry.arg.map : ''
           const roomName = mapId ? t(`map.${mapId}`) : ''

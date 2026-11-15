@@ -19,7 +19,11 @@ const pet = JSON.parse(readFileSync(path.join(packDir, 'pet.json'), 'utf8'))
 const animations = JSON.parse(readFileSync(path.join(packDir, pet.animations), 'utf8'))
 
 let captured = null
-const fakeWindow = { __ModuleLoader__: { load(entry) { captured = entry } } }
+const fakeWindow = {
+  __ModuleLoader__: { load(entry) { captured = entry } },
+  // currentMap() 会读这个；测试里默认「没记住房间」
+  localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
+}
 new Function('window', source)(fakeWindow)
 
 const ReactStub = {

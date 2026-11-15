@@ -41,7 +41,9 @@ const PROLOGUE = "/**\n * 大肥鱼的家园 · Client 半。\n *\n * 分成两�
 
 const CLOSING = '  },\n})\n'
 
-const body = ORDER.map((file) => readFileSync(path.join(HERE, file), 'utf8').replace(/\n$/, '')).join('\n')
+// 行尾统一成 LF：否则 Windows（CRLF 工作区）算出的 BUILD_REV 会和 Linux CI（LF 检出）不一致
+const normalizeEol = (text) => text.replace(/\r\n?/g, '\n')
+const body = ORDER.map((file) => normalizeEol(readFileSync(path.join(HERE, file), 'utf8')).replace(/\n$/, '')).join('\n')
 // 界面版本号：src 的短哈希，面板设置里能看到，用来判断「刷新了没有」
 const BUILD_REV = createHash('sha256').update(body).digest('hex').slice(0, 8)
 

@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = 'ff4dc681'
+    const BUILD_REV = '09bbcff6'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'

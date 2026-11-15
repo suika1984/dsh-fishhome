@@ -39,7 +39,8 @@ const PROLOGUE = (buildSource.match(/const PROLOGUE = ("(?:[^"\\]|\\.)*")/) || [
 const CLOSING = (buildSource.match(/const CLOSING = ('(?:[^'\\]|\\.)*')/) || [])[1]
 
 function assemble() {
-  const body = ORDER.map((file) => readFileSync(path.join(ROOT, file), 'utf8').replace(/\n$/, '')).join('\n')
+  const normalizeEol = (text) => text.replace(/\r\n?/g, '\n')
+  const body = ORDER.map((file) => normalizeEol(readFileSync(path.join(ROOT, file), 'utf8')).replace(/\n$/, '')).join('\n')
   // PROLOGUE / CLOSING 在源码里是 JS 字符串字面量，直接用 JSON/eval 还原
   const prologue = PROLOGUE ? JSON.parse(PROLOGUE) : ''
   const closing = CLOSING ? JSON.parse(CLOSING.replace(/^'/, '"').replace(/'$/, '"')) : ''
@@ -53,7 +54,8 @@ try {
   fail('构建', `拼装 src/ 失败：${error.message}`)
 }
 if (bundle !== '') {
-  const onDiskRaw = existsSync(path.join(ROOT, 'client.js')) ? readFileSync(path.join(ROOT, 'client.js'), 'utf8') : ''
+  const onDiskRawRaw = existsSync(path.join(ROOT, 'client.js')) ? readFileSync(path.join(ROOT, 'client.js'), 'utf8') : ''
+  const onDiskRaw = onDiskRawRaw.replace(/\r\n?/g, '\n')
   // build.mjs 会注入一行 BUILD_REV（src 的哈希），这里剥掉再比，否则永远不一致
   const onDisk = onDiskRaw.replace(/^ {4}const BUILD_REV = '[0-9a-f]{8}'\n/m, '')
   if (onDisk !== bundle) fail('构建', 'client.js 与 src/ 不一致，跑一下 node build.mjs')

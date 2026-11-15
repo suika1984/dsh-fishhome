@@ -293,7 +293,8 @@ Client 每次 tick（5 秒）拉一次，然后：
 7. **`rect` 是画布绝对坐标**（例如客厅画布 1800×987），不是相对家具的偏移。
 8. **精灵跨格**：切片时若把相邻格的内容带进来，会出现「旁边的精灵侵入本格」。
 9. **性能**：不要给压在动画 SVG 上的浮层加 `backdrop-filter`（曾导致渲染进程 OOM）；场景层已加 `contain: paint`。
-10. **`_source/` 与 `_archive/` 不进仓库**：原始大图和归档素材在 `.gitignore` 里。
+10. **拼接作用域里漏定义的函数只会在运行时炸，而且会被 `catch {}` 吞掉**：`applyActivity` 调了 `activitySignature()` 但函数体没写进去，`refreshActivity` 的 `catch {}` 把它当网络错误静默吃掉了——结果「有会话在跑」的权重整整失效了几小时，表现是「连续第二次工作她不回书桌」。现在 `test/ui.test.js` 直接调 `applyActivity`，漏定义会立刻测挂。
+11. **`_source/` 与 `_archive/` 不进仓库**：原始大图和归档素材在 `.gitignore` 里。
 
 ---
 

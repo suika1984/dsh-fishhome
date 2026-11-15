@@ -10,6 +10,8 @@
     const OFFLINE_CAP_MS = 12 * 60 * 60 * 1000
     const OFFLINE_STEP_MS = 5 * 60 * 1000
     const MAX_LOG = 40
+/** 会话「一轮一停」的抖动窗口：这段时间内的起停只算一次，避免日志出现两条一样的 */
+const SESSION_FLAP_MS = 5 * 60 * 1000
 /** 有会话在跑时，把她推回书桌的最小间隔（防止每 5 秒轮询反复推） */
 const WORK_NUDGE_MS = 3 * 60 * 1000
 /** 你刚手动点过东西时，这段时间内不打断你（用户优先） */

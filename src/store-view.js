@@ -119,9 +119,19 @@
         const wasRunning = previous ? previous.running : 0
         const nowRunning = next.running
         // 你开始干活 → 她也坐到书桌前（只在她闲着/发呆/躺着的时候打断）
+        // 会话是「一轮一停」的，一轮结束马上又开下一轮会让 running 反复抖；
+        // 起停的日志与收工反应都用 SESSION_FLAP_MS 兜一层，抖动只算一次。
         const passive = ['idle', 'sleep', 'nap', 'read', 'stretch', 'window']
         if (nowRunning > 0 && wasRunning === 0) {
-          pushLog(this.home, now, 'sessionStart', null)
+          const flapping = now - (Number(this.lastSessionStartAt) || 0) < SESSION_FLAP_MS
+          if (!flapping) {
+            this.lastSessionStartAt = now
+            pushLog(this.home, now, 'sessionStart', null)
+          } else {
+            // 抖动：上一轮刚记的「收工」其实是同一次连续工作，撤掉它
+            const stale = this.home.log.findIndex((entry) => entry.code === 'sessionEnd')
+            if (stale >= 0 && now - this.home.log[stale].at < SESSION_FLAP_MS) this.home.log.splice(stale, 1)
+          }
           if (passive.includes(character.behaviorId)) {
             this.lastWorkNudgeAt = now
             this.forceBehavior('work')
@@ -138,10 +148,15 @@
           }
         }
         // 会话跑完 → 她收工：心情好一点，从「工作」里松下来
+        // （一轮一停的抖动不重复触发：会话可能几秒后又开下一轮）
         if (nowRunning === 0 && wasRunning > 0) {
-          pushLog(this.home, now, 'sessionEnd', null)
-          character.mood = clampNumber(character.mood + 4, 0, 100, character.mood)
-          if (character.behaviorId === 'work') this.forceBehavior('stretch')
+          const flapping = now - (Number(this.lastSessionEndAt) || 0) < SESSION_FLAP_MS
+          if (!flapping) {
+            this.lastSessionEndAt = now
+            pushLog(this.home, now, 'sessionEnd', null)
+            character.mood = clampNumber(character.mood + 4, 0, 100, character.mood)
+            if (character.behaviorId === 'work') this.forceBehavior('stretch')
+          }
         }
         // 出错了 → 她有点担心
         const previousErrors = previous ? previous.counters.errors : 0

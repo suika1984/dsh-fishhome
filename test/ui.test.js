@@ -1341,6 +1341,34 @@ model.applyFurniture(model.DEFAULT_FURNITURE)
   assert.ok(text.includes('那我躺一下'), '引用了她的回复')
   assert.ok(text.includes('大肥鱼'), '带上名字')
 }
+// 会话「一轮一停」抖动：起停日志只记一条，抖动时撤掉多余的收工
+await (async () => {
+  const store = new model.HomeStore()
+  store.publish = () => {}
+  store.scheduleSave = () => {}
+  store.home = model.createHome(Date.now(), '大肥鱼')
+  store.home.log.length = 0
+  const snap = (running, messages) => ({ running, sessions: running, counters: { messages, tools: 1, errors: 0, workflows: 0, subagents: 0 }, recent: [], notes: null })
+  ;[1, 0, 1, 0, 1, 0, 1].forEach((running, index) => store.applyActivity(snap(running, index + 1)))
+  const codes = store.home.log.map((entry) => entry.code)
+  assert.equal(codes.filter((c) => c === 'sessionStart').length, 1, '起工只记一条')
+  assert.equal(codes.filter((c) => c === 'sessionEnd').length, 0, '抖动中的收工记录被撤掉')
+})()
+
+// 会话「一轮一停」抖动：起停日志只记一条，抖动时撤掉多余的收工
+await (async () => {
+  const store = new model.HomeStore()
+  store.publish = () => {}
+  store.scheduleSave = () => {}
+  store.home = model.createHome(Date.now(), '大肥鱼')
+  store.home.log.length = 0
+  const snap = (running, messages) => ({ running, sessions: running, counters: { messages, tools: 1, errors: 0, workflows: 0, subagents: 0 }, recent: [], notes: null })
+  ;[1, 0, 1, 0, 1, 0, 1].forEach((running, index) => store.applyActivity(snap(running, index + 1)))
+  const codes = store.home.log.map((entry) => entry.code)
+  assert.equal(codes.filter((c) => c === 'sessionStart').length, 1, '起工只记一条')
+  assert.equal(codes.filter((c) => c === 'sessionEnd').length, 0, '抖动中的收工记录被撤掉')
+})()
+
 // 会话一直在跑时也要能把她推回书桌：连续两次工作之间的空档可能短到被轮询漏掉
 await (async () => {
   const store = new model.HomeStore()

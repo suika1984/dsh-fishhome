@@ -550,8 +550,9 @@
       eat: 0,
       boot: 0,
       offline: 0,
-      sessionStart: 0,
-      sessionEnd: 0,
+      // 会话起停会随「一轮结束 / 下一轮开始」抖动，5 分钟内只记一条；出错仍每次都记
+      sessionStart: 5 * 60 * 1000,
+      sessionEnd: 5 * 60 * 1000,
       sessionError: 0,
       noteQueued: 0,
       noteReply: 0,

@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = '33685609'
+    const BUILD_REV = '3d9fd5df'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -28,6 +28,8 @@ window.__ModuleLoader__.load({
     const OFFLINE_CAP_MS = 12 * 60 * 60 * 1000
     const OFFLINE_STEP_MS = 5 * 60 * 1000
     const MAX_LOG = 40
+/** 会话「一轮一停」的抖动窗口：这段时间内的起停只算一次，避免日志出现两条一样的 */
+const SESSION_FLAP_MS = 5 * 60 * 1000
 /** 有会话在跑时，把她推回书桌的最小间隔（防止每 5 秒轮询反复推） */
 const WORK_NUDGE_MS = 3 * 60 * 1000
 /** 你刚手动点过东西时，这段时间内不打断你（用户优先） */
@@ -1154,8 +1156,9 @@ const NOTE_MARK = '【家园】'
       eat: 0,
       boot: 0,
       offline: 0,
-      sessionStart: 0,
-      sessionEnd: 0,
+      // 会话起停会随「一轮结束 / 下一轮开始」抖动，5 分钟内只记一条；出错仍每次都记
+      sessionStart: 5 * 60 * 1000,
+      sessionEnd: 5 * 60 * 1000,
       sessionError: 0,
       noteQueued: 0,
       noteReply: 0,
@@ -2486,9 +2489,19 @@ async function writeSave(home) {
         const wasRunning = previous ? previous.running : 0
         const nowRunning = next.running
         // 你开始干活 → 她也坐到书桌前（只在她闲着/发呆/躺着的时候打断）
+        // 会话是「一轮一停」的，一轮结束马上又开下一轮会让 running 反复抖；
+        // 起停的日志与收工反应都用 SESSION_FLAP_MS 兜一层，抖动只算一次。
         const passive = ['idle', 'sleep', 'nap', 'read', 'stretch', 'window']
         if (nowRunning > 0 && wasRunning === 0) {
-          pushLog(this.home, now, 'sessionStart', null)
+          const flapping = now - (Number(this.lastSessionStartAt) || 0) < SESSION_FLAP_MS
+          if (!flapping) {
+            this.lastSessionStartAt = now
+            pushLog(this.home, now, 'sessionStart', null)
+          } else {
+            // 抖动：上一轮刚记的「收工」其实是同一次连续工作，撤掉它
+            const stale = this.home.log.findIndex((entry) => entry.code === 'sessionEnd')
+            if (stale >= 0 && now - this.home.log[stale].at < SESSION_FLAP_MS) this.home.log.splice(stale, 1)
+          }
           if (passive.includes(character.behaviorId)) {
             this.lastWorkNudgeAt = now
             this.forceBehavior('work')
@@ -2505,10 +2518,15 @@ async function writeSave(home) {
           }
         }
         // 会话跑完 → 她收工：心情好一点，从「工作」里松下来
+        // （一轮一停的抖动不重复触发：会话可能几秒后又开下一轮）
         if (nowRunning === 0 && wasRunning > 0) {
-          pushLog(this.home, now, 'sessionEnd', null)
-          character.mood = clampNumber(character.mood + 4, 0, 100, character.mood)
-          if (character.behaviorId === 'work') this.forceBehavior('stretch')
+          const flapping = now - (Number(this.lastSessionEndAt) || 0) < SESSION_FLAP_MS
+          if (!flapping) {
+            this.lastSessionEndAt = now
+            pushLog(this.home, now, 'sessionEnd', null)
+            character.mood = clampNumber(character.mood + 4, 0, 100, character.mood)
+            if (character.behaviorId === 'work') this.forceBehavior('stretch')
+          }
         }
         // 出错了 → 她有点担心
         const previousErrors = previous ? previous.counters.errors : 0

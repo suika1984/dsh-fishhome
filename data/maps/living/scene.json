@@ -72,7 +72,6 @@
     "bookshelf",
     "wall_mural",
     "rice_cooker",
-    "floor_lamp",
     "door"
   ],
   "events": [
@@ -114,15 +113,6 @@
     ]
   },
   "controls": [
-    {
-      "kind": "toggle",
-      "key": "livingLamp",
-      "label": {
-        "zh": "客厅灯",
-        "en": "Living lamp"
-      },
-      "suffix": "state"
-    },
     {
       "kind": "toggle",
       "key": "curtainBlueClosed",
@@ -199,10 +189,6 @@
       }
     }
   ],
-  "roomLight": {
-    "mode": "prop",
-    "prop": "livingLamp"
-  },
   "curtainLight": {
     "blue": 0.42,
     "white": 0.94

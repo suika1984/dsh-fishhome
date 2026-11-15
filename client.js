@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = '6613a13c'
+    const BUILD_REV = '27389ef0'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -4172,7 +4172,7 @@ async function writeSave(home) {
      */
     /**
      * 房间灯到底开不开：
-     *   scene.roomLight = { mode: 'prop', prop: 'livingLamp' } → 由用户开关决定
+     *   scene.roomLight = { mode: 'prop', prop: 'someSwitch' } → 由用户开关决定（默认不写 = 天黑自动）
      *   否则沿用「天黑自动开」的老逻辑（卧室吸顶灯）
      */
     /** 窗帘挡光系数：scene.curtainLight 可调，默认蓝帘挡得多、白纱几乎不挡 */

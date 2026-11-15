@@ -183,7 +183,7 @@ index.js        插件入口（返回 inject/apply）
 | 窗户光斑 | `scene.json` → `light.sources[]`（`at` 是占墙比例，`spread` / `reach` / `alpha` / `wallGlow`） |
 | 电视/显示器屏幕光 | **家具自己身上** → `screenGlow`（`prop` / `behavior` / `screen` 四比例 / `width` / `reach` / `alpha` / `offset`） |
 | 窗帘挡光 | `scene.json` → `curtainLight: { blue, white }` |
-| 房间灯何时亮 | `scene.json` → `roomLight: { mode: "prop", prop: "livingLamp" }`（否则按天黑自动） |
+| 房间灯何时亮 | 默认按天黑自动、睡觉熄灭（卧室/客厅都是）；要改成开关控制才写 `scene.json` → `roomLight: { mode: "prop", prop: "xxx" }` |
 | 一次性关掉全部氛围特效 | `scene.json` → `"effects": false` |
 
 **窗帘杆**：`win-rod.png` 两头是球头，剪掉球头得到可无缝循环的 `win-rod-mid.png`（环扣周期 33px，切 3 个周期 = 99px），数据里用「球头 + 中段 repeat + 镜像球头」三件套横跨整条窗（`flipX` 做右端）。

@@ -73,7 +73,7 @@
       }
     },
     {
-      "id": "frame",
+      "id": "frame-left",
       "z": -105,
       "sprite": {
         "src": "win-panel.png",
@@ -82,12 +82,33 @@
           36,
           137,
           300
-        ],
-        "repeat": {
-          "count": 3,
-          "dx": 137,
-          "dy": 0
-        }
+        ]
+      }
+    },
+    {
+      "id": "frame-mid",
+      "z": -105,
+      "sprite": {
+        "src": "win-door.png",
+        "rect": [
+          867,
+          36,
+          137,
+          300
+        ]
+      }
+    },
+    {
+      "id": "frame-right",
+      "z": -105,
+      "sprite": {
+        "src": "win-panel.png",
+        "rect": [
+          1004,
+          36,
+          137,
+          300
+        ]
       }
     },
     {

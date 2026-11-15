@@ -455,7 +455,8 @@ for (const door of doors) {
 // 窗户由多个部件拼成：天空（按时段）+ 框 + 杆 + 窗帘（按开关）
 const winDef = JSON.parse((await call('/fishhome/data/maps/living/furniture/living_window.json')).body)
 const winParts = winDef.parts || []
-assert.ok(winParts.some((x) => x.id === 'frame'), '窗户要有框')
+assert.equal(winParts.filter((x) => /^frame-/.test(x.id)).length, 3, '窗户分左中右三段')
+assert.equal(winParts.find((x) => x.id === 'frame-mid').sprite.src, 'win-door.png', '中间那段是 W-01 推拉门')
   // 窗帘杆拆成「球头 + 中段循环 + 球头(镜像)」，横跨整条窗
   const rodLeft = winParts.find((x) => x.id === 'rod-left')
   const rodMid = winParts.find((x) => x.id === 'rod-mid')
@@ -467,9 +468,9 @@ assert.ok(winParts.some((x) => x.id === 'frame'), '窗户要有框')
   {
     const rodX0 = rodLeft.sprite.rect[0]
     const rodX1 = rodRight.sprite.rect[0] + rodRight.sprite.rect[2]
-    const frameRect = winParts.find((x) => x.id === 'frame').sprite
-    const winX0 = frameRect.rect[0]
-    const winX1 = winX0 + frameRect.rect[2] * frameRect.repeat.count
+    const frames = winParts.filter((x) => /^frame-/.test(x.id))
+    const winX0 = Math.min(...frames.map((x) => x.sprite.rect[0]))
+    const winX1 = Math.max(...frames.map((x) => x.sprite.rect[0] + x.sprite.rect[2]))
     assert.ok(rodX0 <= winX0 && rodX1 >= winX1, '杆子比窗户宽（两头球头露出来）')
   }
 const skies = winParts.filter((x) => x.id.startsWith('sky-'))
@@ -484,7 +485,8 @@ assert.ok(curtains.some((x) => x.visibleWhen && x.visibleWhen.state && x.visible
 const blueZ = curtains.filter((x) => /blue/.test(x.id)).map((x) => Number(x.z) || 0)
 const whiteZ = curtains.filter((x) => /white/.test(x.id)).map((x) => Number(x.z) || 0)
 assert.ok(Math.min(...blueZ) > Math.max(...whiteZ), '蓝帘始终压在白纱上面（蓝在最上层）')
-assert.ok(blueZ.every((z) => z > Number(winParts.find((x) => x.id === 'frame').z)), '窗帘在窗框之上')
+const frameZ = Number(winParts.find((x) => x.id === 'frame-mid').z)
+assert.ok(blueZ.every((z) => z > frameZ), '窗帘在窗框之上')
 assert.ok(winDef.surface && winDef.surface.attach === 'wallRight', '整扇窗贴在右墙（surface）')
 // 贴面由 surface 统一声明，部件本身不再各写 attach，保证「先排位置再整体切变」
 assert.ok(winParts.every((x) => !x.sprite || x.sprite.attach === undefined), '部件不单独写 attach')

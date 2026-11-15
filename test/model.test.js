@@ -537,23 +537,35 @@ assert.equal(zh('status.remain', { seconds: 30 }).includes('30'), true)
 {
   const root = path.join(here, '..', 'data', 'maps', 'living', 'furniture')
   const win = JSON.parse(readFileSync(path.join(root, 'living_window.json'), 'utf8'))
-  const frame = win.parts.find((part) => part.id === 'frame')
-  assert.ok(frame, '有框体')
-  assert.equal(frame.sprite.src, 'win-panel.png', '框体用推拉门单元素材')
-  assert.equal(frame.sprite.repeat.count, 3, '框体拼三段，拉长落地窗')
-  assert.equal(frame.sprite.repeat.dx, 137, '每段等距拼接')
-  assert.ok(frame.sprite.rect[2] * frame.sprite.repeat.count >= 380, '总宽度够长')
+  const frames = win.parts.filter((part) => /^frame-/.test(part.id))
+  assert.equal(frames.length, 3, '窗户分成三段')
+  const midPanel = win.parts.find((part) => part.id === 'frame-mid')
+  assert.equal(midPanel.sprite.src, 'win-door.png', '中间那段用 W-01 推拉门')
+  const sidePanels = frames.filter((part) => part.id !== 'frame-mid')
+  assert.ok(sidePanels.every((part) => part.sprite.src === 'win-panel.png'), '两侧是普通门扇')
+  const span = (list) => {
+    const x0 = Math.min(...list.map((part) => part.sprite.rect[0]))
+    const x1 = Math.max(...list.map((part) => part.sprite.rect[0] + part.sprite.rect[2] * ((part.sprite.repeat && part.sprite.repeat.count) || 1)))
+    return [x0, x1]
+  }
+  const [winX0, winX1] = span(frames)
+  assert.ok(winX1 - winX0 >= 380, '总宽度够长')
+  // 三段首尾相接
+  const sorted = [...frames].sort((a, b) => a.sprite.rect[0] - b.sprite.rect[0])
+  for (let i = 1; i < sorted.length; i += 1) {
+    assert.equal(sorted[i - 1].sprite.rect[0] + sorted[i - 1].sprite.rect[2], sorted[i].sprite.rect[0], '门扇段首尾相接')
+  }
   const sky = win.parts.filter((part) => /^sky-/.test(part.id))
   assert.ok(sky.length >= 3, '天空还是按时间段分层')
-  assert.ok(sky.every((part) => part.z < frame.z), '天空在框体下面')
+  assert.ok(sky.every((part) => part.z < midPanel.z), '天空在门扇下面')
 }
 // 关帘要能盖住整扇窗（窗户拉长后，帘子宽度也得跟上，不然中间漏缝）
 {
   const root = path.join(here, '..', 'data', 'maps', 'living', 'furniture')
   const win = JSON.parse(readFileSync(path.join(root, 'living_window.json'), 'utf8'))
-  const frame = win.parts.find((part) => part.id === 'frame')
-  const frameX0 = frame.sprite.rect[0]
-  const frameX1 = frameX0 + frame.sprite.rect[2] * frame.sprite.repeat.count
+  const frames = win.parts.filter((part) => /^frame-/.test(part.id))
+  const frameX0 = Math.min(...frames.map((part) => part.sprite.rect[0]))
+  const frameX1 = Math.max(...frames.map((part) => part.sprite.rect[0] + part.sprite.rect[2]))
   for (const key of ['curtain-blue-closed', 'curtain-white-closed']) {
     const left = win.parts.find((part) => part.id === `${key}-left`)
     const right = win.parts.find((part) => part.id === `${key}-right`)

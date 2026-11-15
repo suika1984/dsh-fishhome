@@ -53,9 +53,18 @@
   "events": [
     "idle",
     "stretch",
-    "play"
+    "play",
+    "bench_rest"
   ],
   "controls": [
+    {
+      "kind": "event",
+      "id": "bench_rest",
+      "label": {
+        "zh": "坐下歇会儿",
+        "en": "Rest on the bench"
+      }
+    },
     {
       "kind": "event",
       "id": "stretch",

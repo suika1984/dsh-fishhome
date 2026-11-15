@@ -345,6 +345,14 @@ await (async () => {
   assert.ok(clipped.lines[2].endsWith('…'), '最后一行有省略号')
   assert.ok(clipped.lines.every((line) => model.wrapBubbleText ? true : true), '行数组可遍历')
 }
+// bench_rest 日志（花园长椅）要渲染成人话
+{
+  const logHome = model.createHome(Date.now(), '大肥鱼')
+  const text = model.fillText(model.logText(translate, { code: 'bench_rest', arg: null }), logHome)
+  assert.ok(text.includes('长椅'), '日志里提到长椅')
+  assert.ok(text.includes('大肥鱼'), '带上名字')
+}
+
 // 会话卡合并重复事件：连着 3 次「调用工具 pwsh」只显示一行 ×3
 {
   const now = Date.now()

@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = '4e0104ac'
+    const BUILD_REV = 'ff4dc681'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -173,12 +173,14 @@ const NOTE_MARK = '【家园】'
       'prop.curtainBlueClosed': '蓝帘',
       'prop.curtainWhiteClosed': '白纱',
       'log.toggle': '{name}把{what}{state}了。',
+      'behavior.bench_rest': '在长椅上歇着',
       'behavior.sit': '坐着发呆',
       'behavior.sofa_play': '在沙发上玩',
       'behavior.watch_tv': '看电视',
       'behavior.eat': '吃饭',
       'behavior.cook': '做饭',
       'behavior.doze': '趴在桌上打盹',
+      'flavor.bench_rest': '花园里的长椅，晒着太阳正好发会儿呆。',
       'flavor.sit': '沙发很软，坐着就有点困了。',
       'flavor.sofa_play': '手柄握在手里，谁也别想让她停下来。',
       'flavor.watch_tv': '节目演到哪儿其实不重要，重要的是有人陪着看。',
@@ -264,6 +266,7 @@ const NOTE_MARK = '【家园】'
       'activity.noteSent': '已发送到会话',
       'log.offline': '你离开了 {span}，{name}自己过了这段日子。',
       'log.move': '{name}凑到你面前来了。',
+      'log.bench_rest': '{name}在花园的长椅上歇了一会儿。',
       'log.sit': '{name}在沙发上发了会儿呆。',
       'log.watch_tv': '{name}窝在沙发上看电视。',
       'log.cook': '{name}在厨房忙活了一阵。',
@@ -444,12 +447,14 @@ const NOTE_MARK = '【家园】'
       'prop.curtainBlueClosed': 'Blue curtain',
       'prop.curtainWhiteClosed': 'Sheer',
       'log.toggle': '{name} turned the {what} {state}.',
+      'behavior.bench_rest': 'Resting on the bench',
       'behavior.sit': 'Sitting around',
       'behavior.sofa_play': 'Playing on the sofa',
       'behavior.watch_tv': 'Watching TV',
       'behavior.eat': 'Eating',
       'behavior.cook': 'Cooking',
       'behavior.doze': 'Dozing at the desk',
+      'flavor.bench_rest': 'A bench in the garden — perfect for a sunbath and a daydream.',
       'flavor.sit': 'The sofa is soft; sitting turns into dozing.',
       'flavor.sofa_play': 'Controller in hand, nothing can stop her.',
       'flavor.watch_tv': "What's on matters less than watching together.",
@@ -535,6 +540,7 @@ const NOTE_MARK = '【家园】'
       'activity.noteSent': 'Sent to session',
       'log.offline': 'You were away for {span}; it kept living.',
       'log.move': 'It came over to you.',
+      'log.bench_rest': 'It rested on the garden bench.',
       'log.sit': 'It spaced out on the sofa.',
       'log.watch_tv': 'It curled up watching TV.',
       'log.cook': 'It busied around the kitchen.',
@@ -5040,6 +5046,8 @@ async function writeSave(home) {
           return t('log.bedLampOff')
         case 'move':
           return t('log.move')
+        case 'bench_rest':
+          return t('log.bench_rest')
         case 'sit':
           return t('log.sit')
         case 'watch_tv':

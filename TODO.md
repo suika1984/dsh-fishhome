@@ -5,6 +5,8 @@
 
 ## 暂定搁置
 
+- [ ] **花园整体补完**（工位 + 素材 + 背景，见 [docs/EXTENDING.md](docs/EXTENDING.md#3-把花园做完的顺序)）
+- [ ] 花园的家具目前只有 rect、没有 sprite（渲染成占位块），需要补 `garden-*.png`
 - [ ] **花园的工作工位**
   - 现状：会话开始后她会在「当前所在房间」干活——卧室坐书桌（`desk:sit` → `work45`）、客厅坐沙发（`sofa:work` → `sofa_work45`）。
     花园没有工位，所以她在那儿时会站着播 `work` 动画。
@@ -45,4 +47,5 @@
 - [x] 会话联动修复：`activitySignature` 漏定义导致权重失效
 - [x] 日志去抖：同类事件按窗口去重、会话起停抖动合并
 - [x] 作息修正：深夜困意压过精力，夜里睡饱了接着睡
+- [x] 花园长椅互动（点长椅 → `bench_rest`，锚点在长椅上）—— 作为 [docs/EXTENDING.md](docs/EXTENDING.md) 的示例
 - [x] 拆 `test/ui.test.js`（1468 行）→ `ui-harness.js` + `test/ui/{panel,editor,interact,scene,sessions}.test.js`，入口只剩 13 行

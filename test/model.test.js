@@ -579,6 +579,23 @@ assert.equal(zh('status.remain', { seconds: 30 }).includes('30'), true)
     assert.ok(l1 >= r0, `${key} 中间合拢不漏缝（${l1} >= ${r0}）`)
   }
 }
+// 花园长椅：点一下 → bench_rest 事件，锚点落在长椅上、姿势是坐
+{
+  const root = path.join(here, '..', 'data', 'maps', 'garden')
+  const bench = JSON.parse(readFileSync(path.join(root, 'furniture', 'garden_bench.json'), 'utf8'))
+  assert.equal(bench.click.type, 'event', '长椅的点击类型是事件')
+  assert.equal(bench.click.id, 'bench_rest', '点长椅 → bench_rest')
+  const anchor = (bench.animations || []).find((a) => a.id === 'rest')
+  assert.ok(anchor, '长椅声明了 rest 锚点')
+  assert.equal(anchor.pose, 'sit', '锚点姿势是坐')
+  assert.equal(anchor.renderLayer, 'behind_furniture', '坐在长椅后面一层')
+  const event = JSON.parse(readFileSync(path.join(root, 'events', 'bench_rest.json'), 'utf8'))
+  assert.equal(event.anchor, 'garden_bench:rest', '事件指向长椅锚点')
+  assert.equal(event.spot, 'bench', '兜底落脚点是长椅')
+  const scene = JSON.parse(readFileSync(path.join(root, 'scene.json'), 'utf8'))
+  assert.ok(scene.events.includes('bench_rest'), '场景里登记了事件')
+  assert.ok(scene.spots.bench, '场景里有长椅落脚点')
+}
 console.log('model tests passed:', {
   switches,
   energy: Math.round(home.character.energy),

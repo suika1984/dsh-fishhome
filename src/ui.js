@@ -594,6 +594,8 @@
           return t('log.bedLampOff')
         case 'move':
           return t('log.move')
+        case 'bench_rest':
+          return t('log.bench_rest')
         case 'sit':
           return t('log.sit')
         case 'watch_tv':

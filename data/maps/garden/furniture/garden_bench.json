@@ -18,5 +18,26 @@
         ]
       }
     }
+  ],
+  "click": {
+    "type": "event",
+    "id": "bench_rest"
+  },
+  "animations": [
+    {
+      "id": "rest",
+      "animation": "lounge45",
+      "position": {
+        "x": 0.5,
+        "y": 0.62
+      },
+      "pivot": [
+        0,
+        -44
+      ],
+      "facing": "front",
+      "pose": "sit",
+      "renderLayer": "behind_furniture"
+    }
   ]
 }

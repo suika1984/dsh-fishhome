@@ -109,7 +109,8 @@ git clone https://github.com/suika1984/dsh-fishhome.git D:\plugins\dsh-fishhome
 ## 反馈 / 参与
 
 - **有问题或建议**：直接开 [Issue](https://github.com/suika1984/dsh-fishhome/issues)，附上截图 / 存档里的日志更好排查
-- **想改东西**：先看 [AGENTS.md](AGENTS.md)（给 AI 助手/编码代理的操作索引）和 [docs/SCHEMA.md](docs/SCHEMA.md)（数据结构）
+- **想加互动 / 自己补完花园**：[docs/EXTENDING.md](docs/EXTENDING.md) —— 从「点一下长椅」讲到素材怎么生成、怎么交给自己的 LLM 做
+- **想改代码**：先看 [AGENTS.md](AGENTS.md)（给 AI 助手/编码代理的操作索引）和 [docs/SCHEMA.md](docs/SCHEMA.md)（数据结构）
 - **本地自测**（改完必须全过）：
 
 ```bash

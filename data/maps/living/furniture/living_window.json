@@ -91,6 +91,51 @@
       }
     },
     {
+      "id": "rod-left",
+      "z": -104.5,
+      "sprite": {
+        "src": "win-rod-end.png",
+        "rect": [
+          714,
+          8,
+          34,
+          34
+        ]
+      }
+    },
+    {
+      "id": "rod-mid",
+      "z": -104.5,
+      "sprite": {
+        "src": "win-rod-mid.png",
+        "rect": [
+          748,
+          8,
+          125,
+          34
+        ],
+        "repeat": {
+          "count": 3,
+          "dx": 125,
+          "dy": 0
+        }
+      }
+    },
+    {
+      "id": "rod-right",
+      "z": -104.5,
+      "sprite": {
+        "src": "win-rod-end.png",
+        "rect": [
+          1123,
+          8,
+          34,
+          34
+        ],
+        "flipX": true
+      }
+    },
+    {
       "id": "curtain-white-closed-left",
       "z": -104,
       "sprite": {

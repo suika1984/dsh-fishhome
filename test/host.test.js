@@ -456,8 +456,22 @@ for (const door of doors) {
 const winDef = JSON.parse((await call('/fishhome/data/maps/living/furniture/living_window.json')).body)
 const winParts = winDef.parts || []
 assert.ok(winParts.some((x) => x.id === 'frame'), '窗户要有框')
-// 窗帘自带的杆子压在窗框上沿，所以不再单独画 rod
-assert.ok(!winParts.some((x) => x.id === 'rod'), '不再单独画窗帘杆（帘子自带）')
+  // 窗帘杆拆成「球头 + 中段循环 + 球头(镜像)」，横跨整条窗
+  const rodLeft = winParts.find((x) => x.id === 'rod-left')
+  const rodMid = winParts.find((x) => x.id === 'rod-mid')
+  const rodRight = winParts.find((x) => x.id === 'rod-right')
+  assert.ok(rodLeft && rodMid && rodRight, '窗帘杆由三段组成')
+  assert.equal(rodMid.sprite.src, 'win-rod-mid.png', '中段用剪掉球头的杆身')
+  assert.ok(rodMid.sprite.repeat && rodMid.sprite.repeat.count >= 3, '中段靠 repeat 拼接')
+  assert.equal(rodRight.sprite.flipX, true, '右端球头镜像')
+  {
+    const rodX0 = rodLeft.sprite.rect[0]
+    const rodX1 = rodRight.sprite.rect[0] + rodRight.sprite.rect[2]
+    const frameRect = winParts.find((x) => x.id === 'frame').sprite
+    const winX0 = frameRect.rect[0]
+    const winX1 = winX0 + frameRect.rect[2] * frameRect.repeat.count
+    assert.ok(rodX0 <= winX0 && rodX1 >= winX1, '杆子比窗户宽（两头球头露出来）')
+  }
 const skies = winParts.filter((x) => x.id.startsWith('sky-'))
 assert.ok(skies.length >= 2, '天空至少两个时段变体')
 for (const sky of skies) assert.ok(sky.visibleWhen && Array.isArray(sky.visibleWhen.period), '天空要按时段切换')

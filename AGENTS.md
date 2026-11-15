@@ -186,6 +186,8 @@ index.js        插件入口（返回 inject/apply）
 | 房间灯何时亮 | `scene.json` → `roomLight: { mode: "prop", prop: "livingLamp" }`（否则按天黑自动） |
 | 一次性关掉全部氛围特效 | `scene.json` → `"effects": false` |
 
+**窗帘杆**：`win-rod.png` 两头是球头，剪掉球头得到可无缝循环的 `win-rod-mid.png`（环扣周期 33px，切 3 个周期 = 99px），数据里用「球头 + 中段 repeat + 镜像球头」三件套横跨整条窗（`flipX` 做右端）。
+
 **窗框素材**：客厅落地窗是「一段门扇 × N」拼出来的——`win-panel.png` 是单段（细立柱 + 透明玻璃），`living_window.json` 里用 `repeat: { count: 3, dx: 137 }` 拼成 411px 的长窗；天空用横版全景 `win-sky-wide-*.png`——**整体拉伸，不要平铺**：背景里有太阳/月亮，镜像平铺会变成「多个太阳」（踩过）。关帘时两片帘子必须在中间合拢盖住整条窗（窗拉长后帘子宽度也要跟着改，`test/model.test.js` 里有断言兜着）。想把窗户拉更长：改 `count`、同步改天空 rect 宽度、帘子宽度和 `scene.light.sources` 的 spread/reach。
 
 **坑**：发光件必须画在**光源层**（`layer: "light"` 或代码里推入 `lightParts`），否则会被家具精灵本身盖住。

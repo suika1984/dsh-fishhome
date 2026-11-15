@@ -1,1 +1,210 @@
-{"id":"living","name":{"zh":"客厅","en":"Living room"},"room":{"cols":16,"rows":10,"wallHeight":320,"canvas":[1800,987],"margin":{"x":24,"top":4},"projection":0.375,"camera":{"mode":"follow","window":[1000,620],"follow":0.85}},"spots":{"center":{"fx":8,"fy":4.3},"sofa":{"fx":3.6,"fy":2},"tv":{"fx":6.8,"fy":1.5},"table":{"fx":7.6,"fy":4.5},"kitchen":{"fx":12.4,"fy":1.8},"dining":{"fx":10.8,"fy":5.3},"window":{"fx":1.3,"fy":1.8}},"spawn":[10,3.4],"furniture":["floor_rug","sofa","tv_stand","coffee_table","kitchen_counter","dining_table","living_plant","living_window","bookshelf","wall_mural","rice_cooker","floor_lamp","door"],"events":["idle","read","work","window","play","stretch","snack","nap","sleep","watch_tv","cook","eat","sit","sofa_play"],"light":{"sources":[{"from":"right","at":0.3,"spread":3.2,"reach":2.8,"skew":0.9,"alpha":0.6,"wallGlow":120},{"from":"right","at":0.19,"spread":1.3,"reach":1.5,"skew":0.5,"alpha":0.28,"wallGlow":60}]},"controls":[{"kind":"toggle","key":"livingLamp","label":{"zh":"客厅灯","en":"Living lamp"},"suffix":"state"},{"kind":"toggle","key":"curtainBlueClosed","label":{"zh":"蓝帘","en":"Blue curtain"},"variants":{"on":{"zh":"蓝帘 拉上","en":"Blue closed"},"off":{"zh":"蓝帘 拉开","en":"Blue open"}}},{"kind":"toggle","key":"curtainWhiteClosed","label":{"zh":"白纱","en":"Sheer"},"variants":{"on":{"zh":"白纱 拉上","en":"Sheer closed"},"off":{"zh":"白纱 拉开","en":"Sheer open"}}},{"kind":"event","id":"watch_tv","label":{"zh":"看电视","en":"Watch TV"}},{"kind":"event","id":"cook","label":{"zh":"做饭","en":"Cook"}},{"kind":"event","id":"eat","label":{"zh":"吃饭","en":"Eat"}},{"kind":"event","id":"sit","label":{"zh":"坐一会儿","en":"Sit"}},{"kind":"reset","label":{"zh":"回到中间","en":"Back to centre"}}],"roomLight":{"mode":"prop","prop":"livingLamp"},"curtainLight":{"blue":0.42,"white":0.94}}
+{
+  "id": "living",
+  "name": {
+    "zh": "客厅",
+    "en": "Living room"
+  },
+  "room": {
+    "cols": 16,
+    "rows": 10,
+    "wallHeight": 320,
+    "canvas": [
+      1800,
+      987
+    ],
+    "margin": {
+      "x": 24,
+      "top": 4
+    },
+    "projection": 0.375,
+    "camera": {
+      "mode": "follow",
+      "window": [
+        1000,
+        620
+      ],
+      "follow": 0.85
+    }
+  },
+  "spots": {
+    "center": {
+      "fx": 8,
+      "fy": 4.3
+    },
+    "sofa": {
+      "fx": 3.6,
+      "fy": 2
+    },
+    "tv": {
+      "fx": 6.8,
+      "fy": 1.5
+    },
+    "table": {
+      "fx": 7.6,
+      "fy": 4.5
+    },
+    "kitchen": {
+      "fx": 12.4,
+      "fy": 1.8
+    },
+    "dining": {
+      "fx": 10.8,
+      "fy": 5.3
+    },
+    "window": {
+      "fx": 1.3,
+      "fy": 1.8
+    }
+  },
+  "spawn": [
+    10,
+    3.4
+  ],
+  "furniture": [
+    "floor_rug",
+    "sofa",
+    "tv_stand",
+    "coffee_table",
+    "kitchen_counter",
+    "dining_table",
+    "living_plant",
+    "living_window",
+    "bookshelf",
+    "wall_mural",
+    "rice_cooker",
+    "floor_lamp",
+    "door"
+  ],
+  "events": [
+    "idle",
+    "read",
+    "work",
+    "window",
+    "play",
+    "stretch",
+    "snack",
+    "nap",
+    "sleep",
+    "watch_tv",
+    "cook",
+    "eat",
+    "sit",
+    "sofa_play"
+  ],
+  "light": {
+    "sources": [
+      {
+        "from": "right",
+        "at": 0.31,
+        "spread": 4.2,
+        "reach": 3.2,
+        "skew": 1,
+        "alpha": 0.68,
+        "wallGlow": 150
+      },
+      {
+        "from": "right",
+        "at": 0.2,
+        "spread": 1.8,
+        "reach": 1.8,
+        "skew": 0.55,
+        "alpha": 0.32,
+        "wallGlow": 80
+      }
+    ]
+  },
+  "controls": [
+    {
+      "kind": "toggle",
+      "key": "livingLamp",
+      "label": {
+        "zh": "客厅灯",
+        "en": "Living lamp"
+      },
+      "suffix": "state"
+    },
+    {
+      "kind": "toggle",
+      "key": "curtainBlueClosed",
+      "label": {
+        "zh": "蓝帘",
+        "en": "Blue curtain"
+      },
+      "variants": {
+        "on": {
+          "zh": "蓝帘 拉上",
+          "en": "Blue closed"
+        },
+        "off": {
+          "zh": "蓝帘 拉开",
+          "en": "Blue open"
+        }
+      }
+    },
+    {
+      "kind": "toggle",
+      "key": "curtainWhiteClosed",
+      "label": {
+        "zh": "白纱",
+        "en": "Sheer"
+      },
+      "variants": {
+        "on": {
+          "zh": "白纱 拉上",
+          "en": "Sheer closed"
+        },
+        "off": {
+          "zh": "白纱 拉开",
+          "en": "Sheer open"
+        }
+      }
+    },
+    {
+      "kind": "event",
+      "id": "watch_tv",
+      "label": {
+        "zh": "看电视",
+        "en": "Watch TV"
+      }
+    },
+    {
+      "kind": "event",
+      "id": "cook",
+      "label": {
+        "zh": "做饭",
+        "en": "Cook"
+      }
+    },
+    {
+      "kind": "event",
+      "id": "eat",
+      "label": {
+        "zh": "吃饭",
+        "en": "Eat"
+      }
+    },
+    {
+      "kind": "event",
+      "id": "sit",
+      "label": {
+        "zh": "坐一会儿",
+        "en": "Sit"
+      }
+    },
+    {
+      "kind": "reset",
+      "label": {
+        "zh": "回到中间",
+        "en": "Back to centre"
+      }
+    }
+  ],
+  "roomLight": {
+    "mode": "prop",
+    "prop": "livingLamp"
+  },
+  "curtainLight": {
+    "blue": 0.42,
+    "white": 0.94
+  }
+}

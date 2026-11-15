@@ -186,7 +186,7 @@ index.js        插件入口（返回 inject/apply）
 | 房间灯何时亮 | `scene.json` → `roomLight: { mode: "prop", prop: "livingLamp" }`（否则按天黑自动） |
 | 一次性关掉全部氛围特效 | `scene.json` → `"effects": false` |
 
-**窗框素材**：客厅落地窗的框是 `win-slider.png`（`packs/_source/window/w-03.png` 外框 + `w-01.png` 的双开门扇合成，灰色玻璃丢掉、只留蓝色骨架，这样天空层能透出来）。改框体就换这个 PNG，rect 不用动。
+**窗框素材**：客厅落地窗是「一段门扇 × N」拼出来的——`win-panel.png` 是单段（细立柱 + 透明玻璃），`living_window.json` 里用 `repeat: { count: 3, dx: 137 }` 拼成 411px 的长窗；天空用横版全景 `win-sky-wide-*.png`（源图裁掉自带蓝框后镜像拼 3 份，避免接缝）。想把窗户拉更长：改 `count`、同步改天空 rect 宽度和 `scene.light.sources` 的 spread/reach。
 
 **坑**：发光件必须画在**光源层**（`layer: "light"` 或代码里推入 `lightParts`），否则会被家具精灵本身盖住。
 

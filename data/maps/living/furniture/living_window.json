@@ -5,17 +5,25 @@
     "en": "Big window"
   },
   "type": "surface",
+  "surface": {
+    "attach": "wallRight"
+  },
+  "editAsOne": true,
+  "click": {
+    "type": "toggle",
+    "key": "curtainBlueClosed"
+  },
   "parts": [
     {
       "id": "sky-morning",
       "z": -106,
       "sprite": {
-        "src": "win-sky-sunny.png",
+        "src": "win-sky-wide-sunny.png",
         "rect": [
-          866,
-          137,
-          270,
-          250
+          730,
+          36,
+          411,
+          300
         ]
       },
       "visibleWhen": {
@@ -30,12 +38,12 @@
       "id": "sky-evening",
       "z": -106,
       "sprite": {
-        "src": "win-sky-sunset.png",
+        "src": "win-sky-wide-sunset.png",
         "rect": [
-          866,
-          137,
-          270,
-          250
+          730,
+          36,
+          411,
+          300
         ]
       },
       "visibleWhen": {
@@ -49,12 +57,12 @@
       "id": "sky-night",
       "z": -106,
       "sprite": {
-        "src": "win-sky-night.png",
+        "src": "win-sky-wide-night.png",
         "rect": [
-          866,
-          137,
-          270,
-          250
+          730,
+          36,
+          411,
+          300
         ]
       },
       "visibleWhen": {
@@ -68,13 +76,18 @@
       "id": "frame",
       "z": -105,
       "sprite": {
-        "src": "win-slider.png",
+        "src": "win-panel.png",
         "rect": [
-          866,
+          730,
+          36,
           137,
-          270,
-          250
-        ]
+          300
+        ],
+        "repeat": {
+          "count": 3,
+          "dx": 137,
+          "dy": 0
+        }
       }
     },
     {
@@ -83,10 +96,10 @@
       "sprite": {
         "src": "win-curtain-white-closed.png",
         "rect": [
-          860,
-          131,
-          161,
-          266
+          724,
+          30,
+          168,
+          300
         ]
       },
       "visibleWhen": {
@@ -101,10 +114,10 @@
       "sprite": {
         "src": "win-curtain-white-closed.png",
         "rect": [
-          975,
-          131,
-          161,
-          266
+          949,
+          30,
+          168,
+          300
         ]
       },
       "visibleWhen": {
@@ -119,10 +132,10 @@
       "sprite": {
         "src": "win-curtain-white.png",
         "rect": [
-          896,
-          133,
-          88,
-          238
+          744,
+          32,
+          92,
+          288
         ]
       },
       "visibleWhen": {
@@ -137,10 +150,10 @@
       "sprite": {
         "src": "win-curtain-white.png",
         "rect": [
-          1018,
-          133,
-          88,
-          238
+          1035,
+          32,
+          92,
+          288
         ]
       },
       "visibleWhen": {
@@ -155,10 +168,10 @@
       "sprite": {
         "src": "win-curtain-blue-closed.png",
         "rect": [
-          860,
-          129,
-          161,
-          266
+          722,
+          26,
+          172,
+          304
         ]
       },
       "visibleWhen": {
@@ -173,10 +186,10 @@
       "sprite": {
         "src": "win-curtain-blue-closed.png",
         "rect": [
-          975,
-          129,
-          161,
-          266
+          947,
+          26,
+          172,
+          304
         ]
       },
       "visibleWhen": {
@@ -191,10 +204,10 @@
       "sprite": {
         "src": "win-curtain-blue.png",
         "rect": [
-          862,
-          129,
-          103,
-          243
+          726,
+          24,
+          106,
+          296
         ]
       },
       "visibleWhen": {
@@ -209,10 +222,10 @@
       "sprite": {
         "src": "win-curtain-blue.png",
         "rect": [
-          1037,
-          129,
-          103,
-          243
+          1029,
+          24,
+          106,
+          296
         ]
       },
       "visibleWhen": {
@@ -221,13 +234,5 @@
         }
       }
     }
-  ],
-  "click": {
-    "type": "toggle",
-    "key": "curtainBlueClosed"
-  },
-  "surface": {
-    "attach": "wallRight"
-  },
-  "editAsOne": true
+  ]
 }

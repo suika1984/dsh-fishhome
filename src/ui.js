@@ -571,6 +571,11 @@
           return t('log.sleep')
         case 'wake':
           return t('log.wake')
+        case 'roomOut': {
+          const mapId = entry.arg && typeof entry.arg.map === 'string' ? entry.arg.map : ''
+          const roomName = mapId ? t(`map.${mapId}`) : ''
+          return t('log.roomOut', { room: roomName })
+        }
         case 'pat':
           return t('log.pat')
         case 'boot':

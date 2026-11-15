@@ -32,7 +32,8 @@
     "night_lamp",
     "plant",
     "wall_decor",
-    "plant-copy"
+    "plant-copy",
+    "door"
   ],
   "events": [
     "idle",

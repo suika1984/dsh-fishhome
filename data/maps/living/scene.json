@@ -72,7 +72,8 @@
     "bookshelf",
     "wall_mural",
     "rice_cooker",
-    "floor_lamp"
+    "floor_lamp",
+    "door"
   ],
   "events": [
     "idle",

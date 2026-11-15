@@ -10,6 +10,17 @@
       /** 点门出门：切到另一个场景（她自己留不留下由 bringPetHere 决定） */
       async gotoScene(mapId) {
         if (typeof mapId !== 'string' || mapId === '') return false
+        const now = Date.now()
+        if (this.home) {
+          // 点门 = 你要去别的屋：她抬头看一眼，记一条日志
+          pushLog(this.home, now, 'roomOut', { map: mapId })
+          if (this.home.character) {
+            this.home.character.emote = { tag: 'walk', until: now + 1400 }
+            const translate = makeTranslate(localeRef.value)
+            this.home.character.say = { text: fillText(translate('door.leave'), this.home), until: now + 2600 }
+          }
+          this.publish()
+        }
         await this.setMap(mapId)
         return true
       },

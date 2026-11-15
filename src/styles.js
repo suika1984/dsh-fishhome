@@ -918,6 +918,12 @@
   color: var(--dsw-alias-text-secondary, #7a7a7a);
   font-variant-numeric: tabular-nums;
 }
+
+/* 门：可点击的出门入口 */
+.fh-prop-door { cursor: pointer; }
+.fh-prop-door .fh-door-leaf { transition: filter 160ms ease; }
+.fh-prop-door:hover .fh-door-leaf { filter: brightness(1.12); }
+.fh-prop-door:hover .fh-door-shadow { opacity: 0.22; }
 `
 
 

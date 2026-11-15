@@ -1464,6 +1464,52 @@ await (async () => {
   assert.ok(toolRow.includes('×3'), '重复的合并成 ×3')
   assert.equal(rows.filter((row) => row.includes('pwsh')).length, 1, '不再连刷三行')
 }
+// 门：能渲染出来，点了会切场景
+{
+  const read = (rel) => JSON.parse(readFileSync(path.join(here, '..', 'data', 'maps', rel), 'utf8'))
+  const scene = read('bedroom/scene.json')
+  const furniture = scene.furniture.map((id) => read(`bedroom/furniture/${id}.json`))
+  model.applyScene(scene)
+  model.applyFurniture(furniture)
+  let switched = ''
+  const home = model.createHome(Date.now(), '大肥鱼')
+  const tree = model.SceneSvg({
+    home,
+    views: {},
+    t: translate,
+    now: Date.now(),
+    onProp: () => {},
+    onToggle: () => {},
+    onScene: (id) => { switched = id },
+    edit: { on: false },
+    onSelect: () => {},
+    onDragStart: () => {},
+    onResizeStart: () => {},
+  })
+  const found = { door: 0, activate: null }
+  const walk = (n) => {
+    if (!n || typeof n !== 'object') return
+    if (Array.isArray(n)) { n.forEach(walk); return }
+    if (typeof n.type === 'function') {
+      // onActivate 挂在 PropGroup 这个组件上，不是它返回的 <g> 上
+      const cls = n.props && typeof n.props.className === 'string' ? n.props.className : ''
+      if (cls.includes('fh-prop-door')) {
+        found.door += 1
+        if (typeof n.props.onActivate === 'function') found.activate = n.props.onActivate
+      }
+      walk(n.type(n.props || {}))
+      return
+    }
+    walk(n.children)
+  }
+  walk(tree)
+  assert.ok(found.door > 0, '门渲染出来了')
+  assert.equal(typeof found.activate, 'function', '门可以点')
+  found.activate()
+  assert.equal(switched, 'living', '点卧室的门去客厅')
+  model.applyScene(null)
+  model.applyFurniture([])
+}
 console.log('ui tests passed:', {
   components: Object.keys(registered),
   behaviors: model.BEHAVIORS.length,

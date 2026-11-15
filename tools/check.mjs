@@ -127,7 +127,7 @@ if (bundle !== '') {
 /* ---------------------------------------------------------------- 数据完整性 */
 
 const PACK_DIR = path.join(ROOT, 'packs', 'bigfish-adult')
-const PRESETS = new Set(['desk', 'desk_glow', 'shelf', 'rug', 'plant', 'night_lamp', 'night_lamp_glow', 'lamp_glow'])
+const PRESETS = new Set(['desk', 'desk_glow', 'shelf', 'rug', 'plant', 'night_lamp', 'night_lamp_glow', 'lamp_glow', 'door_out'])
 const readJson = (file) => JSON.parse(readFileSync(file, 'utf8'))
 const hasFile = (file) => existsSync(file)
 
@@ -191,6 +191,9 @@ for (const map of MAPS) {
     }
     if (def.click && def.click.type === 'event' && !eventIds.has(def.click.id)) {
       fail('数据', `${map}/furniture/${id}.json 点击引用的事件不存在：${def.click.id}`)
+    }
+    if (def.click && def.click.type === 'scene' && !MAPS.includes(def.click.id)) {
+      fail('数据', `${map}/furniture/${id}.json 点击引用的场景不存在：${def.click.id}`)
     }
     for (const animation of def.animations || []) {
       if (typeof animation.event === 'string' && !eventIds.has(animation.event)) {

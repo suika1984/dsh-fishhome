@@ -48,7 +48,8 @@
     "garden_bench",
     "garden_tree",
     "garden_flowers",
-    "garden_fence"
+    "garden_fence",
+    "door"
   ],
   "events": [
     "idle",

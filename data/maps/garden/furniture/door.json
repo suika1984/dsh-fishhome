@@ -1,0 +1,14 @@
+{
+  "id": "door",
+  "name": { "zh": "屋门", "en": "Door" },
+  "type": "furniture",
+  "parts": [
+    {
+      "id": "frame",
+      "preset": "door_out",
+      "rect": [1010, 190, 140, 290],
+      "z": 94
+    }
+  ],
+  "click": { "type": "scene", "id": "living" }
+}

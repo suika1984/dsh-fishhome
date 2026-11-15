@@ -28,7 +28,6 @@
 
 ## 还没排期的
 
-- [ ] `test/ui.test.js` 1468 行，可以按组件拆（`SceneSvg` / `EditorBar` / `SettingsBar` / `ActivityCard` / 日志文案各一个文件）
 - [ ] `spot`（地板格）与 `animations` 锚点两套定位并存，长期建议统一成「锚点优先、spot 兜底」并写进 SCHEMA
 - [ ] `surface.attach` / `part.skew` / `rotate` / `flipX` 四套变形叠加顺序敏感，值得固化文档 + 一条回归测试
 - [ ] 落地窗/窗帘这套「素材切段 + repeat」的坐标换算，editor 里目前只能手动填 rect；
@@ -46,3 +45,4 @@
 - [x] 会话联动修复：`activitySignature` 漏定义导致权重失效
 - [x] 日志去抖：同类事件按窗口去重、会话起停抖动合并
 - [x] 作息修正：深夜困意压过精力，夜里睡饱了接着睡
+- [x] 拆 `test/ui.test.js`（1468 行）→ `ui-harness.js` + `test/ui/{panel,editor,interact,scene,sessions}.test.js`，入口只剩 13 行

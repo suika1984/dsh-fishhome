@@ -24,7 +24,7 @@
 | `packs/<pack>/` | 角色包：`pet.json` + `actions/` + PNG 素材 | 刷新面板 |
 | `docs/` | `SCHEMA.md`（数据规范）、`STYLE.md`（美术规范） | — |
 | `tools/check.mjs` | 零依赖自检 | 改完**必须**跑 |
-| `test/*.test.js` | 四套自测 | 改完**必须**跑 |
+| `test/*.test.js` | 四套自测（`test/ui/` 是界面测试拆出来的五段 + `ui-harness.js`） | 改完**必须**跑 |
 
 ---
 
@@ -87,7 +87,7 @@ node tools/check.mjs
 
 # 四套测试
 node test/model.test.js    # 纯模型：时间、需求、调度、离线结算、动画帧换算
-node test/ui.test.js       # 渲染树、几何、编辑器、日志文案
+node test/ui.test.js       # 界面测试入口（依次 import test/ui/ 下的五个部分）
 node test/host.test.js     # Host 路由：存档、静态资源、路径穿越防护、打开配置文件
 node test/mount.test.js    # 挂载冒烟：面板能渲染、不无限重渲染
 ```

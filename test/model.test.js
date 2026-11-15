@@ -547,6 +547,26 @@ assert.equal(zh('status.remain', { seconds: 30 }).includes('30'), true)
   assert.ok(sky.length >= 3, '天空还是按时间段分层')
   assert.ok(sky.every((part) => part.z < frame.z), '天空在框体下面')
 }
+// 关帘要能盖住整扇窗（窗户拉长后，帘子宽度也得跟上，不然中间漏缝）
+{
+  const root = path.join(here, '..', 'data', 'maps', 'living', 'furniture')
+  const win = JSON.parse(readFileSync(path.join(root, 'living_window.json'), 'utf8'))
+  const frame = win.parts.find((part) => part.id === 'frame')
+  const frameX0 = frame.sprite.rect[0]
+  const frameX1 = frameX0 + frame.sprite.rect[2] * frame.sprite.repeat.count
+  for (const key of ['curtain-blue-closed', 'curtain-white-closed']) {
+    const left = win.parts.find((part) => part.id === `${key}-left`)
+    const right = win.parts.find((part) => part.id === `${key}-right`)
+    assert.ok(left && right, `${key} 左右两片都在`)
+    const l0 = left.sprite.rect[0]
+    const l1 = l0 + left.sprite.rect[2]
+    const r0 = right.sprite.rect[0]
+    const r1 = r0 + right.sprite.rect[2]
+    assert.ok(l0 <= frameX0, `${key} 左侧盖住窗边`)
+    assert.ok(r1 >= frameX1, `${key} 右侧盖住窗边`)
+    assert.ok(l1 >= r0, `${key} 中间合拢不漏缝（${l1} >= ${r0}）`)
+  }
+}
 console.log('model tests passed:', {
   switches,
   energy: Math.round(home.character.energy),

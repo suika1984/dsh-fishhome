@@ -96,9 +96,9 @@
       "sprite": {
         "src": "win-curtain-white-closed.png",
         "rect": [
-          724,
+          726,
           30,
-          168,
+          214,
           300
         ]
       },
@@ -114,9 +114,9 @@
       "sprite": {
         "src": "win-curtain-white-closed.png",
         "rect": [
-          949,
+          938,
           30,
-          168,
+          212,
           300
         ]
       },
@@ -168,9 +168,9 @@
       "sprite": {
         "src": "win-curtain-blue-closed.png",
         "rect": [
-          722,
+          724,
           26,
-          172,
+          214,
           304
         ]
       },
@@ -186,9 +186,9 @@
       "sprite": {
         "src": "win-curtain-blue-closed.png",
         "rect": [
-          947,
+          938,
           26,
-          172,
+          212,
           304
         ]
       },

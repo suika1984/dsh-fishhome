@@ -1341,6 +1341,40 @@ model.applyFurniture(model.DEFAULT_FURNITURE)
   assert.ok(text.includes('那我躺一下'), '引用了她的回复')
   assert.ok(text.includes('大肥鱼'), '带上名字')
 }
+// 会话一直在跑时也要能把她推回书桌：连续两次工作之间的空档可能短到被轮询漏掉
+await (async () => {
+  const store = new model.HomeStore()
+  store.publish = () => {}
+  store.scheduleSave = () => {}
+  store.home = model.createHome(Date.now(), '大肥鱼')
+  store.home.character.behaviorId = 'read'
+  const snapshot = { running: 1, sessions: 1, counters: { messages: 1, tools: 1, errors: 0 }, recent: [], notes: null }
+  store.activity = { ...snapshot }
+  store.activitySignature = 'something-different'
+  store.applyActivity({ ...snapshot, counters: { messages: 2, tools: 1, errors: 0 } })
+  assert.equal(store.home.character.behaviorId, 'work', '会话在跑时她回去工作')
+  // 3 分钟内不重复推
+  store.home.character.behaviorId = 'read'
+  store.activitySignature = 'another'
+  store.applyActivity({ ...snapshot, counters: { messages: 3, tools: 1, errors: 0 } })
+  assert.equal(store.home.character.behaviorId, 'read', '刚推过就不再打断（避免每 5 秒推一次）')
+})()
+
+// 你刚手动指挥过她时，会话活动不抢人
+await (async () => {
+  const store = new model.HomeStore()
+  store.publish = () => {}
+  store.scheduleSave = () => {}
+  store.home = model.createHome(Date.now(), '大肥鱼')
+  store.home.character.behaviorId = 'read'
+  store.lastUserActionAt = Date.now()
+  store.lastWorkNudgeAt = 0
+  store.activity = { running: 1, sessions: 1, counters: { messages: 1, tools: 0, errors: 0 }, recent: [], notes: null }
+  store.activitySignature = 'x'
+  store.applyActivity({ running: 1, sessions: 1, counters: { messages: 2, tools: 0, errors: 0 }, recent: [], notes: null })
+  assert.equal(store.home.character.behaviorId, 'read', '刚点过东西，先不抢')
+})()
+
 // 便条走客户端 sessions 服务：等于在聊天框里发消息，会出现在对话里并触发一轮
 await (async () => {
   const calls = []

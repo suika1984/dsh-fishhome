@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = '27389ef0'
+    const BUILD_REV = '33685609'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -28,6 +28,10 @@ window.__ModuleLoader__.load({
     const OFFLINE_CAP_MS = 12 * 60 * 60 * 1000
     const OFFLINE_STEP_MS = 5 * 60 * 1000
     const MAX_LOG = 40
+/** 有会话在跑时，把她推回书桌的最小间隔（防止每 5 秒轮询反复推） */
+const WORK_NUDGE_MS = 3 * 60 * 1000
+/** 你刚手动点过东西时，这段时间内不打断你（用户优先） */
+const USER_PRIORITY_MS = 10 * 60 * 1000
 /** 便条发进会话时带的前缀：提示模型这是小屋来的小便条，简短回应即可 */
 const NOTE_MARK = '【家园】'
 
@@ -2365,6 +2369,34 @@ async function writeSave(home) {
      * 动画视图、时钟推进、行为调度与互动
      * ==================================================================== */
 
+    /**
+     * 活动快照的指纹：只有它变了才需要重渲染 / 重算权重。
+     * （之前漏了函数体，applyActivity 每 5 秒抛 ReferenceError，导致会话权重从来没生效过）
+     */
+    function activitySignature(snapshot) {
+      if (!snapshot) return ''
+      const counters = snapshot.counters || {}
+      const recent = Array.isArray(snapshot.recent) ? snapshot.recent[snapshot.recent.length - 1] : null
+      const notes = snapshot.notes || {}
+      return [
+        snapshot.running,
+        counters.messages,
+        counters.tools,
+        counters.errors,
+        counters.workflows,
+        counters.subagents,
+        recent ? `${recent.at}:${recent.kind}` : '',
+        notes.mode,
+        notes.pending,
+        notes.injected,
+        notes.preview,
+        notes.pinned,
+        notes.targetFull,
+        notes.lastReply ? notes.lastReply.at : '',
+        Array.isArray(notes.sessions) ? notes.sessions.length : 0,
+      ].join('|')
+    }
+
     const VIEW_METHODS = {
       buildViews() {
         const assets = (this.meta && this.meta.pack && this.meta.pack.assets) || {}
@@ -2454,10 +2486,23 @@ async function writeSave(home) {
         const wasRunning = previous ? previous.running : 0
         const nowRunning = next.running
         // 你开始干活 → 她也坐到书桌前（只在她闲着/发呆/躺着的时候打断）
+        const passive = ['idle', 'sleep', 'nap', 'read', 'stretch', 'window']
         if (nowRunning > 0 && wasRunning === 0) {
           pushLog(this.home, now, 'sessionStart', null)
-          const passive = ['idle', 'sleep', 'nap', 'read', 'stretch', 'window']
-          if (passive.includes(character.behaviorId)) this.forceBehavior('work')
+          if (passive.includes(character.behaviorId)) {
+            this.lastWorkNudgeAt = now
+            this.forceBehavior('work')
+          }
+        }
+        // 会话「一直在跑」时也盯着：连续第二次工作时，中间的空档可能短到被 5 秒轮询漏掉，
+        // 只看 0→1 的跳变会漏。所以只要会话在跑、她又闲下来了，就再推一次（有间隔和用户优先保护）。
+        if (nowRunning > 0 && passive.includes(character.behaviorId)) {
+          const sinceNudge = now - (Number(this.lastWorkNudgeAt) || 0)
+          const sinceUserAction = now - (Number(this.lastUserActionAt) || 0)
+          if (sinceNudge > WORK_NUDGE_MS && sinceUserAction > USER_PRIORITY_MS) {
+            this.lastWorkNudgeAt = now
+            this.forceBehavior('work')
+          }
         }
         // 会话跑完 → 她收工：心情好一点，从「工作」里松下来
         if (nowRunning === 0 && wasRunning > 0) {
@@ -2650,6 +2695,8 @@ async function writeSave(home) {
         // 你在这个房间点了东西 → 她过来（手动切场景不会触发）
         const moved = this.bringPetHere()
         const now = Date.now()
+        // 记一笔：你刚手动指挥过她，短时间内别被会话活动拽走（用户优先）
+        this.lastUserActionAt = now
         if (target && target !== 'reset') this.leanToward(target)
         // 家具声明了多个互动动画时：每点一次按顺序切到下一个
         const def = typeof furnitureId === 'string'

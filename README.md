@@ -1,8 +1,27 @@
 # dsh-fishhome · 大肥鱼的家园
 
+[![CI](https://github.com/suika1984/dsh-fishhome/actions/workflows/ci.yml/badge.svg)](https://github.com/suika1984/dsh-fishhome/actions/workflows/ci.yml)
+
+仓库：<https://github.com/suika1984/dsh-fishhome>（private）
+
 给大肥鱼一间**跟着现实时间过日子**的小屋：它会自己发呆、看书、敲键盘、和小鲸鱼玩、按季节和时段换心情，也会在没人看的时候打盹。你打开 Harness 时，看到的是它「这段时间自己过到了哪一步」。
 
 它是 DSH Web 界面里的一个侧边栏面板（和「插件」「日程」并列），不是独立窗口，也不是网页。
+
+## 预览
+
+客厅的落地窗是拼出来的：三段门扇（中间那段是 W-01 双开推拉门）+ 横版天空 + 三段窗帘杆，关帘能严丝合缝地合拢。
+
+![落地窗开/关两种状态](docs/images/window-wide-states.png)
+
+<details>
+<summary>更多合成过程图</summary>
+
+| W-03 外框 + W-01 门扇 | 拉长成三段 | 三段窗帘杆 |
+| --- | --- | --- |
+| ![拼接](docs/images/window-slider-preview.png) | ![拉长](docs/images/window-wide-preview.png) | ![杆](docs/images/window-rod-preview.png) |
+
+</details>
 
 > 数据结构正在从「写在代码里」迁到「定义 / 状态 / 派生」三层，规范见 [docs/SCHEMA.md](docs/SCHEMA.md)。当前 `client.js` 仍是写死版本，迁移按文档第 9 节分四步走。
 

@@ -96,6 +96,8 @@ node test/mount.test.js    # 挂载冒烟：面板能渲染、不无限重渲染
 
 **改动完成后必须全部通过**：`node build.mjs` → `node tools/check.mjs` → 四个测试。
 
+推送到 GitHub 后，`.github/workflows/ci.yml` 会在 Ubuntu + Node 20 上再跑一遍（构建 → 生成物一致性 → 自检 → 四套测试），所以本地四件套过了 CI 基本也能过。
+
 ---
 
 ## 3. Client 片段与构建顺序

@@ -16,23 +16,33 @@
   - 现状：`noteMode` 默认 `preview`（只在屋里说，不进会话）。`inject` 走 `agent/pre-step` 水位追加一条用户消息，代码和 host 测试都通了，但**没在真实会话里跑过**。
   - 回来时：profile 的 `cordis.patch.yml` 加 `config.noteMode: inject` → 重启 Harness → 面板递一句 → 看下一轮是否收到这条用户消息。
   - 风险：会往真实会话里写消息，测的时候挑一个无关紧要的会话。
+  - 备注：现在面板优先走客户端的 `session.prompt`，`inject` 只是拿不到 sessions 服务时的退路。
 
-## 发布前
+## 发布后可以做的
 
-- [ ] `package.json` 里 `#{your-name}` 占位符换成真实 GitHub 用户名（`homepage` / `repository` / `bugs` / `author`）
-- [ ] `git config user.name/email` 设成自己的（现在提交署名是 `dsh <dsh@local>`；想让历史也变，用 `git rebase --root --exec "git commit --amend --no-edit --reset-author"`）
-- [ ] 可选的 GitHub Actions：`node build.mjs && node tools/check.mjs` + 四套测试
-- [ ] 可选：`docs/images/` 放 2~3 张游戏截图（`docs/refs/` 是 gitignore 的临时调试图，别往里放）
+- [ ] **截图进 README**：`docs/images/` 目前只有窗户的合成预览，缺整间屋子的实机截图。
+  - 做法：面板里截图 → 存 `docs/images/room-bedroom.png` / `room-living.png` → README 顶部加一段预览。
+  - `docs/refs/` 是 gitignore 的临时调试图，别往里放。
+- [ ] **仓库瘦身（可选）**：`.git` 约 36MB，主要在 `packs/bigfish-adult/` 的几张大图（fish-sheet 2.3MB 等）。
+  如果以后要公开，可以考虑 `git lfs` 或把素材压一遍。
 
-## 代码整理（已完成的记在这里，避免重复提）
+## 还没排期的
+
+- [ ] `test/ui.test.js` 1468 行，可以按组件拆（`SceneSvg` / `EditorBar` / `SettingsBar` / `ActivityCard` / 日志文案各一个文件）
+- [ ] `spot`（地板格）与 `animations` 锚点两套定位并存，长期建议统一成「锚点优先、spot 兜底」并写进 SCHEMA
+- [ ] `surface.attach` / `part.skew` / `rotate` / `flipX` 四套变形叠加顺序敏感，值得固化文档 + 一条回归测试
+- [ ] 落地窗/窗帘这套「素材切段 + repeat」的坐标换算，editor 里目前只能手动填 rect；
+
+## 已完成
 
 - [x] git 版本控制 + `.gitignore`
 - [x] 素材归档（运行目录 18.5MB → 11.4MB）
 - [x] 拆 `locale.js` / `scene.js`×6 / `store.js`×5
 - [x] `tools/check.mjs` 零依赖自检（构建新鲜度 / 片段登记 / 文案 / 死代码 / 数据引用 / 日志码渲染分支）
-
-## 还没排期的
-
-- [ ] `test/ui.test.js` 还是 1100+ 行，可以按组件拆
-- [ ] `spot`（地板格）与 `animations` 锚点两套定位并存，长期建议统一成「锚点优先、spot 兜底」并写进 SCHEMA
-- [ ] `surface.attach` / `part.skew` / `rotate` / `flipX` 四套变形叠加顺序敏感，值得固化文档 + 一条回归测试
+- [x] `package.json` 占位符填成 `suika1984`，提交作者统一
+- [x] 推到 GitHub（private）：https://github.com/suika1984/dsh-fishhome
+- [x] GitHub Actions：`.github/workflows/ci.yml` 跑构建 + 自检 + 四套测试
+- [x] 客厅落地窗改推拉门（三段拼接 + 横版天空 + 三段窗帘杆）
+- [x] 会话联动修复：`activitySignature` 漏定义导致权重失效
+- [x] 日志去抖：同类事件按窗口去重、会话起停抖动合并
+- [x] 作息修正：深夜困意压过精力，夜里睡饱了接着睡

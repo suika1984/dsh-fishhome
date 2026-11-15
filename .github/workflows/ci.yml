@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 取得源码
+        uses: actions/checkout@v4
+
+      - name: 准备 Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 构建 client.js
+        run: node build.mjs
+
+      - name: 生成物必须和 src 一致
+        run: |
+          if ! git diff --quiet client.js; then
+            echo "::error file=client.js::client.js 与 src/ 不一致，请本地跑 node build.mjs 后一起提交"
+            git diff --stat client.js
+            exit 1
+          fi
+
+      - name: 零依赖自检（文案 / 死代码 / 数据引用 / 构建新鲜度）
+        run: node tools/check.mjs
+
+      - name: 四套测试
+        run: |
+          node test/model.test.js
+          node test/ui.test.js
+          node test/host.test.js
+          node test/mount.test.js

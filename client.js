@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = 'bf457ae9'
+    const BUILD_REV = '132183dc'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -2166,7 +2166,9 @@ async function writeSave(home) {
         const absolute = this.absolutePathFor(target)
         // 先交给 DSH 自己（Host 的 sessionController 用原生方式打开）
         if (absolute !== '' && typeof this.openRemote === 'function') {
-          const remote = await this.openRemote(absolute, mode === 'reveal' || mode === 'folder')
+          // 「打开目录」= 用默认程序打开这个目录（资源管理器），不能当成 reveal：
+          // reveal 在 Windows 上是「在父目录里选中它」，对目录经常什么都不弹。
+          const remote = await this.openRemote(absolute, mode === 'reveal')
           if (remote === 'ok') return { ok: true, error: '', openedWith: 'dsh', absolute }
           // 原生通道明确报错（比如 Host 不认这个路径）就别再 spawn explorer 了：
           // 那只会弹一个系统错误提示，还打开不了。直接失败，让前端把路径复制给你。

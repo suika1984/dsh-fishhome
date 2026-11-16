@@ -301,7 +301,8 @@ Client 每次 tick（5 秒）拉一次，然后：
 11. **`_source/` 与 `_archive/` 不进仓库**：原始大图和归档素材在 `.gitignore` 里。
 12. **测试里的时间要用本地时间构造**：`new Date('2026-11-02T02:00:00+08:00')` 在 UTC 的 CI 上会变成「傍晚」，night/noon 断言直接翻转。用 `new Date(2026, 10, 2, 2, 0, 0)`（本地 2 点），本地和 CI 都成立。验证命令：`$env:TZ='UTC'; node test/model.test.js`。
 13. **CI 说「生成物必须和 src 一致」但本地一致**：多半是工作区里混了 CRLF（`git ls-files --eol` 能看出来）。`build.mjs` / `tools/check.mjs` 现在都会把行尾归一成 LF，正常不会再犯。
-14. **切场景是异步的，晚到的响应会把旧房间写回来**：`loadScene()` 现在带 `sceneToken` 守卫，只认最后一次加载；不然从客厅切回卧室时，客厅那批家具（含落地窗）晚到就会覆盖卧室。回归测试在 `test/model.test.js`（搜「切房间的竞态」）。
+14. **切场景是异步的，晚到的响应会把旧房间写回来**：`loadScene()` 现在带 `sceneToken` 守卫，只认最后一次加载；而且**先读完再整体落地**（scene/background/家具/事件一次换），不然会停在「卧室的场景 + 客厅的家具」这种半新半旧状态。回归测试在 `test/model.test.js`（搜「切房间」）。
+15. **React 会在扁平列表里复用旧节点**：家具是 `[{key:'bedid:part'}, …]` 的扁平数组，客厅 12 件 → 卧室 10 件时 diff 可能把上一帧的 `living_window` 组留下（数据干净、DOM 脏，表现为「切回卧室后客厅落地窗还在，切页面才消失」）。现在 `<RoomStage>`/`<SceneSvg>` 用 `key = 场景 id + sceneToken` 强制重挂载。排查这类问题用控制台 `__fhDebug()`：`furniture`（数据）和 `drawn`（DOM 里真实渲染的精灵）对不上就说明是残留。
 
 ---
 

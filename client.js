@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = '752db069'
+    const BUILD_REV = '98231885'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -2195,6 +2195,15 @@ async function writeSave(home) {
             return { ok: false, error: `DSH 原生打开失败：${remote}`, openedWith: '', absolute }
           }
           this.lastOpenRemoteError = remote
+        }
+        // 目录 / 定位必须有原生通道：没有的话回退到 spawn 只会「打开错的东西」或弹系统报错
+        if (mode !== 'file' && typeof this.openRemote !== 'function') {
+          return {
+            ok: false,
+            error: '当前环境拿不到 DSH 的原生打开通道（ctx.remote），无法打开目录；路径已复制',
+            openedWith: '',
+            absolute,
+          }
         }
         try {
           const payload = await fetchJson(`${ROUTE}/api/open`, {
@@ -7261,40 +7270,44 @@ async function writeSave(home) {
           }
         }
         const t = (key, params) => makeTranslate(localeRef.value)(key, params)
-        // 可选：客户端 sessions 服务。有它就能像聊天框一样把便条发进会话（会出现在对话里、LLM 也会回）
-        // 注意：apply 时服务可能还没挂载，所以用 inject 等它；ctx.get 只作兜底
-        try {
-          store.clientSessions = typeof ctx.get === 'function' ? ctx.get('sessions') || null : null
-        // DSH 自己的「用系统程序打开 / 在文件夹中显示」：走 remote 调用，由 Host 的
-        // sessionController 用原生方式打开（实测自己 spawn explorer.exe 起不来）。
-        // 注意：ctx.remote 必须先 inject 才能取（否则报 cannot get property "remote" without inject）。
-        const wireRemoteOpen = (remote) => {
-          const api = remote && remote.session
-          if (!api || typeof api.openWorkspacePath !== 'function') return
-          store.openRemote = async (absolutePath, reveal) => {
-            try {
-              const result = await api.openWorkspacePath(reveal
-                ? { path: absolutePath, action: 'reveal' }
-                : { path: absolutePath })
-              if (result && result.ok) return 'ok'
-              return (result && (result.error || result.message)) || 'failed'
-            } catch (error) {
-              return error instanceof Error ? error.message : String(error)
+        // 可选：客户端 sessions 服务。有它就能像聊天框一样把便条发进会话（会出现在对话里、LLM 也会回）。
+        // apply 时服务可能还没挂载，所以统一用 ctx.inject 等它挂载后再取。
+        const injectService = (name, use) => {
+          try {
+            if (typeof ctx.inject === 'function') ctx.inject([name], (inner) => use(inner))
+            else use(ctx)
+          } catch {
+            /* 没有这个服务就跳过 */
+          }
+        }
+        injectService('sessions', (inner) => {
+          try {
+            store.clientSessions = inner.sessions || (typeof inner.get === 'function' ? inner.get('sessions') : null) || store.clientSessions
+          } catch {
+            /* 服务不可用就当没有 */
+          }
+        })
+        // DSH 自己的「用系统程序打开 / 在文件夹中显示」：走 remote 调 Host 的 sessionController，
+        // 由它用原生方式打开（实测在本环境里自己 spawn explorer.exe 起不来）。
+        injectService('remote', (inner) => {
+          try {
+            const api = inner.remote && inner.remote.session
+            if (!api || typeof api.openWorkspacePath !== 'function') return
+            store.openRemote = async (absolutePath, reveal) => {
+              try {
+                const result = await api.openWorkspacePath(reveal
+                  ? { path: absolutePath, action: 'reveal' }
+                  : { path: absolutePath })
+                if (result && result.ok) return 'ok'
+                return (result && (result.error || result.message)) || 'failed'
+              } catch (error) {
+                return error instanceof Error ? error.message : String(error)
+              }
             }
+          } catch {
+            /* 拿不到 remote 就退回 Host 自己的打开方式 */
           }
-        }
-        try {
-          if (typeof ctx.inject === 'function') {
-            ctx.inject(['remote'], (inner) => wireRemoteOpen(inner.remote))
-          } else {
-            wireRemoteOpen(ctx.remote)
-          }
-        } catch {
-          /* 没有 remote 服务就退回 Host 自己的打开方式 */
-        }
-        } catch {
-          /* 没有这个服务 */
-        }
+        })
         try {
           ctx.effect(() => ctx.locale.register(NS, 'zh', ZH), 'dsh-fishhome: zh dictionary')
           ctx.effect(() => ctx.locale.register(NS, 'en', EN), 'dsh-fishhome: en dictionary')
@@ -7327,6 +7340,8 @@ async function writeSave(home) {
               mapPath: store.mapPath || null,
               token: store.sceneToken || 0,
               build: typeof BUILD_REV === 'string' ? BUILD_REV : null,
+              // 原生打开通道有没有接上（false = 只能复制路径）
+              remoteWired: typeof store.openRemote === 'function',
               // 画面上真实出现的精灵：href + 它挂在哪个 fh-prop-* 下面
               drawn: (() => {
                 try {

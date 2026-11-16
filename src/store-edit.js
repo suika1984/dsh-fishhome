@@ -175,6 +175,15 @@
           }
           this.lastOpenRemoteError = remote
         }
+        // 目录 / 定位必须有原生通道：没有的话回退到 spawn 只会「打开错的东西」或弹系统报错
+        if (mode !== 'file' && typeof this.openRemote !== 'function') {
+          return {
+            ok: false,
+            error: '当前环境拿不到 DSH 的原生打开通道（ctx.remote），无法打开目录；路径已复制',
+            openedWith: '',
+            absolute,
+          }
+        }
         try {
           const payload = await fetchJson(`${ROUTE}/api/open`, {
             method: 'POST',

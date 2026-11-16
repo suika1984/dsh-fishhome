@@ -923,6 +923,28 @@
 .fh-prop-door { cursor: pointer; }
 .fh-prop-door image { transition: filter 160ms ease; }
 .fh-prop-door:hover image { filter: brightness(1.07) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.18)); }
+/* 路径本身就是复制按钮：不额外占一行，也不会把布局撑换行 */
+.fh-open-copy {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 2px 4px;
+  margin: 0;
+  min-width: 0;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: 11px;
+  border-radius: 6px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fh-open-copy:hover {
+  background: var(--dsw-alias-bg-hover, rgba(0, 0, 0, 0.05));
+  color: var(--dsw-alias-text-secondary);
+}
 `
 
 

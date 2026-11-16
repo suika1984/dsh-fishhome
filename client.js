@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = 'b1563009'
+    const BUILD_REV = 'e8a50296'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -91,6 +91,7 @@ const NOTE_MARK = '【家园】'
       'settings.opened': '已打开：{path}{via}',
       'settings.openFailedCopied': '\n路径已复制：{path}',
       'settings.copy': '复制路径',
+      'settings.copyHint': '点击复制绝对路径',
       'settings.copied': '路径已复制，粘到资源管理器地址栏（Ctrl+L）即可：{path}',
       'settings.copyFailed': '复制失败，手动复制这个路径：{path}',
       'settings.openFailed': '打不开：{error}',
@@ -369,6 +370,7 @@ const NOTE_MARK = '【家园】'
       'settings.opened': 'Opened: {path}{via}',
       'settings.openFailedCopied': '\nPath copied: {path}',
       'settings.copy': 'Copy path',
+      'settings.copyHint': 'Click to copy the absolute path',
       'settings.copied': 'Path copied — paste it into the Explorer address bar (Ctrl+L): {path}',
       'settings.copyFailed': 'Copy failed, copy this path manually: {path}',
       'settings.openFailed': 'Cannot open: {error}',
@@ -5330,7 +5332,12 @@ async function writeSave(home) {
             h('div', { className: 'fh-open-list' },
               configs.map((item) => h('div', { key: item.path, className: 'fh-open-row' },
                 h('span', { className: 'fh-open-name' }, item.label),
-                h('code', { className: 'fh-open-path', title: item.path }, item.path),
+                h('button', {
+                  type: 'button',
+                  className: 'fh-open-path fh-open-copy',
+                  title: t('settings.copyHint'),
+                  onClick: () => onCopy(item.path),
+                }, item.path),
                 h('button', {
                   type: 'button',
                   className: 'fh-toggle',
@@ -5340,13 +5347,7 @@ async function writeSave(home) {
                   type: 'button',
                   className: 'fh-toggle',
                   onClick: () => onOpen('reveal', item.path),
-                }, t('settings.reveal')),
-                h('button', {
-                  type: 'button',
-                  className: 'fh-toggle',
-                  // 复制绝对路径：不依赖系统调用，环境再受限也能用
-                  onClick: () => onCopy(item.path),
-                }, t('settings.copy'))))),
+                }, t('settings.reveal'))))),
             openTip ? h('span', { className: 'fh-muted' }, openTip) : null)
           : null,
         // 便条送进哪个会话（有活会话时才列出来）
@@ -7260,6 +7261,28 @@ async function writeSave(home) {
 .fh-prop-door { cursor: pointer; }
 .fh-prop-door image { transition: filter 160ms ease; }
 .fh-prop-door:hover image { filter: brightness(1.07) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.18)); }
+/* 路径本身就是复制按钮：不额外占一行，也不会把布局撑换行 */
+.fh-open-copy {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 2px 4px;
+  margin: 0;
+  min-width: 0;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  font-size: 11px;
+  border-radius: 6px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fh-open-copy:hover {
+  background: var(--dsw-alias-bg-hover, rgba(0, 0, 0, 0.05));
+  color: var(--dsw-alias-text-secondary);
+}
 `
 
 

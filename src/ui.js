@@ -784,7 +784,12 @@
             h('div', { className: 'fh-open-list' },
               configs.map((item) => h('div', { key: item.path, className: 'fh-open-row' },
                 h('span', { className: 'fh-open-name' }, item.label),
-                h('code', { className: 'fh-open-path', title: item.path }, item.path),
+                h('button', {
+                  type: 'button',
+                  className: 'fh-open-path fh-open-copy',
+                  title: t('settings.copyHint'),
+                  onClick: () => onCopy(item.path),
+                }, item.path),
                 h('button', {
                   type: 'button',
                   className: 'fh-toggle',
@@ -794,13 +799,7 @@
                   type: 'button',
                   className: 'fh-toggle',
                   onClick: () => onOpen('reveal', item.path),
-                }, t('settings.reveal')),
-                h('button', {
-                  type: 'button',
-                  className: 'fh-toggle',
-                  // 复制绝对路径：不依赖系统调用，环境再受限也能用
-                  onClick: () => onCopy(item.path),
-                }, t('settings.copy'))))),
+                }, t('settings.reveal'))))),
             openTip ? h('span', { className: 'fh-muted' }, openTip) : null)
           : null,
         // 便条送进哪个会话（有活会话时才列出来）

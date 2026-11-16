@@ -784,12 +784,15 @@
             h('div', { className: 'fh-open-list' },
               configs.map((item) => h('div', { key: item.path, className: 'fh-open-row' },
                 h('span', { className: 'fh-open-name' }, item.label),
-                h('button', {
-                  type: 'button',
-                  className: 'fh-open-path fh-open-copy',
-                  title: t('settings.copyHint'),
-                  onClick: () => onCopy(item.path),
-                }, item.path),
+                h('div', { className: 'fh-open-pathwrap' },
+                  h('code', { className: 'fh-open-path', title: item.path }, item.path),
+                  h('button', {
+                    type: 'button',
+                    className: 'fh-open-copyicon',
+                    title: t('settings.copyHint'),
+                    'aria-label': t('settings.copy'),
+                    onClick: () => onCopy(item.path),
+                  }, '⧉')),
                 h('button', {
                   type: 'button',
                   className: 'fh-toggle',

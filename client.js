@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = 'e8a50296'
+    const BUILD_REV = '9a7afa87'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -5332,12 +5332,15 @@ async function writeSave(home) {
             h('div', { className: 'fh-open-list' },
               configs.map((item) => h('div', { key: item.path, className: 'fh-open-row' },
                 h('span', { className: 'fh-open-name' }, item.label),
-                h('button', {
-                  type: 'button',
-                  className: 'fh-open-path fh-open-copy',
-                  title: t('settings.copyHint'),
-                  onClick: () => onCopy(item.path),
-                }, item.path),
+                h('div', { className: 'fh-open-pathwrap' },
+                  h('code', { className: 'fh-open-path', title: item.path }, item.path),
+                  h('button', {
+                    type: 'button',
+                    className: 'fh-open-copyicon',
+                    title: t('settings.copyHint'),
+                    'aria-label': t('settings.copy'),
+                    onClick: () => onCopy(item.path),
+                  }, '⧉')),
                 h('button', {
                   type: 'button',
                   className: 'fh-toggle',
@@ -7281,6 +7284,34 @@ async function writeSave(home) {
 }
 .fh-open-copy:hover {
   background: var(--dsw-alias-bg-hover, rgba(0, 0, 0, 0.05));
+  color: var(--dsw-alias-text-secondary);
+}
+/* 路径 + 复制图标：放在同一格里，右侧按钮数量不变，行不会被撑换行 */
+.fh-open-pathwrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.fh-open-pathwrap .fh-open-path {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.fh-open-copyicon {
+  flex: 0 0 auto;
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--dsw-alias-text-tertiary, #8a8a8a);
+  font-size: 12px;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.fh-open-copyicon:hover {
+  background: var(--dsw-alias-bg-hover, rgba(0, 0, 0, 0.05));
+  border-color: var(--dsw-alias-border-subtle, rgba(0, 0, 0, 0.08));
   color: var(--dsw-alias-text-secondary);
 }
 `

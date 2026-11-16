@@ -945,6 +945,34 @@
   background: var(--dsw-alias-bg-hover, rgba(0, 0, 0, 0.05));
   color: var(--dsw-alias-text-secondary);
 }
+/* 路径 + 复制图标：放在同一格里，右侧按钮数量不变，行不会被撑换行 */
+.fh-open-pathwrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.fh-open-pathwrap .fh-open-path {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.fh-open-copyicon {
+  flex: 0 0 auto;
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--dsw-alias-text-tertiary, #8a8a8a);
+  font-size: 12px;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.fh-open-copyicon:hover {
+  background: var(--dsw-alias-bg-hover, rgba(0, 0, 0, 0.05));
+  border-color: var(--dsw-alias-border-subtle, rgba(0, 0, 0, 0.08));
+  color: var(--dsw-alias-text-secondary);
+}
 `
 
 

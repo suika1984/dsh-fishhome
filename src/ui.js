@@ -737,7 +737,7 @@
 
     /** 设置：称呼 / 自称 / 房间名，改完立刻存档 */
     function SettingsBar(props) {
-      const { t, profile, onChange, onSave, onClose, paths, configs, onOpen, openTip, sessionTargets, noteTarget, onNoteTarget, hostRev } = props
+      const { t, profile, onChange, onSave, onClose, paths, configs, onOpen, onCopy, openTip, sessionTargets, noteTarget, onNoteTarget, hostRev } = props
       const field = (label, key, placeholder) => h('label', { className: 'fh-field' },
         h('span', { className: 'fh-field-label' }, label),
         h('input', {
@@ -794,7 +794,13 @@
                   type: 'button',
                   className: 'fh-toggle',
                   onClick: () => onOpen('reveal', item.path),
-                }, t('settings.reveal'))))),
+                }, t('settings.reveal')),
+                h('button', {
+                  type: 'button',
+                  className: 'fh-toggle',
+                  // 复制绝对路径：不依赖系统调用，环境再受限也能用
+                  onClick: () => onCopy(item.path),
+                }, t('settings.copy'))))),
             openTip ? h('span', { className: 'fh-muted' }, openTip) : null)
           : null,
         // 便条送进哪个会话（有活会话时才列出来）
@@ -1567,6 +1573,18 @@
                     setOpenTip(t('settings.openFailed', { error: result.error || '未知错误' })
                       + (copied ? t('settings.openFailedCopied', { path: absolute }) : ''))
                   })
+                },
+                onCopy: (target) => {
+                  const absolute = typeof store.absolutePathFor === 'function' ? store.absolutePathFor(target) : ''
+                  const text = absolute || target
+                  void (async () => {
+                    try {
+                      if (typeof navigator !== 'undefined' && navigator.clipboard) await navigator.clipboard.writeText(text)
+                      setOpenTip(t('settings.copied', { path: text }))
+                    } catch {
+                      setOpenTip(t('settings.copyFailed', { path: text }))
+                    }
+                  })()
                 },
                 onChange: (key, value) => setProfile((prev) => ({ ...prev, [key]: value })),
                 onSave: () => {

@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = '72669c40'
+    const BUILD_REV = 'b97e2912'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -90,6 +90,9 @@ const NOTE_MARK = '【家园】'
       'settings.reveal': '定位',
       'settings.opened': '已打开：{path}{via}',
       'settings.openFailedCopied': '\n路径已复制：{path}',
+      'settings.copy': '复制路径',
+      'settings.copied': '路径已复制，粘到资源管理器地址栏（Ctrl+L）即可：{path}',
+      'settings.copyFailed': '复制失败，手动复制这个路径：{path}',
       'settings.openFailed': '打不开：{error}',
       'settings.file.scene': '场景',
       'settings.file.background': '背景 / 墙纸',
@@ -365,6 +368,9 @@ const NOTE_MARK = '【家园】'
       'settings.reveal': 'Reveal',
       'settings.opened': 'Opened: {path}{via}',
       'settings.openFailedCopied': '\nPath copied: {path}',
+      'settings.copy': 'Copy path',
+      'settings.copied': 'Path copied — paste it into the Explorer address bar (Ctrl+L): {path}',
+      'settings.copyFailed': 'Copy failed, copy this path manually: {path}',
       'settings.openFailed': 'Cannot open: {error}',
       'settings.file.scene': 'Scene',
       'settings.file.background': 'Background',
@@ -5277,7 +5283,7 @@ async function writeSave(home) {
 
     /** 设置：称呼 / 自称 / 房间名，改完立刻存档 */
     function SettingsBar(props) {
-      const { t, profile, onChange, onSave, onClose, paths, configs, onOpen, openTip, sessionTargets, noteTarget, onNoteTarget, hostRev } = props
+      const { t, profile, onChange, onSave, onClose, paths, configs, onOpen, onCopy, openTip, sessionTargets, noteTarget, onNoteTarget, hostRev } = props
       const field = (label, key, placeholder) => h('label', { className: 'fh-field' },
         h('span', { className: 'fh-field-label' }, label),
         h('input', {
@@ -5334,7 +5340,13 @@ async function writeSave(home) {
                   type: 'button',
                   className: 'fh-toggle',
                   onClick: () => onOpen('reveal', item.path),
-                }, t('settings.reveal'))))),
+                }, t('settings.reveal')),
+                h('button', {
+                  type: 'button',
+                  className: 'fh-toggle',
+                  // 复制绝对路径：不依赖系统调用，环境再受限也能用
+                  onClick: () => onCopy(item.path),
+                }, t('settings.copy'))))),
             openTip ? h('span', { className: 'fh-muted' }, openTip) : null)
           : null,
         // 便条送进哪个会话（有活会话时才列出来）
@@ -6107,6 +6119,18 @@ async function writeSave(home) {
                     setOpenTip(t('settings.openFailed', { error: result.error || '未知错误' })
                       + (copied ? t('settings.openFailedCopied', { path: absolute }) : ''))
                   })
+                },
+                onCopy: (target) => {
+                  const absolute = typeof store.absolutePathFor === 'function' ? store.absolutePathFor(target) : ''
+                  const text = absolute || target
+                  void (async () => {
+                    try {
+                      if (typeof navigator !== 'undefined' && navigator.clipboard) await navigator.clipboard.writeText(text)
+                      setOpenTip(t('settings.copied', { path: text }))
+                    } catch {
+                      setOpenTip(t('settings.copyFailed', { path: text }))
+                    }
+                  })()
                 },
                 onChange: (key, value) => setProfile((prev) => ({ ...prev, [key]: value })),
                 onSave: () => {

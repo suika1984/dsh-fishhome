@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = '7154f4c3'
+    const BUILD_REV = 'b74df465'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -4768,7 +4768,7 @@ async function writeSave(home) {
     }
 
     function RoomStage(props) {
-      const { home, views, now, t, actions, edit, onSelect, onDragStart, onResizeStart, zoom } = props
+      const { home, views, now, t, actions, edit, onSelect, onDragStart, onResizeStart, zoom, sceneKey } = props
       const clock = timeSnapshot(new Date(now), localeRef.value)
       // 房间灯：天黑了又没在睡觉就开着，房间亮一大截
       const roomLit = roomLightState(home, clock)
@@ -4799,6 +4799,9 @@ async function writeSave(home) {
           },
         },
         h(SceneSvg, {
+          // 切房间时强制重挂载：万一家具数据换了而某类节点没被 diff 掉（残留旧房间的窗），
+          // 重建整棵场景树最稳；代价只是切场景那一下动画从头开始。
+          key: sceneKey || 'scene',
           home,
           views,
           t,
@@ -6152,6 +6155,8 @@ async function writeSave(home) {
             h('div', { className: 'fh-grid' },
               h('div', { className: 'fh-room-wrap' },
                 h(RoomStage, {
+                  // 切房间就换 key：强制整棵场景树重挂载，避免残留上一个房间的家具节点
+                  sceneKey: 'scene:' + ((snapshot.meta && snapshot.meta.map) || '') + ':' + (store.sceneToken || 0),
                   home: snapshot.home,
                   views: snapshot.views || {},
                   now,

@@ -44,7 +44,9 @@
         }
         // 注意：这里只换「你在看哪」，不改变 home.world.map——她留在原地
         this.history = []
-        await this.loadScene({ map: mapId })
+        const loaded = await this.loadScene({ map: mapId })
+        // 被后一次切换顶掉（晚到的响应）就别改面板上的场景下拉了
+        if (loaded !== true) return false
         // meta 也更新一份，面板上的场景下拉才会跟着变
         this.meta = { ...(this.meta || {}), map: mapId, mapPath: `maps/${mapId}/scene.json` }
         this.publish()
@@ -68,12 +70,18 @@
         return []
       },
       async loadScene(meta) {
+        // 竞态保护：连续切房间时只认最后一次加载。
+        // 否则旧场景晚到的响应会把家具/事件写回来——表现就是「切回卧室，客厅的落地窗还在画」。
+        const token = (this.sceneToken || 0) + 1
+        this.sceneToken = token
+        const alive = () => this.sceneToken === token
         const mapPath = typeof meta.mapPath === 'string' && meta.mapPath !== ''
           ? meta.mapPath
           : `maps/${typeof meta.map === 'string' && meta.map !== '' ? meta.map : 'bedroom'}/scene.json`
         this.mapPath = mapPath
         try {
           const scene = await fetchJson(`${ROUTE}/data/${mapPath}`)
+          if (!alive()) return false
           applyScene(scene)
           // 如果加载的正好是她所在的场景，记住名字（切到别的房间时用来提示）
           if (this.home && this.home.world && scene && scene.id === this.home.world.map) {
@@ -84,6 +92,7 @@
             : 'background.json'
           const bgPath = resolveDataPath(mapPath, bgFile)
           const bg = await fetchJson(`${ROUTE}/data/${bgPath}`)
+          if (!alive()) return false
           applyBackground(bg)
           // 家具：一件一个文件，坏了一件就跳过，不影响其它
           const list = scene && Array.isArray(scene.furniture) ? scene.furniture : []
@@ -95,6 +104,7 @@
               return null
             }
           }))
+          if (!alive()) return false
           const loaded = defs.filter(Boolean)
           applyFurniture(loaded)
           this.furnitureSource = cloneJson(loaded)
@@ -116,13 +126,17 @@
             }
           }))
           const loadedEvents = eventDefs.filter(Boolean)
+          if (!alive()) return false
           applyEvents(loadedEvents)
           this.eventsSource = cloneJson(loadedEvents)
           this.sceneWarning = null
+          return true
         } catch (error) {
+          if (!alive()) return false
           applyScene(null)
           applyBackground(null)
           this.sceneWarning = error instanceof Error ? error.message : String(error)
+          return false
         }
       },
       furnitureUrl(id) {

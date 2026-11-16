@@ -2,6 +2,7 @@
  * 场景合成：repeat 拼接、attach 斜率、底部按钮、共享切变、editAsOne、z 排序、动画视图/帧参数
  * 拆分自 test/ui.test.js，顺序与原文件一致（由 test/ui.test.js 依次 import）。
  */
+import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { assert, model, home, views, render, translate, here } from '../ui-harness.js'
 

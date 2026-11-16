@@ -598,6 +598,42 @@ assert.equal(zh('status.remain', { seconds: 30 }).includes('30'), true)
   assert.ok(scene.events.includes('bench_rest'), '场景里登记了事件')
   assert.ok(scene.spots.bench, '场景里有长椅落脚点')
 }
+// 切房间的竞态：旧场景的家具/事件请求晚到，不能覆盖新场景。
+// 曾经的 bug：从客厅切回卧室，客厅的落地窗还在画（落地窗是家具，被晚到的 loadScene 写回来了）。
+{
+  const store = new model.HomeStore()
+  store.publish = () => {}
+  store.scheduleSave = () => {}
+  store.home = model.createHome(Date.now(), '大肥鱼')
+  store.meta = { map: 'bedroom', mapPath: 'maps/bedroom/scene.json' }
+
+  let releaseLiving
+  const livingGate = new Promise((resolve) => { releaseLiving = resolve })
+  const realFetch = globalThis.fetch
+  globalThis.fetch = async (url) => {
+    const rel = String(url).replace(/^\/fishhome\//, '')
+    // api/* 统一回 404（测试里没有 Host）
+    if (rel.startsWith('api/')) return { ok: false, status: 404, async json() { return {} } }
+    // 客厅的家具文件故意卡住，模拟「请求晚到」
+    if (rel.includes('maps/living/furniture/')) await livingGate
+    const text = readFileSync(path.join('D:/dschat/dsh-fishhome', rel), 'utf8')
+    return { ok: true, status: 200, async json() { return JSON.parse(text) } }
+  }
+  try {
+    const toLiving = store.setMap('living')
+    await new Promise((resolve) => setTimeout(resolve, 30))
+    await store.setMap('bedroom')
+    releaseLiving()
+    await toLiving
+  } finally {
+    globalThis.fetch = realFetch
+  }
+
+  const ids = (store.furnitureSource || []).map((def) => def.id)
+  assert.ok(ids.includes('bed'), `卧室应该有床，实际: ${ids.join(',')}`)
+  assert.ok(!ids.includes('living_window'), `客厅落地窗不能留在卧室里，实际: ${ids.join(',')}`)
+}
+
 console.log('model tests passed:', {
   switches,
   energy: Math.round(home.character.energy),

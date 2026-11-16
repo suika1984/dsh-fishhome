@@ -301,6 +301,7 @@ Client 每次 tick（5 秒）拉一次，然后：
 11. **`_source/` 与 `_archive/` 不进仓库**：原始大图和归档素材在 `.gitignore` 里。
 12. **测试里的时间要用本地时间构造**：`new Date('2026-11-02T02:00:00+08:00')` 在 UTC 的 CI 上会变成「傍晚」，night/noon 断言直接翻转。用 `new Date(2026, 10, 2, 2, 0, 0)`（本地 2 点），本地和 CI 都成立。验证命令：`$env:TZ='UTC'; node test/model.test.js`。
 13. **CI 说「生成物必须和 src 一致」但本地一致**：多半是工作区里混了 CRLF（`git ls-files --eol` 能看出来）。`build.mjs` / `tools/check.mjs` 现在都会把行尾归一成 LF，正常不会再犯。
+14. **切场景是异步的，晚到的响应会把旧房间写回来**：`loadScene()` 现在带 `sceneToken` 守卫，只认最后一次加载；不然从客厅切回卧室时，客厅那批家具（含落地窗）晚到就会覆盖卧室。回归测试在 `test/model.test.js`（搜「切房间的竞态」）。
 
 ---
 

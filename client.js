@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = 'b97e2912'
+    const BUILD_REV = 'b1563009'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -7295,7 +7295,7 @@ async function writeSave(home) {
         }
         const t = (key, params) => makeTranslate(localeRef.value)(key, params)
         // remote 接通诊断：记下每条路的结果，__fhDebug().remoteProbe 能看到
-        const remoteProbe = { direct: 'not-tried', inject: 'not-fired' }
+        const remoteProbe = { direct: 'not-tried', sessionService: 'not-fired', inject: 'not-fired' }
         try {
           window.__fhRemoteProbe = remoteProbe
         } catch {
@@ -7345,7 +7345,20 @@ async function writeSave(home) {
         } catch (error) {
           remoteProbe.direct = error instanceof Error ? error.message : String(error)
         }
-        // ② 等 remote 服务挂载
+        // ② 客户端里 remote.session 也可能就是名为 session 的服务，先试这个
+        injectService('session', (inner) => {
+          remoteProbe.sessionService = 'fired'
+          try {
+            const api = inner.session
+            remoteProbe.sessionService = api && typeof api.openWorkspacePath === 'function'
+              ? 'fired-with-openWorkspacePath'
+              : 'fired-without-openWorkspacePath'
+            if (api && typeof api.openWorkspacePath === 'function') wireRemote({ session: api })
+          } catch (error) {
+            remoteProbe.sessionService = error instanceof Error ? error.message : String(error)
+          }
+        })
+        // ③ 等 remote 服务挂载
         injectService('remote', (inner) => {
           remoteProbe.inject = 'fired'
           try {

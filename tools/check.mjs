@@ -23,6 +23,24 @@ const DATA = path.join(ROOT, 'data')
 
 const problems = []
 const notes = []
+
+// 测试/工具里禁止写死盘符绝对路径（CI 在 Linux 上跑，写了只在 CI 挂）
+// 只认「盘符 + 目录 + 斜杠」这种真路径；注释里的省略写法不算
+const drivePath = /[A-Za-z]:[\\/][A-Za-z0-9._-]+[\\/]/
+for (const dir of ['test', 'tools', 'src']) {
+  for (const name of readdirSync(path.join(ROOT, dir), { recursive: true })) {
+    const rel = path.join(dir, String(name)).replace(/\\/g, '/')
+    if (!/\.(m?js)$/.test(rel)) continue
+    const body = readFileSync(path.join(ROOT, rel), 'utf8').split('\n')
+    body.forEach((line, index) => {
+      const trimmed = line.trim()
+      if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) return
+      const hit = line.match(drivePath)
+      if (hit) problems.push(`[绝对路径] ${rel}:${index + 1} 写死了盘符路径：${hit[0]}（CI 在 Linux 上读不到）`)
+    })
+  }
+}
+
 const fail = (group, message) => problems.push(`[${group}] ${message}`)
 
 /* ---------------------------------------------------------------- 构建新鲜度 */

@@ -608,12 +608,14 @@ assert.equal(zh('status.remain', { seconds: 30 }).includes('30'), true)
     store.meta = { map: 'bedroom', mapPath: 'maps/bedroom/scene.json' }
     return store
   }
+  // 用仓库根（相对本文件），别写成 D:/...，否则 Linux CI 上读不到文件
+  const repoRoot = path.join(here, '..')
   const installFetch = (gated, gate) => {
     globalThis.fetch = async (url) => {
       const rel = String(url).replace(/^\/fishhome\//, '')
       if (rel.startsWith('api/')) return { ok: false, status: 404, async json() { return {} } }
       if (gated.some((part) => rel.includes(part))) await gate
-      const text = readFileSync(path.join('D:/dschat/dsh-fishhome', rel), 'utf8')
+      const text = readFileSync(path.join(repoRoot, rel), 'utf8')
       return { ok: true, status: 200, async json() { return JSON.parse(text) } }
     }
   }

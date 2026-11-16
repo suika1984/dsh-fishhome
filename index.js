@@ -330,15 +330,18 @@ async function handleOpen(req, res, settings) {
     return
   }
   const dryRun = process.env.DSH_FISHHOME_NO_SPAWN === '1'
+  let openedWith = 'dry-run'
   if (!dryRun) {
     try {
-      launchWithOs(kind, target)
+      // 等子进程真的起来了再回 200：以前是 spawn 后立刻返回，
+      // explorer 起不来（路径/权限/环境）时前端仍然显示「已打开」，完全看不出问题。
+      openedWith = await launchWithOs(kind, target)
     } catch (error) {
       sendJson(res, 500, { ok: false, error: error instanceof Error ? error.message : String(error) })
       return
     }
   }
-  sendJson(res, 200, { ok: true, kind, path: relative, absolute: target, dryRun })
+  sendJson(res, 200, { ok: true, kind, path: relative, absolute: target, dryRun, openedWith })
 }
 
 /** data/… pack/… save/… → 绝对路径；不认识的返回 null */
@@ -360,28 +363,57 @@ function resolveOpenTarget(relative, config) {
   return target
 }
 
-/** 交给操作系统：文件用默认程序打开，目录用资源管理器，reveal 则是定位 */
-function launchWithOs(kind, target) {
+/** 交给操作系统：文件用默认程序打开，目录用资源管理器，reveal 则是定位。返回 Promise，spawn 失败会 reject */
+async function launchWithOs(kind, target) {
   const platform = process.platform
-  const run = (command, args) => {
-    const child = spawn(command, args, { detached: true, stdio: 'ignore', windowsHide: true })
-    child.unref()
+  // 优先用 Electron 的 shell：Desktop 里插件跑在 Electron 进程内，
+  // 直接 spawn explorer.exe 有时会被静默拦住（什么都不发生）。
+  try {
+    const electron = await import('electron')
+    const shell = (electron && electron.shell) || (electron && electron.default && electron.default.shell)
+    if (shell) {
+      if (kind === 'reveal' && typeof shell.showItemInFolder === 'function') {
+        shell.showItemInFolder(target)
+        return 'electron'
+      }
+      if (typeof shell.openPath === 'function') {
+        const failure = await shell.openPath(target)
+        if (!failure) return 'electron'
+        throw new Error(failure)
+      }
+    }
+  } catch {
+    /* 没有 electron（web 版/测试环境），回退到 spawn */
   }
+  const run = (command, args) => new Promise((resolve, reject) => {
+    let child
+    try {
+      child = spawn(command, args, { detached: true, stdio: 'ignore', windowsHide: true })
+    } catch (error) {
+      reject(error)
+      return
+    }
+    child.once('error', (error) => reject(error))
+    child.once('spawn', () => {
+      child.unref()
+      resolve()
+    })
+  })
   if (kind === 'reveal') {
-    if (platform === 'win32') run('explorer.exe', [`/select,${target}`])
-    else if (platform === 'darwin') run('open', ['-R', target])
-    else run('xdg-open', [path.dirname(target)])
-    return
+    if (platform === 'win32') return run('explorer.exe', [`/select,${target}`]).catch(() => run('cmd.exe', ['/c', 'start', '', path.dirname(target)]))
+    if (platform === 'darwin') return run('open', ['-R', target])
+    return run('xdg-open', [path.dirname(target)])
   }
   if (kind === 'folder') {
-    if (platform === 'win32') run('explorer.exe', [target])
-    else if (platform === 'darwin') run('open', [target])
-    else run('xdg-open', [target])
-    return
+    // Windows 上直接 spawn explorer.exe 有时静默什么都不发生（尤其是从 Electron 子进程里），
+    // 走 cmd 的 start 会经过 ShellExecute，稳一些。
+    if (platform === 'win32') return run('cmd.exe', ['/c', 'start', '', target])
+    if (platform === 'darwin') return run('open', [target])
+    return run('xdg-open', [target])
   }
-  if (platform === 'win32') run('cmd.exe', ['/c', 'start', '', target])
-  else if (platform === 'darwin') run('open', [target])
-  else run('xdg-open', [target])
+  if (platform === 'win32') return run('cmd.exe', ['/c', 'start', '', target])
+  if (platform === 'darwin') return run('open', [target])
+  return run('xdg-open', [target])
 }
 
 async function handleState(req, res, settings) {

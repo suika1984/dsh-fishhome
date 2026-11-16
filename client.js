@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = '98231885'
+    const BUILD_REV = '2b676e91'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -7288,24 +7288,36 @@ async function writeSave(home) {
           }
         })
         // DSH 自己的「用系统程序打开 / 在文件夹中显示」：走 remote 调 Host 的 sessionController，
-        // 由它用原生方式打开（实测在本环境里自己 spawn explorer.exe 起不来）。
+        // 由它用原生方式打开（本环境里自己 spawn explorer.exe 起不来）。
+        // remote 能不能用取决于 package.json 里 dsh.client.inject 有没有
+        // @deepseek-ai/dsh-api-session-controller。
+        const wireRemote = (remote) => {
+          const api = remote && remote.session
+          if (!api || typeof api.openWorkspacePath !== 'function') return
+          store.openRemote = async (absolutePath, reveal) => {
+            try {
+              const result = await api.openWorkspacePath(reveal
+                ? { path: absolutePath, action: 'reveal' }
+                : { path: absolutePath })
+              if (result && result.ok) return 'ok'
+              return (result && (result.error || result.message)) || 'failed'
+            } catch (error) {
+              return error instanceof Error ? error.message : String(error)
+            }
+          }
+        }
+        // ① 清单注入之后可以直接取（取不到会抛，忽略）
+        try {
+          wireRemote(ctx.remote)
+        } catch {
+          /* 需要 inject 才能取，走 ② */
+        }
+        // ② 等 remote 服务挂载
         injectService('remote', (inner) => {
           try {
-            const api = inner.remote && inner.remote.session
-            if (!api || typeof api.openWorkspacePath !== 'function') return
-            store.openRemote = async (absolutePath, reveal) => {
-              try {
-                const result = await api.openWorkspacePath(reveal
-                  ? { path: absolutePath, action: 'reveal' }
-                  : { path: absolutePath })
-                if (result && result.ok) return 'ok'
-                return (result && (result.error || result.message)) || 'failed'
-              } catch (error) {
-                return error instanceof Error ? error.message : String(error)
-              }
-            }
+            wireRemote(inner.remote || inner)
           } catch {
-            /* 拿不到 remote 就退回 Host 自己的打开方式 */
+            /* 取不到就算了，只能复制路径 */
           }
         })
         try {

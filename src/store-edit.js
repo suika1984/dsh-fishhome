@@ -138,7 +138,13 @@
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ kind: mode, path: target }),
           })
-          return { ok: !!(payload && payload.ok), error: payload && payload.error ? String(payload.error) : '' }
+          return {
+            ok: !!(payload && payload.ok),
+            error: payload && payload.error ? String(payload.error) : '',
+            // electron / spawn / dry-run：看出到底走的哪条路（排查「提示成功但没窗口」）
+            openedWith: payload && payload.openedWith ? String(payload.openedWith) : '',
+            absolute: payload && payload.absolute ? String(payload.absolute) : '',
+          }
         } catch (error) {
           return { ok: false, error: error instanceof Error ? error.message : String(error) }
         }

@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = 'b74df465'
+    const BUILD_REV = 'dffb9a1a'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -88,7 +88,7 @@ const NOTE_MARK = '【家园】'
       'settings.open': '打开',
       'settings.openFolder': '打开目录',
       'settings.reveal': '定位',
-      'settings.opened': '已打开：{path}',
+      'settings.opened': '已打开：{path}{via}',
       'settings.openFailed': '打不开：{error}',
       'settings.file.scene': '场景',
       'settings.file.background': '背景 / 墙纸',
@@ -362,7 +362,7 @@ const NOTE_MARK = '【家园】'
       'settings.open': 'Open',
       'settings.openFolder': 'Open folder',
       'settings.reveal': 'Reveal',
-      'settings.opened': 'Opened: {path}',
+      'settings.opened': 'Opened: {path}{via}',
       'settings.openFailed': 'Cannot open: {error}',
       'settings.file.scene': 'Scene',
       'settings.file.background': 'Background',
@@ -2157,7 +2157,13 @@ async function writeSave(home) {
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ kind: mode, path: target }),
           })
-          return { ok: !!(payload && payload.ok), error: payload && payload.error ? String(payload.error) : '' }
+          return {
+            ok: !!(payload && payload.ok),
+            error: payload && payload.error ? String(payload.error) : '',
+            // electron / spawn / dry-run：看出到底走的哪条路（排查「提示成功但没窗口」）
+            openedWith: payload && payload.openedWith ? String(payload.openedWith) : '',
+            absolute: payload && payload.absolute ? String(payload.absolute) : '',
+          }
         } catch (error) {
           return { ok: false, error: error instanceof Error ? error.message : String(error) }
         }
@@ -5743,7 +5749,8 @@ async function writeSave(home) {
       const openSource = (spec) => {
         if (!spec || typeof spec.path !== 'string' || spec.path === '') return
         void store.openPath(spec.kind || 'file', spec.path).then((result) => {
-          const text = result.ok ? `已打开 ${spec.path}` : `打不开：${result.error || '未知错误'}`
+          const via = result.openedWith ? `（${result.openedWith}）` : ''
+          const text = result.ok ? `已打开 ${spec.path}${via}` : `打不开：${result.error || '未知错误'}`
           setOpenTip(text)
           setEdit((prev) => ({ ...prev, status: text }))
         })
@@ -6026,7 +6033,7 @@ async function writeSave(home) {
                 onOpen: (kind, target) => {
                   void store.openPath(kind, target).then((result) => {
                     setOpenTip(result.ok
-                      ? t('settings.opened', { path: target })
+                      ? t('settings.opened', { path: target, via: result.openedWith ? `（${result.openedWith}）` : '' })
                       : t('settings.openFailed', { error: result.error || '未知错误' }))
                   })
                 },

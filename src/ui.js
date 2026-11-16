@@ -1266,7 +1266,8 @@
       const openSource = (spec) => {
         if (!spec || typeof spec.path !== 'string' || spec.path === '') return
         void store.openPath(spec.kind || 'file', spec.path).then((result) => {
-          const text = result.ok ? `已打开 ${spec.path}` : `打不开：${result.error || '未知错误'}`
+          const via = result.openedWith ? `（${result.openedWith}）` : ''
+          const text = result.ok ? `已打开 ${spec.path}${via}` : `打不开：${result.error || '未知错误'}`
           setOpenTip(text)
           setEdit((prev) => ({ ...prev, status: text }))
         })
@@ -1549,7 +1550,7 @@
                 onOpen: (kind, target) => {
                   void store.openPath(kind, target).then((result) => {
                     setOpenTip(result.ok
-                      ? t('settings.opened', { path: target })
+                      ? t('settings.opened', { path: target, via: result.openedWith ? `（${result.openedWith}）` : '' })
                       : t('settings.openFailed', { error: result.error || '未知错误' }))
                   })
                 },

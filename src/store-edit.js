@@ -130,8 +130,25 @@
        * 用系统默认程序打开配置文件，或在资源管理器里定位。
        * target 形如 data/maps/living/scene.json、pack/pet.json、save/state.json
        */
+      /** data/… pack/… save/… → 绝对路径（DSH 的原生打开要绝对路径） */
+      absolutePathFor(target) {
+        const meta = this.meta || {}
+        const match = /^(data|pack|save)\/(.+)$/.exec(String(target || ''))
+        if (!match) return ''
+        const root = match[1] === 'data' ? meta.dataDir : match[1] === 'pack' ? meta.packDir : meta.saveDir
+        if (typeof root !== 'string' || root === '') return ''
+        const base = root.replace(/\\/g, '/').replace(/\/+$/, '')
+        return `${base}/${match[2]}`
+      },
       async openPath(kind, target) {
         const mode = kind === 'folder' || kind === 'reveal' ? kind : 'file'
+        const absolute = this.absolutePathFor(target)
+        // 先交给 DSH 自己（Host 的 sessionController 用原生方式打开）
+        if (absolute !== '' && typeof this.openRemote === 'function') {
+          const remote = await this.openRemote(absolute, mode === 'reveal' || mode === 'folder')
+          if (remote === 'ok') return { ok: true, error: '', openedWith: 'dsh', absolute }
+          this.lastOpenRemoteError = remote
+        }
         try {
           const payload = await fetchJson(`${ROUTE}/api/open`, {
             method: 'POST',

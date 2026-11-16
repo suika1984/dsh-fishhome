@@ -33,6 +33,22 @@
         // 注意：apply 时服务可能还没挂载，所以用 inject 等它；ctx.get 只作兜底
         try {
           store.clientSessions = typeof ctx.get === 'function' ? ctx.get('sessions') || null : null
+        // DSH 自己的「用系统程序打开 / 在文件夹中显示」：走 remote 调用，由 Host 的
+        // sessionController 用原生方式打开。实测在 DSH 环境里自己 spawn explorer.exe 起不来。
+        store.openRemote = async (absolutePath, reveal) => {
+          try {
+            const remote = ctx.remote
+            const api = remote && remote.session
+            if (!api || typeof api.openWorkspacePath !== 'function') return 'unavailable'
+            const result = await api.openWorkspacePath(reveal
+              ? { path: absolutePath, action: 'reveal' }
+              : { path: absolutePath })
+            if (result && result.ok) return 'ok'
+            return (result && (result.error || result.message)) || 'failed'
+          } catch (error) {
+            return error instanceof Error ? error.message : String(error)
+          }
+        }
         } catch {
           store.clientSessions = null
         }

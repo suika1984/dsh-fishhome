@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = 'dffb9a1a'
+    const BUILD_REV = '4b5354f6'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -2149,8 +2149,25 @@ async function writeSave(home) {
        * 用系统默认程序打开配置文件，或在资源管理器里定位。
        * target 形如 data/maps/living/scene.json、pack/pet.json、save/state.json
        */
+      /** data/… pack/… save/… → 绝对路径（DSH 的原生打开要绝对路径） */
+      absolutePathFor(target) {
+        const meta = this.meta || {}
+        const match = /^(data|pack|save)\/(.+)$/.exec(String(target || ''))
+        if (!match) return ''
+        const root = match[1] === 'data' ? meta.dataDir : match[1] === 'pack' ? meta.packDir : meta.saveDir
+        if (typeof root !== 'string' || root === '') return ''
+        const base = root.replace(/\\/g, '/').replace(/\/+$/, '')
+        return `${base}/${match[2]}`
+      },
       async openPath(kind, target) {
         const mode = kind === 'folder' || kind === 'reveal' ? kind : 'file'
+        const absolute = this.absolutePathFor(target)
+        // 先交给 DSH 自己（Host 的 sessionController 用原生方式打开）
+        if (absolute !== '' && typeof this.openRemote === 'function') {
+          const remote = await this.openRemote(absolute, mode === 'reveal' || mode === 'folder')
+          if (remote === 'ok') return { ok: true, error: '', openedWith: 'dsh', absolute }
+          this.lastOpenRemoteError = remote
+        }
         try {
           const payload = await fetchJson(`${ROUTE}/api/open`, {
             method: 'POST',
@@ -7203,6 +7220,22 @@ async function writeSave(home) {
         // 注意：apply 时服务可能还没挂载，所以用 inject 等它；ctx.get 只作兜底
         try {
           store.clientSessions = typeof ctx.get === 'function' ? ctx.get('sessions') || null : null
+        // DSH 自己的「用系统程序打开 / 在文件夹中显示」：走 remote 调用，由 Host 的
+        // sessionController 用原生方式打开。实测在 DSH 环境里自己 spawn explorer.exe 起不来。
+        store.openRemote = async (absolutePath, reveal) => {
+          try {
+            const remote = ctx.remote
+            const api = remote && remote.session
+            if (!api || typeof api.openWorkspacePath !== 'function') return 'unavailable'
+            const result = await api.openWorkspacePath(reveal
+              ? { path: absolutePath, action: 'reveal' }
+              : { path: absolutePath })
+            if (result && result.ok) return 'ok'
+            return (result && (result.error || result.message)) || 'failed'
+          } catch (error) {
+            return error instanceof Error ? error.message : String(error)
+          }
+        }
         } catch {
           store.clientSessions = null
         }

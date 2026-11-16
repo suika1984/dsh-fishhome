@@ -147,6 +147,11 @@
         if (absolute !== '' && typeof this.openRemote === 'function') {
           const remote = await this.openRemote(absolute, mode === 'reveal' || mode === 'folder')
           if (remote === 'ok') return { ok: true, error: '', openedWith: 'dsh', absolute }
+          // 原生通道明确报错（比如 Host 不认这个路径）就别再 spawn explorer 了：
+          // 那只会弹一个系统错误提示，还打开不了。直接失败，让前端把路径复制给你。
+          if (remote !== 'unavailable') {
+            return { ok: false, error: `DSH 原生打开失败：${remote}`, openedWith: '', absolute }
+          }
           this.lastOpenRemoteError = remote
         }
         try {
@@ -155,9 +160,12 @@
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ kind: mode, path: target }),
           })
+          const remoteNote = this.lastOpenRemoteError && this.lastOpenRemoteError !== 'unavailable'
+            ? ` ｜ DSH 原生打开：${this.lastOpenRemoteError}`
+            : ''
           return {
             ok: !!(payload && payload.ok),
-            error: payload && payload.error ? String(payload.error) : '',
+            error: payload && payload.error ? `${String(payload.error)}${remoteNote}` : '',
             // electron / spawn / dry-run：看出到底走的哪条路（排查「提示成功但没窗口」）
             openedWith: payload && payload.openedWith ? String(payload.openedWith) : '',
             absolute: payload && payload.absolute ? String(payload.absolute) : '',

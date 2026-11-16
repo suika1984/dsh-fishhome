@@ -1548,10 +1548,24 @@
                   })
                 },
                 onOpen: (kind, target) => {
-                  void store.openPath(kind, target).then((result) => {
-                    setOpenTip(result.ok
-                      ? t('settings.opened', { path: target, via: result.openedWith ? `（${result.openedWith}）` : '' })
-                      : t('settings.openFailed', { error: result.error || '未知错误' }))
+                  void store.openPath(kind, target).then(async (result) => {
+                    if (result.ok) {
+                      setOpenTip(t('settings.opened', { path: target, via: result.openedWith ? `（${result.openedWith}）` : '' }))
+                      return
+                    }
+                    // 打不开就把绝对路径塞进剪贴板，至少能手动粘到资源管理器地址栏
+                    const absolute = result.absolute || (typeof store.absolutePathFor === 'function' ? store.absolutePathFor(target) : '')
+                    let copied = false
+                    try {
+                      if (absolute && typeof navigator !== 'undefined' && navigator.clipboard) {
+                        await navigator.clipboard.writeText(absolute.replace(/\//g, '\\'))
+                        copied = true
+                      }
+                    } catch {
+                      /* 剪贴板不可用就算了 */
+                    }
+                    setOpenTip(t('settings.openFailed', { error: result.error || '未知错误' })
+                      + (copied ? t('settings.openFailedCopied', { path: absolute }) : ''))
                   })
                 },
                 onChange: (key, value) => setProfile((prev) => ({ ...prev, [key]: value })),

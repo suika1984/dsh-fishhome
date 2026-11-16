@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = '4b5354f6'
+    const BUILD_REV = 'a7e84cb1'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -89,6 +89,7 @@ const NOTE_MARK = '【家园】'
       'settings.openFolder': '打开目录',
       'settings.reveal': '定位',
       'settings.opened': '已打开：{path}{via}',
+      'settings.openFailedCopied': '\n路径已复制：{path}',
       'settings.openFailed': '打不开：{error}',
       'settings.file.scene': '场景',
       'settings.file.background': '背景 / 墙纸',
@@ -363,6 +364,7 @@ const NOTE_MARK = '【家园】'
       'settings.openFolder': 'Open folder',
       'settings.reveal': 'Reveal',
       'settings.opened': 'Opened: {path}{via}',
+      'settings.openFailedCopied': '\nPath copied: {path}',
       'settings.openFailed': 'Cannot open: {error}',
       'settings.file.scene': 'Scene',
       'settings.file.background': 'Background',
@@ -2166,6 +2168,11 @@ async function writeSave(home) {
         if (absolute !== '' && typeof this.openRemote === 'function') {
           const remote = await this.openRemote(absolute, mode === 'reveal' || mode === 'folder')
           if (remote === 'ok') return { ok: true, error: '', openedWith: 'dsh', absolute }
+          // 原生通道明确报错（比如 Host 不认这个路径）就别再 spawn explorer 了：
+          // 那只会弹一个系统错误提示，还打开不了。直接失败，让前端把路径复制给你。
+          if (remote !== 'unavailable') {
+            return { ok: false, error: `DSH 原生打开失败：${remote}`, openedWith: '', absolute }
+          }
           this.lastOpenRemoteError = remote
         }
         try {
@@ -2174,9 +2181,12 @@ async function writeSave(home) {
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({ kind: mode, path: target }),
           })
+          const remoteNote = this.lastOpenRemoteError && this.lastOpenRemoteError !== 'unavailable'
+            ? ` ｜ DSH 原生打开：${this.lastOpenRemoteError}`
+            : ''
           return {
             ok: !!(payload && payload.ok),
-            error: payload && payload.error ? String(payload.error) : '',
+            error: payload && payload.error ? `${String(payload.error)}${remoteNote}` : '',
             // electron / spawn / dry-run：看出到底走的哪条路（排查「提示成功但没窗口」）
             openedWith: payload && payload.openedWith ? String(payload.openedWith) : '',
             absolute: payload && payload.absolute ? String(payload.absolute) : '',
@@ -6048,10 +6058,24 @@ async function writeSave(home) {
                   })
                 },
                 onOpen: (kind, target) => {
-                  void store.openPath(kind, target).then((result) => {
-                    setOpenTip(result.ok
-                      ? t('settings.opened', { path: target, via: result.openedWith ? `（${result.openedWith}）` : '' })
-                      : t('settings.openFailed', { error: result.error || '未知错误' }))
+                  void store.openPath(kind, target).then(async (result) => {
+                    if (result.ok) {
+                      setOpenTip(t('settings.opened', { path: target, via: result.openedWith ? `（${result.openedWith}）` : '' }))
+                      return
+                    }
+                    // 打不开就把绝对路径塞进剪贴板，至少能手动粘到资源管理器地址栏
+                    const absolute = result.absolute || (typeof store.absolutePathFor === 'function' ? store.absolutePathFor(target) : '')
+                    let copied = false
+                    try {
+                      if (absolute && typeof navigator !== 'undefined' && navigator.clipboard) {
+                        await navigator.clipboard.writeText(absolute.replace(/\//g, '\\'))
+                        copied = true
+                      }
+                    } catch {
+                      /* 剪贴板不可用就算了 */
+                    }
+                    setOpenTip(t('settings.openFailed', { error: result.error || '未知错误' })
+                      + (copied ? t('settings.openFailedCopied', { path: absolute }) : ''))
                   })
                 },
                 onChange: (key, value) => setProfile((prev) => ({ ...prev, [key]: value })),

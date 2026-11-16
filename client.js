@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = 'a7e84cb1'
+    const BUILD_REV = 'bf457ae9'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -7245,32 +7245,32 @@ async function writeSave(home) {
         try {
           store.clientSessions = typeof ctx.get === 'function' ? ctx.get('sessions') || null : null
         // DSH 自己的「用系统程序打开 / 在文件夹中显示」：走 remote 调用，由 Host 的
-        // sessionController 用原生方式打开。实测在 DSH 环境里自己 spawn explorer.exe 起不来。
-        store.openRemote = async (absolutePath, reveal) => {
-          try {
-            const remote = ctx.remote
-            const api = remote && remote.session
-            if (!api || typeof api.openWorkspacePath !== 'function') return 'unavailable'
-            const result = await api.openWorkspacePath(reveal
-              ? { path: absolutePath, action: 'reveal' }
-              : { path: absolutePath })
-            if (result && result.ok) return 'ok'
-            return (result && (result.error || result.message)) || 'failed'
-          } catch (error) {
-            return error instanceof Error ? error.message : String(error)
+        // sessionController 用原生方式打开（实测自己 spawn explorer.exe 起不来）。
+        // 注意：ctx.remote 必须先 inject 才能取（否则报 cannot get property "remote" without inject）。
+        const wireRemoteOpen = (remote) => {
+          const api = remote && remote.session
+          if (!api || typeof api.openWorkspacePath !== 'function') return
+          store.openRemote = async (absolutePath, reveal) => {
+            try {
+              const result = await api.openWorkspacePath(reveal
+                ? { path: absolutePath, action: 'reveal' }
+                : { path: absolutePath })
+              if (result && result.ok) return 'ok'
+              return (result && (result.error || result.message)) || 'failed'
+            } catch (error) {
+              return error instanceof Error ? error.message : String(error)
+            }
           }
         }
-        } catch {
-          store.clientSessions = null
-        }
         try {
-          ctx.inject(['sessions'], (inner) => {
-            try {
-              store.clientSessions = inner.sessions || (typeof inner.get === 'function' ? inner.get('sessions') : null) || store.clientSessions
-            } catch {
-              /* 服务不可用就当没有 */
-            }
-          })
+          if (typeof ctx.inject === 'function') {
+            ctx.inject(['remote'], (inner) => wireRemoteOpen(inner.remote))
+          } else {
+            wireRemoteOpen(ctx.remote)
+          }
+        } catch {
+          /* 没有 remote 服务就退回 Host 自己的打开方式 */
+        }
         } catch {
           /* 没有这个服务 */
         }

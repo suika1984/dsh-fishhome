@@ -67,6 +67,24 @@
           ctx.effect(() => () => window.removeEventListener('pagehide', onHide), 'dsh-fishhome: pagehide')
         }
 
+        // 诊断用：控制台里跑 __fhDebug() 能看到「当前场景 / 家具列表 / 她所在房间」
+        // 排查「切房间后旧房间的家具还在」这类问题时，先看这三个数字对不对得上。
+        if (typeof window !== 'undefined') {
+          try {
+            window.__fhDebug = () => ({
+              scene: sceneRef.value && sceneRef.value.id ? sceneRef.value.id : null,
+              furniture: (furnitureRef.value || []).map((def) => (def && def.id) || '?'),
+              herMap: store.home && store.home.world ? store.home.world.map : null,
+              viewedMap: store.meta ? store.meta.map : null,
+              mapPath: store.mapPath || null,
+              token: store.sceneToken || 0,
+              build: typeof BUILD_REV === 'string' ? BUILD_REV : null,
+            })
+          } catch {
+            /* 只读调试钩子，失败无所谓 */
+          }
+        }
+
         ctx.slots.inject('main', () => ctx.slots.inject('sidebar.panellist', () => {
           const stopMain = ctx.slots.register({
             name: 'main',

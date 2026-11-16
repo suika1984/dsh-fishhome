@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = 'e7f6abcb'
+    const BUILD_REV = 'b947363b'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -1873,7 +1873,7 @@ async function writeSave(home) {
       },
       async loadScene(meta) {
         // 竞态保护：连续切房间时只认最后一次加载。
-        // 否则旧场景晚到的响应会把家具/事件写回来——表现就是「切回卧室，客厅的落地窗还在画」。
+        // 而且「先全部读完、最后一次性落地」，避免半新半旧——否则会出现「卧室的场景 + 客厅的落地窗」。
         const token = (this.sceneToken || 0) + 1
         this.sceneToken = token
         const alive = () => this.sceneToken === token
@@ -1884,18 +1884,12 @@ async function writeSave(home) {
         try {
           const scene = await fetchJson(`${ROUTE}/data/${mapPath}`)
           if (!alive()) return false
-          applyScene(scene)
-          // 如果加载的正好是她所在的场景，记住名字（切到别的房间时用来提示）
-          if (this.home && this.home.world && scene && scene.id === this.home.world.map) {
-            this.home.world.mapName = (scene.name && (scene.name.zh || scene.name.en)) || scene.id
-          }
           const bgFile = scene && typeof scene.background === 'string' && scene.background !== ''
             ? scene.background
             : 'background.json'
           const bgPath = resolveDataPath(mapPath, bgFile)
           const bg = await fetchJson(`${ROUTE}/data/${bgPath}`)
           if (!alive()) return false
-          applyBackground(bg)
           // 家具：一件一个文件，坏了一件就跳过，不影响其它
           const list = scene && Array.isArray(scene.furniture) ? scene.furniture : []
           const defs = await Promise.all(list.map(async (id) => {
@@ -1907,14 +1901,6 @@ async function writeSave(home) {
             }
           }))
           if (!alive()) return false
-          const loaded = defs.filter(Boolean)
-          applyFurniture(loaded)
-          this.furnitureSource = cloneJson(loaded)
-          // 记住 scene.json 原文：增删家具要同步它的 furniture 清单
-          this.sceneDoc = cloneJson(scene) || null
-          this.sceneSource = cloneJson(scene) || null
-          this.sceneDirty = false
-          this.removedFurniture = []
           // 事件：同样一件一个文件；全读不到就用内置事件表
           const eventList = scene && Array.isArray(scene.events) && scene.events.length > 0
             ? scene.events
@@ -1927,9 +1913,24 @@ async function writeSave(home) {
               return null
             }
           }))
-          const loadedEvents = eventDefs.filter(Boolean)
           if (!alive()) return false
+          // ---- 到这里才开始落地：场景 / 背景 / 家具 / 事件一起换 ----
+          const loaded = defs.filter(Boolean)
+          const loadedEvents = eventDefs.filter(Boolean)
+          applyScene(scene)
+          applyBackground(bg)
+          applyFurniture(loaded)
           applyEvents(loadedEvents)
+          // 如果加载的正好是她所在的场景，记住名字（切到别的房间时用来提示）
+          if (this.home && this.home.world && scene && scene.id === this.home.world.map) {
+            this.home.world.mapName = (scene.name && (scene.name.zh || scene.name.en)) || scene.id
+          }
+          this.furnitureSource = cloneJson(loaded)
+          // 记住 scene.json 原文：增删家具要同步它的 furniture 清单
+          this.sceneDoc = cloneJson(scene) || null
+          this.sceneSource = cloneJson(scene) || null
+          this.sceneDirty = false
+          this.removedFurniture = []
           this.eventsSource = cloneJson(loadedEvents)
           this.sceneWarning = null
           return true
@@ -7212,6 +7213,24 @@ async function writeSave(home) {
           }
           window.addEventListener('pagehide', onHide)
           ctx.effect(() => () => window.removeEventListener('pagehide', onHide), 'dsh-fishhome: pagehide')
+        }
+
+        // 诊断用：控制台里跑 __fhDebug() 能看到「当前场景 / 家具列表 / 她所在房间」
+        // 排查「切房间后旧房间的家具还在」这类问题时，先看这三个数字对不对得上。
+        if (typeof window !== 'undefined') {
+          try {
+            window.__fhDebug = () => ({
+              scene: sceneRef.value && sceneRef.value.id ? sceneRef.value.id : null,
+              furniture: (furnitureRef.value || []).map((def) => (def && def.id) || '?'),
+              herMap: store.home && store.home.world ? store.home.world.map : null,
+              viewedMap: store.meta ? store.meta.map : null,
+              mapPath: store.mapPath || null,
+              token: store.sceneToken || 0,
+              build: typeof BUILD_REV === 'string' ? BUILD_REV : null,
+            })
+          } catch {
+            /* 只读调试钩子，失败无所谓 */
+          }
         }
 
         ctx.slots.inject('main', () => ctx.slots.inject('sidebar.panellist', () => {

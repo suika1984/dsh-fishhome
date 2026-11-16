@@ -71,7 +71,7 @@
       },
       async loadScene(meta) {
         // 竞态保护：连续切房间时只认最后一次加载。
-        // 否则旧场景晚到的响应会把家具/事件写回来——表现就是「切回卧室，客厅的落地窗还在画」。
+        // 而且「先全部读完、最后一次性落地」，避免半新半旧——否则会出现「卧室的场景 + 客厅的落地窗」。
         const token = (this.sceneToken || 0) + 1
         this.sceneToken = token
         const alive = () => this.sceneToken === token
@@ -82,18 +82,12 @@
         try {
           const scene = await fetchJson(`${ROUTE}/data/${mapPath}`)
           if (!alive()) return false
-          applyScene(scene)
-          // 如果加载的正好是她所在的场景，记住名字（切到别的房间时用来提示）
-          if (this.home && this.home.world && scene && scene.id === this.home.world.map) {
-            this.home.world.mapName = (scene.name && (scene.name.zh || scene.name.en)) || scene.id
-          }
           const bgFile = scene && typeof scene.background === 'string' && scene.background !== ''
             ? scene.background
             : 'background.json'
           const bgPath = resolveDataPath(mapPath, bgFile)
           const bg = await fetchJson(`${ROUTE}/data/${bgPath}`)
           if (!alive()) return false
-          applyBackground(bg)
           // 家具：一件一个文件，坏了一件就跳过，不影响其它
           const list = scene && Array.isArray(scene.furniture) ? scene.furniture : []
           const defs = await Promise.all(list.map(async (id) => {
@@ -105,14 +99,6 @@
             }
           }))
           if (!alive()) return false
-          const loaded = defs.filter(Boolean)
-          applyFurniture(loaded)
-          this.furnitureSource = cloneJson(loaded)
-          // 记住 scene.json 原文：增删家具要同步它的 furniture 清单
-          this.sceneDoc = cloneJson(scene) || null
-          this.sceneSource = cloneJson(scene) || null
-          this.sceneDirty = false
-          this.removedFurniture = []
           // 事件：同样一件一个文件；全读不到就用内置事件表
           const eventList = scene && Array.isArray(scene.events) && scene.events.length > 0
             ? scene.events
@@ -125,9 +111,24 @@
               return null
             }
           }))
-          const loadedEvents = eventDefs.filter(Boolean)
           if (!alive()) return false
+          // ---- 到这里才开始落地：场景 / 背景 / 家具 / 事件一起换 ----
+          const loaded = defs.filter(Boolean)
+          const loadedEvents = eventDefs.filter(Boolean)
+          applyScene(scene)
+          applyBackground(bg)
+          applyFurniture(loaded)
           applyEvents(loadedEvents)
+          // 如果加载的正好是她所在的场景，记住名字（切到别的房间时用来提示）
+          if (this.home && this.home.world && scene && scene.id === this.home.world.map) {
+            this.home.world.mapName = (scene.name && (scene.name.zh || scene.name.en)) || scene.id
+          }
+          this.furnitureSource = cloneJson(loaded)
+          // 记住 scene.json 原文：增删家具要同步它的 furniture 清单
+          this.sceneDoc = cloneJson(scene) || null
+          this.sceneSource = cloneJson(scene) || null
+          this.sceneDirty = false
+          this.removedFurniture = []
           this.eventsSource = cloneJson(loadedEvents)
           this.sceneWarning = null
           return true

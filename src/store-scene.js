@@ -115,6 +115,9 @@
           // ---- 到这里才开始落地：场景 / 背景 / 家具 / 事件一起换 ----
           const loaded = defs.filter(Boolean)
           const loadedEvents = eventDefs.filter(Boolean)
+          // 给每件家具记上归属场景：渲染时只画本场景的，防止任何路径把旧房间的家具混进来
+          const sceneId = scene && typeof scene.id === 'string' ? scene.id : ''
+          if (sceneId) for (const def of loaded) def.__scene = sceneId
           applyScene(scene)
           applyBackground(bg)
           applyFurniture(loaded)

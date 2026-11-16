@@ -38,7 +38,14 @@
 
       // scene.effects === false 时关掉氛围特效（光源、光斑、环境光），排查渲染开销用
       const effectsOnFlag = !(sceneRef.value && sceneRef.value.effects === false)
-      const parts = furnitureItems(furnitureRef.value, home, t, { interact: onProp, toggle: onToggle, select: onSelect, dragStart: onDragStart, resizeStart: onResizeStart, gotoScene: onScene }, edit)
+      // 只画属于当前场景的家具：loadScene 会给 def.__scene 打标记，
+      // 万一有哪条路径把旧房间的家具写回来（竞态/编辑快照），也不会画到当前房间里。
+      const currentSceneId = sceneId
+      const liveFurniture = (furnitureRef.value || []).filter((def) => {
+        if (!def || !def.__scene) return true
+        return !currentSceneId || def.__scene === currentSceneId
+      })
+      const parts = furnitureItems(liveFurniture, home, t, { interact: onProp, toggle: onToggle, select: onSelect, dragStart: onDragStart, resizeStart: onResizeStart, gotoScene: onScene }, edit)
       const sceneParts = parts.filter((item) => item.layer !== 'light')
       const lightParts = parts.filter((item) => item.layer === 'light')
       // 房间灯的光池也走场景配置：客厅由「客厅灯」开关决定，卧室仍是天黑自动

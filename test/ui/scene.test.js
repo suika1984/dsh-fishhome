@@ -4,7 +4,7 @@
  */
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { assert, model, home, views, render, translate, here } from '../ui-harness.js'
+import { assert, model, home, views, store, render, translate, Panel, here } from '../ui-harness.js'
 
 // repeat：同一张图按格子重复，用来拼大窗框 / 窗帘 / 窗帘杆
 {
@@ -339,6 +339,23 @@ import { assert, model, home, views, render, translate, here } from '../ui-harne
   assert.ok(halo, '电视开着有光晕')
   assert.equal(Math.round(halo.cx), 200, '光晕横向对齐屏幕中心')
   assert.equal(Math.round(halo.cy), 150, '光晕纵向对齐屏幕中心')
+  model.applyFurniture(model.DEFAULT_FURNITURE)
+  model.applyScene(null)
+}
+
+// 家具归属场景：即使列表里混进了别的房间的家具，也不能画到当前房间
+{
+  const def = (id, scene) => ({
+    id,
+    __scene: scene,
+    parts: [{ id: 'body', z: 80, sprite: { src: 'x.png', rect: [40, 80, 120, 160] } }],
+  })
+  model.applyScene({ id: 'bedroom', room: {}, furniture: ['bed', 'living_window'], events: [] })
+  model.applyFurniture([def('bed', 'bedroom'), def('living_window', 'living')])
+  const stats = { classes: new Set(), tags: {}, images: [] }
+  render(Panel({ store, translate, localeSubscribe: () => () => {} }), [], stats)
+  assert.ok(stats.classes.has('fh-prop-bed'), '本房间的家具要画出来')
+  assert.ok(!stats.classes.has('fh-prop-living_window'), '别的房间的家具不能画进来')
   model.applyFurniture(model.DEFAULT_FURNITURE)
   model.applyScene(null)
 }

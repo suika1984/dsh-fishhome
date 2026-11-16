@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = 'b947363b'
+    const BUILD_REV = '580fa8ad'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -1917,6 +1917,9 @@ async function writeSave(home) {
           // ---- 到这里才开始落地：场景 / 背景 / 家具 / 事件一起换 ----
           const loaded = defs.filter(Boolean)
           const loadedEvents = eventDefs.filter(Boolean)
+          // 给每件家具记上归属场景：渲染时只画本场景的，防止任何路径把旧房间的家具混进来
+          const sceneId = scene && typeof scene.id === 'string' ? scene.id : ''
+          if (sceneId) for (const def of loaded) def.__scene = sceneId
           applyScene(scene)
           applyBackground(bg)
           applyFurniture(loaded)
@@ -4379,7 +4382,14 @@ async function writeSave(home) {
 
       // scene.effects === false 时关掉氛围特效（光源、光斑、环境光），排查渲染开销用
       const effectsOnFlag = !(sceneRef.value && sceneRef.value.effects === false)
-      const parts = furnitureItems(furnitureRef.value, home, t, { interact: onProp, toggle: onToggle, select: onSelect, dragStart: onDragStart, resizeStart: onResizeStart, gotoScene: onScene }, edit)
+      // 只画属于当前场景的家具：loadScene 会给 def.__scene 打标记，
+      // 万一有哪条路径把旧房间的家具写回来（竞态/编辑快照），也不会画到当前房间里。
+      const currentSceneId = sceneId
+      const liveFurniture = (furnitureRef.value || []).filter((def) => {
+        if (!def || !def.__scene) return true
+        return !currentSceneId || def.__scene === currentSceneId
+      })
+      const parts = furnitureItems(liveFurniture, home, t, { interact: onProp, toggle: onToggle, select: onSelect, dragStart: onDragStart, resizeStart: onResizeStart, gotoScene: onScene }, edit)
       const sceneParts = parts.filter((item) => item.layer !== 'light')
       const lightParts = parts.filter((item) => item.layer === 'light')
       // 房间灯的光池也走场景配置：客厅由「客厅灯」开关决定，卧室仍是天黑自动

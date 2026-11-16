@@ -29,6 +29,13 @@
           }
         }
         const t = (key, params) => makeTranslate(localeRef.value)(key, params)
+        // remote 接通诊断：记下每条路的结果，__fhDebug().remoteProbe 能看到
+        const remoteProbe = { direct: 'not-tried', inject: 'not-fired' }
+        try {
+          window.__fhRemoteProbe = remoteProbe
+        } catch {
+          /* 非浏览器环境 */
+        }
         // 可选：客户端 sessions 服务。有它就能像聊天框一样把便条发进会话（会出现在对话里、LLM 也会回）。
         // apply 时服务可能还没挂载，所以统一用 ctx.inject 等它挂载后再取。
         const injectService = (name, use) => {
@@ -67,16 +74,21 @@
         }
         // ① 清单注入之后可以直接取（取不到会抛，忽略）
         try {
-          wireRemote(ctx.remote)
-        } catch {
-          /* 需要 inject 才能取，走 ② */
+          const direct = ctx.remote
+          remoteProbe.direct = direct ? 'ok' : 'undefined'
+          wireRemote(direct)
+        } catch (error) {
+          remoteProbe.direct = error instanceof Error ? error.message : String(error)
         }
         // ② 等 remote 服务挂载
         injectService('remote', (inner) => {
+          remoteProbe.inject = 'fired'
           try {
-            wireRemote(inner.remote || inner)
-          } catch {
-            /* 取不到就算了，只能复制路径 */
+            const value = inner.remote || inner
+            remoteProbe.inject = value && value.session ? 'fired-with-session' : 'fired-without-session'
+            wireRemote(value)
+          } catch (error) {
+            remoteProbe.inject = error instanceof Error ? error.message : String(error)
           }
         })
         try {
@@ -113,6 +125,7 @@
               build: typeof BUILD_REV === 'string' ? BUILD_REV : null,
               // 原生打开通道有没有接上（false = 只能复制路径）
               remoteWired: typeof store.openRemote === 'function',
+              remoteProbe: (() => { try { return window.__fhRemoteProbe || null } catch { return null } })(),
               // 画面上真实出现的精灵：href + 它挂在哪个 fh-prop-* 下面
               drawn: (() => {
                 try {

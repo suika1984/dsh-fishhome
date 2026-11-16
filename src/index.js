@@ -79,6 +79,21 @@
               mapPath: store.mapPath || null,
               token: store.sceneToken || 0,
               build: typeof BUILD_REV === 'string' ? BUILD_REV : null,
+              // 画面上真实出现的精灵：href + 它挂在哪个 fh-prop-* 下面
+              drawn: (() => {
+                try {
+                  if (typeof document === 'undefined') return null
+                  return [...document.querySelectorAll('svg.fh-scene image')].map((img) => {
+                    const host = img.closest('[class*="fh-prop"]')
+                    return {
+                      href: String(img.getAttribute('href') || '').split('/').pop(),
+                      prop: host ? host.getAttribute('class') : null,
+                    }
+                  })
+                } catch {
+                  return null
+                }
+              })(),
             })
           } catch {
             /* 只读调试钩子，失败无所谓 */

@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = '132183dc'
+    const BUILD_REV = '752db069'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -2168,7 +2168,26 @@ async function writeSave(home) {
         if (absolute !== '' && typeof this.openRemote === 'function') {
           // 「打开目录」= 用默认程序打开这个目录（资源管理器），不能当成 reveal：
           // reveal 在 Windows 上是「在父目录里选中它」，对目录经常什么都不弹。
-          const remote = await this.openRemote(absolute, mode === 'reveal')
+          // 目录：资源管理器对「打开目录」经常没反应，改成 reveal 目录里的一个子文件，
+          // 效果就是打开这个目录并选中那个文件。file/reveal 照旧。
+          let remoteTarget = absolute
+          let remoteReveal = mode === 'reveal'
+          if (mode === 'folder') {
+            try {
+              const probe = await fetchJson(`${ROUTE}/api/probe`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ path: target }),
+              })
+              if (probe && probe.ok && probe.child) {
+                remoteTarget = String(probe.child).replace(/\\/g, '/')
+                remoteReveal = true
+              }
+            } catch {
+              /* probe 失败就退回直接打开目录 */
+            }
+          }
+          const remote = await this.openRemote(remoteTarget, remoteReveal)
           if (remote === 'ok') return { ok: true, error: '', openedWith: 'dsh', absolute }
           // 原生通道明确报错（比如 Host 不认这个路径）就别再 spawn explorer 了：
           // 那只会弹一个系统错误提示，还打开不了。直接失败，让前端把路径复制给你。

@@ -220,6 +220,10 @@ function createHandler(settings) {
         sendJson(res, 200, { ok: true, files: await listPackImages(settings.config().packDir) })
         return
       }
+      if (rest === '/api/probe' && req.method === 'POST') {
+        await handleProbe(req, res, settings)
+        return
+      }
       if (rest === '/api/state') {
         await handleState(req, res, settings)
         return
@@ -346,6 +350,45 @@ async function handleOpen(req, res, settings) {
     }
   }
   sendJson(res, 200, { ok: true, kind, path: relative, absolute: target, dryRun, openedWith, attempts })
+}
+
+/**
+ * 「打开目录」的辅助：给一个目录，返回它里面第一个文件的绝对路径。
+ * 资源管理器对「用默认程序打开目录」不总是有反应，但「reveal 一个文件」一定会打开它所在的目录。
+ */
+async function handleProbe(req, res, settings) {
+  let payload
+  try {
+    payload = JSON.parse(await readBody(req))
+  } catch {
+    sendJson(res, 400, { ok: false, error: '请求体不是合法 JSON' })
+    return
+  }
+  const relative = payload && typeof payload.path === 'string' ? payload.path.trim().replace(/\\/g, '/') : ''
+  const target = resolveOpenTarget(relative, settings.config())
+  if (target === null) {
+    sendJson(res, 400, { ok: false, error: `不认识这个路径：${relative}` })
+    return
+  }
+  const stat = await statOrNull(target)
+  if (stat === null) {
+    sendJson(res, 404, { ok: false, error: `路径不存在：${relative}` })
+    return
+  }
+  if (!stat.isDirectory()) {
+    sendJson(res, 200, { ok: true, absolute: target, child: target })
+    return
+  }
+  let names = []
+  try {
+    names = await fsp.readdir(target)
+  } catch (error) {
+    sendJson(res, 500, { ok: false, error: error instanceof Error ? error.message : String(error) })
+    return
+  }
+  const files = names.filter((name) => /\.(json|md|png|js)$/i.test(name)).sort()
+  const child = files.length > 0 ? path.join(target, files[0]) : null
+  sendJson(res, 200, { ok: true, absolute: target, child })
 }
 
 /** data/… pack/… save/… → 绝对路径；不认识的返回 null */

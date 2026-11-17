@@ -101,7 +101,14 @@ git clone https://github.com/suika1984/dsh-fishhome.git D:\plugins\dsh-fishhome
 
 然后在那个 profile 目录里装依赖（`pnpm install`），再重启 Harness。
 
-装好后侧边栏出现「家园」，第一次打开会建存档到 `%USERPROFILE%\.dsh\fishhome\saves\state.json`。
+装好后侧边栏出现「家园」。第一次打开会在 DSH 主目录下建两个东西，**升级或重装插件都不会覆盖它们**：
+
+| 路径 | 内容 |
+| --- | --- |
+| `<DSH_HOME>/fishhome/saves/state.json` | 存档：称呼、自称、房间名、灯开关、需求、日志 |
+| `<DSH_HOME>/fishhome/data/` | 房间 / 家具 / 事件定义（首次启动从插件包内的 `data/` 复制一份种子，之后你在编辑器里的改动都写在这里） |
+
+> **升级插件时**：新增的出厂文件会同步到你的数据目录；你**改过**的文件一律保留（以你为准）。想全部恢复出厂：删掉 `fishhome/data` 再重启 Harness。
 
 > 想改代码的话：改 `src/` 后跑 `node build.mjs` 再刷新面板；改 `index.js` 要重启。
 > 完整开发流程见 [AGENTS.md](AGENTS.md)。
@@ -133,6 +140,8 @@ node test/model.test.js && node test/ui.test.js && node test/host.test.js && nod
     tickSeconds: 15               # 模拟步长（5–600）
     packDir: ''                   # 角色包目录；留空 = 包内 packs/bigfish-adult
     saveDir: ''                   # 存档目录；留空 = <DSH_HOME>/fishhome/saves
+    dataDir: ''                   # 场景数据目录；留空 = <DSH_HOME>/fishhome/data（首次启动自动复制种子）
+    dataSync: auto                # auto = 插件更新后自动同步出厂改动（你改过的文件不动）；off = 只复制一次
 ```
 
 ## 为什么长这样

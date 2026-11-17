@@ -7,3 +7,9 @@
       config:
         characterName: 大肥鱼
         tickSeconds: 15
+        # 房间/家具/事件的改动会写到这个目录（留空 = <DSH_HOME>/fishhome/data）。
+        # 首次启动会把包内 data/ 复制过去，之后升级插件不会覆盖你的改动。
+        dataDir: ''
+        # 数据同步：auto = 插件更新后自动把新增/改过的出厂文件同步到你的数据目录（你改过的文件不动）
+        # off = 只在数据目录为空时复制一次，之后完全不管
+        dataSync: auto

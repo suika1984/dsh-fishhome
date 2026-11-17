@@ -28,8 +28,8 @@ const HOST_REV = (() => {
 /** 路由前缀。刻意避开 /api 与 SPA 回退路径。 */
 const ROUTE = '/fishhome'
 const DEFAULT_PACK_DIR = path.join(HERE, 'packs', 'bigfish-adult')
-/** 场景定义目录（maps/…、characters/…）。 */
-const DATA_DIR = path.join(HERE, 'data')
+/** 包内自带的场景定义（出厂模板；用户改动会复制到 dataDir，升级不会覆盖） */
+const PKG_DATA_DIR = path.join(HERE, 'data')
 const MAX_BODY_BYTES = 512 * 1024
 const MAX_PACK_FILE_BYTES = 8 * 1024 * 1024
 const PACK_FILE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
@@ -61,13 +61,157 @@ function normalizeConfig(raw) {
     typeof config.saveDir === 'string' && config.saveDir.trim() !== ''
       ? path.resolve(config.saveDir.trim())
       : path.join(dshHome(), 'fishhome', 'saves')
+  // 用户数据目录：房间/家具/事件的改动都落在这里，升级插件不会覆盖
+  const dataDir =
+    typeof config.dataDir === 'string' && config.dataDir.trim() !== ''
+      ? path.resolve(config.dataDir.trim())
+      : path.join(dshHome(), 'fishhome', 'data')
+  // 数据同步：auto = 包内新内容自动同步到用户目录（不动用户改过的文件）；off = 只在空目录时复制一次
+  const dataSync = config.dataSync === 'off' ? 'off' : 'auto'
   const map =
     typeof config.map === 'string' && /^[A-Za-z0-9._-]+$/.test(config.map.trim())
       ? config.map.trim()
       : 'bedroom'
   // 小屋便条：preview = 只在她嘴里说，inject = 真把消息送进当前会话
   const noteMode = config.noteMode === 'inject' ? 'inject' : 'preview'
-  return { characterName, tickSeconds, packDir, saveDir, map, noteMode }
+  return { characterName, tickSeconds, packDir, saveDir, dataDir, dataSync, map, noteMode }
+}
+
+/** 同步清单：记录「上次从包里同步过来的每个文件的哈希」，用来判断用户有没有改过 */
+const SEED_MANIFEST = '.seed.json'
+
+async function walkFiles(root, prefix = '') {
+  const out = []
+  let entries
+  try {
+    entries = await fsp.readdir(path.join(root, prefix), { withFileTypes: true })
+  } catch {
+    return out
+  }
+  for (const entry of entries) {
+    const rel = prefix === '' ? entry.name : `${prefix}/${entry.name}`
+    if (entry.isDirectory()) out.push(...(await walkFiles(root, rel)))
+    else if (/\.(json|png|webp|jpg|jpeg|svg)$/i.test(entry.name)) out.push(rel)
+  }
+  return out
+}
+
+function hashFileSync(file) {
+  try {
+    return createHash('sha1').update(readFileSync(file)).digest('hex')
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * 把包内 data/ 同步到用户数据目录（单向）。
+ *   - 包里新增的文件：复制过去
+ *   - 包里改了、而用户没动过：覆盖成新的（这就是「自动同步」）
+ *   - 用户改过的文件：一律不动（以用户为准）
+ *   - 用户自己新建的文件：不动
+ * 清单写在 <dataDir>/.seed.json，记录「上次同步时每个文件的内容哈希」。
+ */
+export async function syncUserData(pkgDir, userDir) {
+  const result = { copied: [], updated: [], kept: [], skipped: [] }
+  const manifestFile = path.join(userDir, SEED_MANIFEST)
+  let manifest = { version: 1, files: {} }
+  try {
+    const parsed = JSON.parse(await fsp.readFile(manifestFile, 'utf8'))
+    if (parsed && typeof parsed === 'object' && parsed.files && typeof parsed.files === 'object') {
+      manifest = { version: 1, files: parsed.files }
+    }
+  } catch {
+    /* 没有清单：按「全部视为用户自己的」处理，只补新增文件 */
+  }
+  await fsp.mkdir(userDir, { recursive: true })
+  const files = await walkFiles(pkgDir)
+  let dirty = false
+  for (const rel of files) {
+    const pkgFile = path.join(pkgDir, rel)
+    const userFile = path.join(userDir, rel)
+    const pkgHash = hashFileSync(pkgFile)
+    if (pkgHash === '') continue
+    const userExists = (await statOrNull(userFile)) !== null
+    const userHash = userExists ? hashFileSync(userFile) : ''
+    const recorded = manifest.files[rel]
+    if (!userExists) {
+      await fsp.mkdir(path.dirname(userFile), { recursive: true })
+      await fsp.copyFile(pkgFile, userFile)
+      manifest.files[rel] = pkgHash
+      dirty = true
+      result.copied.push(rel)
+      continue
+    }
+    if (recorded === undefined) {
+      // 清单里没有：老的用户目录，或者用户自己建的
+      if (userHash === pkgHash) {
+        manifest.files[rel] = pkgHash // 和包内一致 → 归包管，之后能跟着更新
+        dirty = true
+      } else {
+        manifest.files[rel] = '' // 标记「用户自己的」，以后也不覆盖
+        dirty = true
+        result.kept.push(rel)
+      }
+      continue
+    }
+    if (recorded === '') {
+      result.kept.push(rel)
+      continue
+    }
+    if (pkgHash === recorded) {
+      result.skipped.push(rel)
+      continue
+    }
+    if (userHash === recorded) {
+      // 用户没改过 → 跟着包更新
+      await fsp.copyFile(pkgFile, userFile)
+      manifest.files[rel] = pkgHash
+      dirty = true
+      result.updated.push(rel)
+    } else {
+      // 用户改过 → 以用户为准
+      result.kept.push(rel)
+    }
+  }
+  if (dirty) {
+    try {
+      await fsp.writeFile(manifestFile, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8')
+    } catch {
+      /* 写不了清单也不影响运行 */
+    }
+  }
+  return result
+}
+
+/**
+ * 用户数据目录的准备：目录不存在就整份复制；存在就按 dataSync 配置做增量同步。
+ *   dataSync: 'auto'（默认）= 包里有新文件/新改动就同步过来，但不动用户改过的；
+ *             'off'        = 只在目录为空时复制一次，之后完全不管。
+ */
+const dataSeeded = new Map()
+function ensureUserData(config) {
+  const target = path.resolve(config.dataDir)
+  if (target === path.resolve(PKG_DATA_DIR)) return Promise.resolve(false)
+  const key = `${target}|${config.dataSync || 'auto'}`
+  if (dataSeeded.has(key)) return dataSeeded.get(key)
+  const task = (async () => {
+    try {
+      const marker = await statOrNull(path.join(target, 'maps', 'index.json'))
+      if (marker === null) {
+        await fsp.mkdir(target, { recursive: true })
+        await fsp.cp(PKG_DATA_DIR, target, { recursive: true, force: false, errorOnExist: false })
+      }
+      if ((config.dataSync || 'auto') === 'off') return true
+      const report = await syncUserData(PKG_DATA_DIR, target)
+      return report.updated.length + report.copied.length > 0
+    } catch {
+      // 同步失败也别拦着插件启动：读不到就退回包内模板
+      return false
+    }
+  })()
+  dataSeeded.set(key, task)
+  return task
 }
 
 function clampNumber(value, min, max, fallback) {
@@ -169,8 +313,8 @@ async function statOrNull(file) {
 const IMAGE_EXT = /\.(png|webp|jpe?g|gif)$/i
 
 /** data/maps 下所有含 scene.json 的场景 */
-async function listMaps() {
-  const root = path.join(DATA_DIR, 'maps')
+async function listMaps(dataDir) {
+  const root = path.join(dataDir || PKG_DATA_DIR, 'maps')
   let entries = []
   try {
     entries = await fsp.readdir(root, { withFileTypes: true })
@@ -209,11 +353,14 @@ function createHandler(settings) {
       const rest = url.pathname.slice(ROUTE.length)
 
       if (rest === '/api/meta' && (req.method === 'GET' || req.method === 'HEAD')) {
-        await sendMeta(res, settings)
+        await ensureUserData(settings.config())
+    await sendMeta(res, settings)
         return
       }
       if (rest === '/api/maps' && (req.method === 'GET' || req.method === 'HEAD')) {
-        sendJson(res, 200, { ok: true, maps: await listMaps() })
+        const mapConfig = settings.config()
+    await ensureUserData(mapConfig)
+    sendJson(res, 200, { ok: true, maps: await listMaps(mapConfig.dataDir) })
         return
       }
       if (rest === '/api/pack-files' && (req.method === 'GET' || req.method === 'HEAD')) {
@@ -255,7 +402,9 @@ function createHandler(settings) {
         return
       }
       if (rest.startsWith('/data/')) {
-        await serveData(req, res, decodeURIComponent(rest.slice('/data/'.length)))
+        const dataConfig = settings.config()
+    await ensureUserData(dataConfig)
+    await serveData(req, res, decodeURIComponent(rest.slice('/data/'.length)), dataConfig.dataDir)
         return
       }
       sendText(res, 404, 'not found')
@@ -271,7 +420,7 @@ function createHandler(settings) {
 }
 
 async function sendMeta(res, settings) {
-  const { packDir, saveDir, characterName, tickSeconds, map } = settings.config()
+  const { packDir, saveDir, dataDir, dataSync, characterName, tickSeconds, map } = settings.config()
   const pack = await describePack(packDir)
   const saveFile = path.join(saveDir, 'state.json')
   const stat = await statOrNull(saveFile)
@@ -280,7 +429,8 @@ async function sendMeta(res, settings) {
     route: ROUTE,
     hostRev: HOST_REV,
     packDir,
-    dataDir: DATA_DIR,
+    dataDir,
+    dataSync,
     saveDir,
     saveFile,
     pack,
@@ -323,6 +473,7 @@ async function handleOpen(req, res, settings) {
     return
   }
   const relative = payload && typeof payload.path === 'string' ? payload.path.trim().replace(/\\/g, '/') : ''
+  await ensureUserData(settings.config())
   const target = resolveOpenTarget(relative, settings.config())
   if (target === null) {
     sendJson(res, 400, { ok: false, error: `不认识这个路径：${relative}` })
@@ -365,6 +516,7 @@ async function handleProbe(req, res, settings) {
     return
   }
   const relative = payload && typeof payload.path === 'string' ? payload.path.trim().replace(/\\/g, '/') : ''
+  await ensureUserData(settings.config())
   const target = resolveOpenTarget(relative, settings.config())
   if (target === null) {
     sendJson(res, 400, { ok: false, error: `不认识这个路径：${relative}` })
@@ -397,7 +549,7 @@ function resolveOpenTarget(relative, config) {
   const segments = relative.split('/')
   if (segments.some((seg) => seg === '' || seg === '.' || seg === '..')) return null
   const roots = {
-    data: path.resolve(DATA_DIR),
+    data: path.resolve(config.dataDir),
     pack: path.resolve(config.packDir),
     save: path.resolve(config.saveDir),
   }
@@ -586,7 +738,7 @@ async function serveStatic(req, res, directory, relative, label) {
  * 允许子目录（maps/bedroom/scene.json），禁止绝对路径与 `..`；
  * 只放行 .json / 图片，写回和删除只允许 .json。
  */
-async function serveData(req, res, relative) {
+async function serveData(req, res, relative, dataRoot) {
   if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'POST' && req.method !== 'DELETE') {
     res.setHeader('allow', 'GET, HEAD, POST, DELETE')
     sendJson(res, 405, { ok: false, error: 'method not allowed' })
@@ -609,8 +761,8 @@ async function serveData(req, res, relative) {
     sendText(res, 404, 'not found')
     return
   }
-  const target = path.resolve(DATA_DIR, clean)
-  if (!target.startsWith(`${path.resolve(DATA_DIR)}${path.sep}`)) {
+  const target = path.resolve(dataRoot, clean)
+  if (!target.startsWith(`${path.resolve(dataRoot)}${path.sep}`)) {
     sendText(res, 404, 'not found')
     return
   }

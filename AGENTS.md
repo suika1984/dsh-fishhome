@@ -20,7 +20,7 @@
 | `index.js` | **Host**：路由、存档读写、静态资源发布 | **重启 Harness** |
 | `src/*.js` | **Client 源码**（17 个片段，见 §3） | `node build.mjs` 后刷新面板 |
 | `client.js` | **生成物**，浏览器加载的就是它 | ❌ 永远不要直接编辑 |
-| `data/maps/<map>/` | 场景定义：`scene.json` / `background.json` / `furniture/` / `events/` | 刷新面板（编辑器里保存也行） |
+| `data/maps/<map>/` | 场景定义**出厂模板**（用户实际读写的是 `<DSH_HOME>/fishhome/data` 里的副本） | 刷新面板（编辑器里保存也行） |
 | `packs/<pack>/` | 角色包：`pet.json` + `actions/` + PNG 素材 | 刷新面板 |
 | `docs/` | `SCHEMA.md`（数据规范）、`STYLE.md`（美术规范） | — |
 | `tools/check.mjs` | 零依赖自检 | 改完**必须**跑 |
@@ -63,6 +63,8 @@
 | `tickSeconds` | `15` | 模拟时钟推进间隔（秒） |
 | `packDir` | 仓库内 `packs/bigfish-adult` | 角色包目录 |
 | `saveDir` | `%USERPROFILE%\.dsh\fishhome\saves` | 存档目录 |
+| `dataDir` | `%USERPROFILE%\.dsh\fishhome\data` | 场景数据目录：首次启动从包内 `data/` 复制种子，之后读写都在这里（升级不覆盖用户改动） |
+| `dataSync` | `auto` | `auto` = 升级后把包内新增/改动的文件同步过来（用户改过的文件不动）；`off` = 只在空目录时复制一次 |
 | `map` | `bedroom` | 首次进入的房间 id |
 
 ### 装完自检
@@ -309,6 +311,8 @@ Client 每次 tick（5 秒）拉一次，然后：
 ---
 
 ## 8. 提交前检查清单
+
+**提交粒度**：不要每改一步就 `git commit`。把一组「一个功能 / 一个修复」的改动攒齐、自检和四套测试都通过之后，再提交**一次**；或者干脆把改动留在工作区，交给用户在 Fork 里自己提交。诊断脚本、临时文件、逐轮试错都不要进提交历史。
 
 ```
 [ ] node build.mjs          生成物已更新

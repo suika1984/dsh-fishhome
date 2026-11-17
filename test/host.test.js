@@ -3,13 +3,14 @@
  * 运行： node test/host.test.js
  */
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 process.env.DSH_FISHHOME_NO_SPAWN = '1'
-import { apply } from '../index.js'
+import { apply, syncUserData } from '../index.js'
 
 const saveDir = await mkdtemp(path.join(os.tmpdir(), 'fishhome-test-'))
+const dataDir = await mkdtemp(path.join(os.tmpdir(), 'fishhome-data-'))
 
 const routes = []
 const fakeInner = {
@@ -44,7 +45,7 @@ const ctx = {
   },
 }
 
-apply(ctx, { saveDir, characterName: '测试鱼', tickSeconds: 7 })
+apply(ctx, { saveDir, dataDir, characterName: '测试鱼', tickSeconds: 7 })
 assert.equal(routes.length, 1)
 const route = routes[0]
 assert.equal(route.kind, 'prefix')
@@ -634,6 +635,64 @@ assert.equal(wrongMethod.statusCode, 404)
 
 const outside = await call('/elsewhere')
 assert.equal(outside.statusCode, 404)
+
+/* ---- 自动同步：包内更新跟上，用户改过的文件保持不动 ---- */
+{
+  const pkg = await mkdtemp(path.join(os.tmpdir(), 'fishhome-pkg-'))
+  const user = await mkdtemp(path.join(os.tmpdir(), 'fishhome-user-'))
+  try {
+    await mkdir(path.join(pkg, 'maps'), { recursive: true })
+    await writeFile(path.join(pkg, 'maps', 'a.json'), '{"v":1}')
+    await writeFile(path.join(pkg, 'maps', 'b.json'), '{"v":1}')
+
+    // 第一次：全部复制过去
+    const first = await syncUserData(pkg, user)
+    assert.deepEqual(first.copied.sort(), ['maps/a.json', 'maps/b.json'])
+
+    // 用户改了 a.json；包里同时升级 a/b 并新增 c
+    await writeFile(path.join(user, 'maps', 'a.json'), '{"v":"user"}')
+    await writeFile(path.join(pkg, 'maps', 'a.json'), '{"v":2}')
+    await writeFile(path.join(pkg, 'maps', 'b.json'), '{"v":2}')
+    await writeFile(path.join(pkg, 'maps', 'c.json'), '{"v":1}')
+
+    const second = await syncUserData(pkg, user)
+    assert.ok(second.updated.includes('maps/b.json'), '没被用户改过的文件会跟着包更新')
+    assert.ok(second.copied.includes('maps/c.json'), '包内新增的文件会复制过来')
+    assert.ok(second.kept.includes('maps/a.json'), '用户改过的文件不覆盖')
+
+    assert.equal(JSON.parse(await readFile(path.join(user, 'maps', 'a.json'), 'utf8')).v, 'user', 'a.json 保持用户版本')
+    assert.equal(JSON.parse(await readFile(path.join(user, 'maps', 'b.json'), 'utf8')).v, 2, 'b.json 更新到包内版本')
+    assert.equal(JSON.parse(await readFile(path.join(user, 'maps', 'c.json'), 'utf8')).v, 1, 'c.json 已复制')
+
+    // 再跑一次：没有新改动就不该重复复制
+    const third = await syncUserData(pkg, user)
+    assert.equal(third.copied.length + third.updated.length, 0, '没有变化时不做任何复制')
+  } finally {
+    await rm(pkg, { recursive: true, force: true })
+    await rm(user, { recursive: true, force: true })
+  }
+}
+
+/* ---- 用户数据目录：首次启动复制种子，写入落在用户目录（升级不覆盖） ---- */
+{
+  const seeded = await readFile(path.join(dataDir, 'maps', 'index.json'), 'utf8')
+  assert.ok(seeded.includes('maps'), '首次启动会把包内 data/ 复制到用户目录')
+
+  const pkgData = path.join(path.dirname(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'))), 'data')
+  const pkgScene = await readFile(path.join(pkgData, 'maps', 'bedroom', 'scene.json'), 'utf8')
+  const userScene = await readFile(path.join(dataDir, 'maps', 'bedroom', 'scene.json'), 'utf8')
+  assert.equal(userScene, pkgScene, '复制的种子内容和包内一致')
+
+  const doc = JSON.parse(userScene)
+  doc.version = 99
+  const write = await call('/fishhome/data/maps/bedroom/scene.json', 'POST', JSON.stringify(doc))
+  assert.equal(write.statusCode, 200, '可以写场景文件')
+
+  const after = JSON.parse(await readFile(path.join(dataDir, 'maps', 'bedroom', 'scene.json'), 'utf8'))
+  assert.equal(after.version, 99, '改动写进了用户数据目录')
+  const stillPkg = JSON.parse(await readFile(path.join(pkgData, 'maps', 'bedroom', 'scene.json'), 'utf8'))
+  assert.notEqual(stillPkg.version, 99, '插件包内的出厂模板没有被改')
+}
 
 await rm(saveDir, { recursive: true, force: true })
 console.log('host tests passed:', { routes: routes.length, pack: metaJson.pack.id })

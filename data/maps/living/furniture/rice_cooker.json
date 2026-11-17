@@ -1,1 +1,1 @@
-{"id":"rice_cooker","name":{"zh":"电饭煲","en":"Rice cooker"},"type":"furniture","parts":[{"id":"body","z":86,"sprite":{"src":"kit-ricecooker2.png","rect":[1267.3247064746893,363.72235037092105,90,129]}}],"click":{"type":"event","id":"cook"}}
+{"id":"rice_cooker","name":{"zh":"电饭煲","en":"Rice cooker"},"type":"furniture","parts":[{"id":"body","z":86,"sprite":{"src":"kit-ricecooker2.png","rect":[1267.3247064746893,363.72235037092105,90,129]}}],"click":{"type":"event","id":"cook"},"__scene":"living"}

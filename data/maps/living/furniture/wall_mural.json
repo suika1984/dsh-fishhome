@@ -1,1 +1,1 @@
-{"id":"wall_mural","name":{"zh":"鲸鱼海景挂画","en":"Whale mural"},"type":"surface","surface":{"attach":"wallLeft"},"parts":[{"id":"body","z":-95,"sprite":{"src":"wp-13.png","rect":[213,257,418,69]}}],"click":{"type":"event","id":"window"}}
+{"id":"wall_mural","name":{"zh":"鲸鱼海景挂画","en":"Whale mural"},"type":"surface","surface":{"attach":"wallLeft"},"parts":[{"id":"body","z":-95,"sprite":{"src":"wp-13.png","rect":[213,257,418,69]}}],"click":{"type":"event","id":"window"},"__scene":"living"}

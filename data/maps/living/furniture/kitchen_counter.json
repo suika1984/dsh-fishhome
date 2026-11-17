@@ -1,1 +1,1 @@
-{"id":"kitchen_counter","name":{"zh":"厨房台面"},"type":"furniture","parts":[{"id":"body","z":76,"sprite":{"src":"kit-run.png","rect":[1008.5993224317376,366.0554859581764,619,355]}}],"click":{"type":"event","id":"cook"}}
+{"id":"kitchen_counter","name":{"zh":"厨房台面"},"type":"furniture","parts":[{"id":"body","z":76,"sprite":{"src":"kit-run.png","rect":[1008.5993224317376,366.0554859581764,619,355]}}],"click":{"type":"event","id":"cook"},"__scene":"living"}

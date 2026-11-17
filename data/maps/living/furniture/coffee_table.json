@@ -1,1 +1,1 @@
-{"id":"coffee_table","name":{"zh":"茶几"},"type":"furniture","parts":[{"id":"body","z":72,"sprite":{"src":"living-coffee-table.png","rect":[495.0120925051149,418.72141328864075,220,151]}}],"click":{"type":"event","id":"play"}}
+{"id":"coffee_table","name":{"zh":"茶几"},"type":"furniture","parts":[{"id":"body","z":72,"sprite":{"src":"living-coffee-table.png","rect":[495.0120925051149,418.72141328864075,220,151]}}],"click":{"type":"event","id":"play"},"__scene":"living"}

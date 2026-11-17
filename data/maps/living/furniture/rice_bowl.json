@@ -1,0 +1,50 @@
+{
+  "id": "rice_bowl",
+  "name": {
+    "zh": "饭盆",
+    "en": "Rice bowl"
+  },
+  "type": "furniture",
+  "parts": [
+    {
+      "id": "empty",
+      "z": 77,
+      "sprite": {
+        "src": "rice-bowl-empty.png",
+        "rect": [
+          1180,
+          450,
+          80,
+          53
+        ]
+      },
+      "visibleWhen": {
+        "characterEventNot": [
+          "eat"
+        ]
+      }
+    },
+    {
+      "id": "full",
+      "z": 77,
+      "sprite": {
+        "src": "rice-bowl-full.png",
+        "rect": [
+          1180,
+          450,
+          80,
+          60
+        ]
+      },
+      "visibleWhen": {
+        "characterEvent": [
+          "eat"
+        ]
+      }
+    }
+  ],
+  "click": {
+    "type": "event",
+    "id": "eat"
+  }
+}

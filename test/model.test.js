@@ -666,6 +666,26 @@ assert.equal(zh('status.remain', { seconds: 30 }).includes('30'), true)
   }
 }
 
+// 客厅饭盆：不吃的时候是空的，吃饭的时候满上（两个部件按 characterEvent 切换）
+{
+  const root = path.join(here, '..', 'data', 'maps', 'living')
+  const bowl = JSON.parse(readFileSync(path.join(root, 'furniture', 'rice_bowl.json'), 'utf8'))
+  const scene = JSON.parse(readFileSync(path.join(root, 'scene.json'), 'utf8'))
+  assert.ok(scene.furniture.includes('rice_bowl'), '客厅登记了饭盆')
+  assert.equal(bowl.parts.length, 2, '饭盆有 空/满 两个部件')
+  const empty = bowl.parts.find((p) => p.id === 'empty')
+  const full = bowl.parts.find((p) => p.id === 'full')
+  assert.equal(empty.sprite.src, 'rice-bowl-empty.png')
+  assert.equal(full.sprite.src, 'rice-bowl-full.png')
+  assert.deepEqual(empty.visibleWhen.characterEventNot, ['eat'], '不吃饭时显示空盆')
+  assert.deepEqual(full.visibleWhen.characterEvent, ['eat'], '吃饭时显示满的')
+  const fakeHome = { character: { behaviorId: 'eat' }, world: { period: 'day', props: {} } }
+  assert.equal(model.partVisible(empty, fakeHome), false, '吃饭时空盆隐藏')
+  assert.equal(model.partVisible(full, fakeHome), true, '吃饭时满盆显示')
+  fakeHome.character.behaviorId = 'idle'
+  assert.equal(model.partVisible(empty, fakeHome), true, '闲着时空盆显示')
+  assert.equal(model.partVisible(full, fakeHome), false, '闲着时满盆隐藏')
+}
 console.log('model tests passed:', {
   switches,
   energy: Math.round(home.character.energy),

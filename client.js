@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = '9a7afa87'
+    const BUILD_REV = 'a84d43b1'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -58,6 +58,7 @@ const NOTE_MARK = '【家园】'
       'map.bedroom': '卧室',
       'map.living': '客厅',
       'map.garden': '花园',
+      'scene.rice_bowl': '饭盆',
       'scene.door': '门',
       'scene.window': '窗户',
       'scene.rug': '地毯',
@@ -337,6 +338,7 @@ const NOTE_MARK = '【家园】'
       'map.bedroom': 'Bedroom',
       'map.living': 'Living room',
       'map.garden': 'Garden',
+      'scene.rice_bowl': 'Rice bowl',
       'scene.door': 'Door',
       'scene.window': 'Window',
       'scene.rug': 'Rug',

@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = 'a84de56d'
+    const BUILD_REV = '433db993'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -3875,26 +3875,30 @@ async function writeSave(home) {
     }
 
     function PropGroup(props) {
-      const { className, label, onActivate, onPointerDown, children } = props
+      const { className, label, onActivate, onPointerDown, focusable, children } = props
       if (typeof onActivate !== 'function') return h('g', { className }, children)
+      // 只有编辑模式才让家具可聚焦：平时点家具只是互动，不该拿到焦点（否则会画出描边/焦点框）
+      const canFocus = focusable === true
       return h(
         'g',
         {
           className: `fh-prop ${className}`,
-          role: 'button',
-          tabIndex: 0,
+          role: canFocus ? 'button' : undefined,
+          tabIndex: canFocus ? 0 : undefined,
           'aria-label': label,
           onPointerDown: typeof onPointerDown === 'function' ? onPointerDown : undefined,
           onClick: (event) => {
             event.stopPropagation()
             onActivate()
           },
-          onKeyDown: (event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault()
-              onActivate()
+          onKeyDown: canFocus
+            ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                onActivate()
+              }
             }
-          },
+            : undefined,
         },
         children,
       )
@@ -4319,6 +4323,7 @@ async function writeSave(home) {
             {
               className: `fh-prop-${def.id}${selected ? ' fh-prop-selected' : ''}`,
               label,
+              focusable: editing,
               onActivate,
               onPointerDown: editing && typeof actions.dragStart === 'function'
                 ? (event) => actions.dragStart(def.id, partKey, event)
@@ -6655,14 +6660,16 @@ async function writeSave(home) {
 .fh-prop .fh-prop-hit {
   display: none;
 }
-.fh-prop:focus-visible {
+/* 家具不画焦点描边：编辑模式的选中反馈由 SelectedBox（虚线框）负责 */
+.fh-prop:focus-visible,
+.fh-stage svg :focus,
+.fh-stage svg :focus-visible {
   outline: none;
 }
-.fh-prop:focus-visible > *:last-child,
 .fh-prop:focus-visible polygon,
-.fh-prop:focus-visible rect {
-  stroke: #ffd9a3 !important;
-  stroke-width: 2.5 !important;
+.fh-prop:focus-visible rect,
+.fh-prop:focus-visible ellipse {
+  stroke-width: inherit;
 }
 .fh-prop:hover polygon,
 .fh-prop:hover ellipse {

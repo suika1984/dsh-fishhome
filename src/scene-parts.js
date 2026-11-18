@@ -28,26 +28,30 @@
     }
 
     function PropGroup(props) {
-      const { className, label, onActivate, onPointerDown, children } = props
+      const { className, label, onActivate, onPointerDown, focusable, children } = props
       if (typeof onActivate !== 'function') return h('g', { className }, children)
+      // 只有编辑模式才让家具可聚焦：平时点家具只是互动，不该拿到焦点（否则会画出描边/焦点框）
+      const canFocus = focusable === true
       return h(
         'g',
         {
           className: `fh-prop ${className}`,
-          role: 'button',
-          tabIndex: 0,
+          role: canFocus ? 'button' : undefined,
+          tabIndex: canFocus ? 0 : undefined,
           'aria-label': label,
           onPointerDown: typeof onPointerDown === 'function' ? onPointerDown : undefined,
           onClick: (event) => {
             event.stopPropagation()
             onActivate()
           },
-          onKeyDown: (event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault()
-              onActivate()
+          onKeyDown: canFocus
+            ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                onActivate()
+              }
             }
-          },
+            : undefined,
         },
         children,
       )
@@ -472,6 +476,7 @@
             {
               className: `fh-prop-${def.id}${selected ? ' fh-prop-selected' : ''}`,
               label,
+              focusable: editing,
               onActivate,
               onPointerDown: editing && typeof actions.dragStart === 'function'
                 ? (event) => actions.dragStart(def.id, partKey, event)

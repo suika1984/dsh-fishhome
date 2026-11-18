@@ -274,14 +274,16 @@
 .fh-prop .fh-prop-hit {
   display: none;
 }
-.fh-prop:focus-visible {
+/* 家具不画焦点描边：编辑模式的选中反馈由 SelectedBox（虚线框）负责 */
+.fh-prop:focus-visible,
+.fh-stage svg :focus,
+.fh-stage svg :focus-visible {
   outline: none;
 }
-.fh-prop:focus-visible > *:last-child,
 .fh-prop:focus-visible polygon,
-.fh-prop:focus-visible rect {
-  stroke: #ffd9a3 !important;
-  stroke-width: 2.5 !important;
+.fh-prop:focus-visible rect,
+.fh-prop:focus-visible ellipse {
+  stroke-width: inherit;
 }
 .fh-prop:hover polygon,
 .fh-prop:hover ellipse {

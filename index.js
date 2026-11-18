@@ -184,6 +184,25 @@ export async function syncUserData(pkgDir, userDir) {
   return result
 }
 
+/** 增量同步的节流：同一目录 60 秒内最多同步一次，避免每个请求都哈希一遍 */
+let lastSyncTarget = ''
+let lastSyncAt = 0
+async function maybeSyncData(config) {
+  const target = path.resolve(config.dataDir)
+  if (target === path.resolve(PKG_DATA_DIR)) return false
+  if ((config.dataSync || 'auto') === 'off') return false
+  const now = Date.now()
+  if (target === lastSyncTarget && now - lastSyncAt < 60 * 1000) return false
+  lastSyncTarget = target
+  lastSyncAt = now
+  try {
+    const report = await syncUserData(PKG_DATA_DIR, target)
+    return report.copied.length + report.updated.length > 0
+  } catch {
+    return false
+  }
+}
+
 /**
  * 用户数据目录的准备：目录不存在就整份复制；存在就按 dataSync 配置做增量同步。
  *   dataSync: 'auto'（默认）= 包里有新文件/新改动就同步过来，但不动用户改过的；
@@ -354,17 +373,39 @@ function createHandler(settings) {
 
       if (rest === '/api/meta' && (req.method === 'GET' || req.method === 'HEAD')) {
         await ensureUserData(settings.config())
+    await maybeSyncData(settings.config())
     await sendMeta(res, settings)
         return
       }
       if (rest === '/api/maps' && (req.method === 'GET' || req.method === 'HEAD')) {
         const mapConfig = settings.config()
     await ensureUserData(mapConfig)
+    await maybeSyncData(mapConfig)
     sendJson(res, 200, { ok: true, maps: await listMaps(mapConfig.dataDir) })
         return
       }
       if (rest === '/api/pack-files' && (req.method === 'GET' || req.method === 'HEAD')) {
         sendJson(res, 200, { ok: true, files: await listPackImages(settings.config().packDir) })
+        return
+      }
+      if (rest === '/api/sync' && req.method === 'POST') {
+        const syncConfig = settings.config()
+        await ensureUserData(syncConfig)
+        let report = { copied: [], updated: [], kept: [], skipped: [] }
+        try {
+          report = await syncUserData(PKG_DATA_DIR, syncConfig.dataDir)
+        } catch (error) {
+          sendJson(res, 500, { ok: false, error: error instanceof Error ? error.message : String(error) })
+          return
+        }
+        sendJson(res, 200, {
+          ok: true,
+          dataDir: syncConfig.dataDir,
+          copied: report.copied,
+          updated: report.updated,
+          kept: report.kept.length,
+          skipped: report.skipped.length,
+        })
         return
       }
       if (rest === '/api/probe' && req.method === 'POST') {
@@ -404,6 +445,7 @@ function createHandler(settings) {
       if (rest.startsWith('/data/')) {
         const dataConfig = settings.config()
     await ensureUserData(dataConfig)
+    await maybeSyncData(dataConfig)
     await serveData(req, res, decodeURIComponent(rest.slice('/data/'.length)), dataConfig.dataDir)
         return
       }
@@ -474,6 +516,7 @@ async function handleOpen(req, res, settings) {
   }
   const relative = payload && typeof payload.path === 'string' ? payload.path.trim().replace(/\\/g, '/') : ''
   await ensureUserData(settings.config())
+    await maybeSyncData(settings.config())
   const target = resolveOpenTarget(relative, settings.config())
   if (target === null) {
     sendJson(res, 400, { ok: false, error: `不认识这个路径：${relative}` })
@@ -517,6 +560,7 @@ async function handleProbe(req, res, settings) {
   }
   const relative = payload && typeof payload.path === 'string' ? payload.path.trim().replace(/\\/g, '/') : ''
   await ensureUserData(settings.config())
+    await maybeSyncData(settings.config())
   const target = resolveOpenTarget(relative, settings.config())
   if (target === null) {
     sendJson(res, 400, { ok: false, error: `不认识这个路径：${relative}` })

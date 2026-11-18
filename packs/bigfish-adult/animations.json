@@ -7,57 +7,43 @@
     ],
     "frames": [
       {
-        "asset": "sheet",
+        "asset": "sheetIdle",
         "rect": [
           0,
           0,
-          192,
-          205
+          339,
+          360
         ],
-        "durationMs": 420
+        "durationMs": 4000
       },
       {
-        "asset": "sheet",
+        "asset": "sheetIdle",
         "rect": [
-          192,
+          339,
           0,
-          192,
-          205
+          339,
+          360
         ],
-        "durationMs": 420
+        "durationMs": 4000
       },
       {
-        "asset": "sheet",
+        "asset": "sheetIdle",
         "rect": [
-          384,
+          678,
           0,
-          192,
-          205
+          339,
+          360
         ],
-        "durationMs": 520
-      },
-      {
-        "asset": "sheet",
-        "rect": [
-          192,
-          0,
-          192,
-          205
-        ],
-        "durationMs": 420
-      },
-      {
-        "asset": "sheet",
-        "rect": [
-          768,
-          0,
-          192,
-          205
-        ],
-        "durationMs": 420
+        "durationMs": 4000
       }
     ],
-    "loop": true
+    "loop": true,
+    "version": "3.8.0",
+    "cell": [
+      339,
+      360
+    ],
+    "randomStart": true
   },
   {
     "id": "fish:read",
@@ -68,27 +54,43 @@
     ],
     "frames": [
       {
-        "asset": "sheet",
+        "asset": "sheetRead",
         "rect": [
-          960,
           0,
-          192,
-          205
+          0,
+          350,
+          360
         ],
-        "durationMs": 900
+        "durationMs": 4000
       },
       {
-        "asset": "sheet",
+        "asset": "sheetRead",
         "rect": [
+          350,
           0,
-          0,
-          192,
-          205
+          350,
+          360
         ],
-        "durationMs": 700
+        "durationMs": 4000
+      },
+      {
+        "asset": "sheetRead",
+        "rect": [
+          700,
+          0,
+          350,
+          360
+        ],
+        "durationMs": 4000
       }
     ],
-    "loop": true
+    "loop": true,
+    "version": "3.8.0",
+    "cell": [
+      350,
+      360
+    ],
+    "randomStart": true
   },
   {
     "id": "fish:sit",
@@ -183,27 +185,52 @@
     ],
     "frames": [
       {
-        "asset": "sheet",
+        "asset": "sheetPlay",
         "rect": [
-          768,
-          615,
-          192,
-          205
+          664,
+          0,
+          332,
+          360
         ],
-        "durationMs": 420
+        "durationMs": 1500
       },
       {
-        "asset": "sheet",
+        "asset": "sheetPlay",
         "rect": [
-          960,
-          615,
-          192,
-          205
+          0,
+          0,
+          332,
+          360
         ],
-        "durationMs": 420
+        "durationMs": 1500
+      },
+      {
+        "asset": "sheetPlay",
+        "rect": [
+          332,
+          0,
+          332,
+          360
+        ],
+        "durationMs": 1500
+      },
+      {
+        "asset": "sheetPlay",
+        "rect": [
+          664,
+          360,
+          332,
+          360
+        ],
+        "durationMs": 1500
       }
     ],
-    "loop": true
+    "loop": true,
+    "version": "3.8.0",
+    "cell": [
+      332,
+      360
+    ]
   },
   {
     "id": "fish:stretch",
@@ -245,27 +272,72 @@
     ],
     "frames": [
       {
-        "asset": "sheet",
+        "asset": "sheetSleep",
         "rect": [
           0,
-          615,
-          192,
-          205
+          0,
+          359,
+          360
         ],
-        "durationMs": 1100
+        "durationMs": 2600
       },
       {
-        "asset": "sheet",
+        "asset": "sheetSleep",
         "rect": [
-          192,
-          615,
-          192,
-          205
+          359,
+          0,
+          359,
+          360
         ],
-        "durationMs": 1100
+        "durationMs": 2600
+      },
+      {
+        "asset": "sheetSleep",
+        "rect": [
+          718,
+          0,
+          359,
+          360
+        ],
+        "durationMs": 2600
+      },
+      {
+        "asset": "sheetSleep",
+        "rect": [
+          0,
+          360,
+          359,
+          360
+        ],
+        "durationMs": 2600
+      },
+      {
+        "asset": "sheetSleep",
+        "rect": [
+          359,
+          360,
+          359,
+          360
+        ],
+        "durationMs": 2600
+      },
+      {
+        "asset": "sheetSleep",
+        "rect": [
+          718,
+          360,
+          359,
+          360
+        ],
+        "durationMs": 2600
       }
     ],
-    "loop": true
+    "loop": true,
+    "version": "3.8.0",
+    "cell": [
+      359,
+      360
+    ]
   },
   {
     "id": "fish:inbed",
@@ -387,5 +459,51 @@
       }
     ],
     "loop": true
+  },
+  {
+    "id": "fish:idle_tired",
+    "tags": [
+      "idle_tired"
+    ],
+    "version": "3.8.0",
+    "cell": [
+      339,
+      360
+    ],
+    "frames": [
+      {
+        "asset": "sheetIdle",
+        "rect": [
+          678,
+          360,
+          339,
+          360
+        ],
+        "durationMs": 6000
+      }
+    ]
+  },
+  {
+    "id": "fish:read_tired",
+    "tags": [
+      "read_tired"
+    ],
+    "version": "3.8.0",
+    "cell": [
+      350,
+      360
+    ],
+    "frames": [
+      {
+        "asset": "sheetRead",
+        "rect": [
+          700,
+          360,
+          350,
+          360
+        ],
+        "durationMs": 6000
+      }
+    ]
   }
 ]

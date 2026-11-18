@@ -138,6 +138,27 @@
               build: typeof BUILD_REV === 'string' ? BUILD_REV : null,
               // 原生打开通道有没有接上（false = 只能复制路径）
               remoteWired: typeof store.openRemote === 'function',
+              // 排查「玩偶看不见 / 贴图不对」时看这几项
+              behavior: store.home && store.home.character ? store.home.character.behaviorId : null,
+              energy: store.home && store.home.character ? Math.round(store.home.character.energy) : null,
+              herScene: store.home && store.home.world ? store.home.world.map : null,
+              // 玩偶诊断：家具表里有没有、visibleWhen 算出来是显示还是隐藏
+              whaleToy: (() => {
+                try {
+                  const def = (furnitureRef.value || []).find((item) => item && item.id === 'whale_toy')
+                  if (!def || !Array.isArray(def.parts) || !def.parts[0]) return 'not-in-scene'
+                  const part = def.parts[0]
+                  return {
+                    visible: partVisible(part, store.home),
+                    rect: part.sprite && part.sprite.rect,
+                    z: part.z,
+                    src: part.sprite && part.sprite.src,
+                    behavior: store.home && store.home.character ? store.home.character.behaviorId : null,
+                  }
+                } catch (error) {
+                  return String(error && error.message ? error.message : error)
+                }
+              })(),
               remoteProbe: (() => { try { return window.__fhRemoteProbe || null } catch { return null } })(),
               // 画面上真实出现的精灵：href + 它挂在哪个 fh-prop-* 下面
               drawn: (() => {

@@ -3,9 +3,9 @@
   "formatVersion": 1,
   "id": "bigfish-adult",
   "name": "大肥鱼",
-  "version": "3.6.1",
+  "version": "3.8.0",
   "author": "大肥鱼家园",
-  "description": "Q 版立绘：8×5 共 40 格（192×205），含站立 / 眨眼 / 看书 / 坐着 / 玩 / 伸懒腰 / 睡觉 / 躺床 / 抱鲸鱼 / 吃东西 / 背影 / 笔记本 等动作。",
+  "description": "Q 版立绘：站姿 8×5 全 40 格（192×205）+ 45° 图纸 + 吃饭图纸；3.7.0 起 idle / read / sleep 用新绘的 3×2 图纸（每格更大，每 4 秒换一张，精力不足自动换成打盹那张）。",
   "canvas": {
     "width": 293,
     "height": 225
@@ -25,6 +25,26 @@
       "path": "fish-eat-sheet.png",
       "width": 1272,
       "height": 1020
+    },
+    "sheetIdle": {
+      "path": "fish-idle-sheet.png",
+      "width": 1017,
+      "height": 720
+    },
+    "sheetRead": {
+      "path": "fish-read-sheet.png",
+      "width": 1050,
+      "height": 720
+    },
+    "sheetSleep": {
+      "path": "fish-sleep-sheet.png",
+      "width": 1077,
+      "height": 720
+    },
+    "sheetPlay": {
+      "path": "fish-play-whale-sheet.png",
+      "width": 996,
+      "height": 720
     }
   },
   "animations": "animations.json",

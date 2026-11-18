@@ -1,0 +1,23 @@
+{
+  "id": "idle_tired",
+  "name": "idle_tired",
+  "tags": [
+    "idle_tired"
+  ],
+  "asset": "sheetIdle",
+  "cell": [
+    339,
+    360
+  ],
+  "frames": [
+    {
+      "rect": [
+        678,
+        360,
+        339,
+        360
+      ],
+      "durationMs": 6000
+    }
+  ]
+}

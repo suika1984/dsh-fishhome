@@ -15,6 +15,20 @@
      * 角色帧：用「嵌套 <svg viewBox=帧矩形>」从精灵图里裁一格。
      * 嵌套 svg 的坐标系就是整张精灵图，viewBox 把视口缩到那一格。
      */
+    /** 系统「减少动态效果」时不做呼吸（只算一次） */
+    let reduceMotionCache = null
+    function prefersReducedMotion() {
+      if (reduceMotionCache !== null) return reduceMotionCache
+      try {
+        reduceMotionCache = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+          ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          : false
+      } catch {
+        reduceMotionCache = false
+      }
+      return reduceMotionCache
+    }
+
     function CharacterSprite(props) {
       const { view } = props
       const frames = view.frames
@@ -61,9 +75,25 @@
       const bubbleSize = bubble ? Math.max(24, Number(bubble.size) || 120) : 0
       const bubbleW = bubbleSize
       const bubbleH = bubble ? bubbleSize * (Number(bubble.aspect) || 0.8) : 0
+      // 呼吸：高度缩放到 1.025 再回来，2 秒一个来回。
+      // 用 SVG 的 animateTransform 而不是 CSS scale：SVG 变换的原点固定是本地 (0,0)（脚底），
+      // 所以只有头顶在动；CSS 的 transform-origin 在 <g> 上各浏览器处理不一致，会变成整体上下飘。
+      const breathe = prefersReducedMotion()
+        ? null
+        : h('animateTransform', {
+          attributeName: 'transform',
+          type: 'scale',
+          values: '1 1; 1 1.025; 1 1',
+          keyTimes: '0;0.5;1',
+          calcMode: 'spline',
+          keySplines: '0.42 0 0.58 1;0.42 0 0.58 1',
+          dur: '2s',
+          repeatCount: 'indefinite',
+        })
       return h(
         'g',
         { className: 'fh-sprite-breathe' },
+        breathe,
         h(
           'svg',
           {
@@ -138,7 +168,11 @@
       const lean = character.lean && character.lean.until > now ? character.lean : null
       // 锚点可以覆盖播放的动画（比如躺床上播 sleep）
       const anchorTag = anchor && anchor.animation ? anchor.animation : null
-      const tag = emote ? emote.tag : (anchorTag || behavior.anim)
+      let tag = emote ? emote.tag : (anchorTag || behavior.anim)
+      // 精力不足：发呆 / 看书换成打盹的那张立绘（pack 里声明的 idle_tired / read_tired）
+      if (!emote && !anchorTag && home.character.energy < TIRED_ENERGY && views[`${tag}_tired`]) {
+        tag = `${tag}_tired`
+      }
       const view = views[tag] || views.idle
       // view 是 { key, frames, cell } 这种「视图数据」，要包成组件才能当子节点用
       const characterNode = view

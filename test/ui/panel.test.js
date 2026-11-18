@@ -38,8 +38,11 @@ assert.ok(sceneStats.images.some((href) => href.endsWith('/pack/bed.png')), 'bed
 assert.ok(sceneStats.images.some((href) => href.endsWith('/pack/lamp-off.png')), 'lamp off sprite should render')
 assert.ok(sceneStats.images.some((href) => href.endsWith('/pack/lamp-on.png')), 'lamp on sprite should render')
 // 角色已经挪进 SVG（按 z 和家具交错排序），不再是浮在上面的 HTML 层
-const sheetName = pet.assets.sheet.path
-assert.ok(sceneStats.images.some((href) => href.endsWith(`/pack/${sheetName}`)), 'character sprite should render inside the SVG')
+const sheetNames = Object.values(pet.assets).map((asset) => asset && asset.path).filter(Boolean)
+assert.ok(
+  sceneStats.images.some((href) => sheetNames.some((name) => href.split('?')[0].endsWith(`/pack/${name}`))),
+  'character sprite should render inside the SVG（来源可以是角色包的任意图纸）',
+)
 assert.ok(sceneStats.classes.has('fh-character'), 'character group should be in the scene tree')
 
 // 每种行为都渲染一遍，确认没有只在该分支里出现的异常

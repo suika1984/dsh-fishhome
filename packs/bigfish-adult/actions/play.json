@@ -1,31 +1,52 @@
 {
   "id": "play",
-  "name": "玩",
+  "name": "play",
   "tags": [
     "play",
     "success",
     "happy"
   ],
-  "asset": "sheet",
+  "asset": "sheetPlay",
+  "cell": [
+    332,
+    360
+  ],
   "frames": [
     {
       "rect": [
-        1172,
-        675,
-        293,
-        225
+        664,
+        0,
+        332,
+        360
       ],
-      "durationMs": 420
+      "durationMs": 1500
     },
     {
       "rect": [
-        1465,
-        675,
-        293,
-        225
+        0,
+        0,
+        332,
+        360
       ],
-      "durationMs": 420
+      "durationMs": 1500
+    },
+    {
+      "rect": [
+        332,
+        0,
+        332,
+        360
+      ],
+      "durationMs": 1500
+    },
+    {
+      "rect": [
+        664,
+        360,
+        332,
+        360
+      ],
+      "durationMs": 1500
     }
-  ],
-  "loop": true
+  ]
 }

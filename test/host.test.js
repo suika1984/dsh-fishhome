@@ -533,8 +533,14 @@ const livingScene = await call('/fishhome/data/maps/living/scene.json')
 assert.equal(livingScene.statusCode, 200, 'living scene should be served')
 const living = JSON.parse(livingScene.body)
 assert.ok(living.room.camera && living.room.camera.mode === 'follow', 'living should scroll its camera')
+// 家具要么自己能点，要么是装饰件（地毯之类的铺装不该抢点击）
+const DECORATIVE = new Set(['floor_rug'])
 for (const id of living.furniture) {
   const def = JSON.parse((await call(`/fishhome/data/maps/living/furniture/${id}.json`)).body)
+  if (DECORATIVE.has(id)) {
+    assert.ok(!def.click, `${id} 是装饰件，不该绑点击（否则会抢走玩偶的点击）`)
+    continue
+  }
   assert.ok(def.click && (def.click.id || def.click.key), `living furniture ${id} 需要 click 才能点`)
 }
 

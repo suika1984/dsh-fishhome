@@ -1,30 +1,43 @@
 {
   "id": "read",
-  "name": "看书",
+  "name": "read",
   "tags": [
     "read",
     "reading"
   ],
-  "asset": "sheet",
+  "asset": "sheetRead",
+  "cell": [
+    350,
+    360
+  ],
+  "randomStart": true,
   "frames": [
     {
       "rect": [
-        1465,
         0,
-        293,
-        225
+        0,
+        350,
+        360
       ],
-      "durationMs": 900
+      "durationMs": 4000
     },
     {
       "rect": [
+        350,
         0,
-        0,
-        293,
-        225
+        350,
+        360
       ],
-      "durationMs": 700
+      "durationMs": 4000
+    },
+    {
+      "rect": [
+        700,
+        0,
+        350,
+        360
+      ],
+      "durationMs": 4000
     }
-  ],
-  "loop": true
+  ]
 }

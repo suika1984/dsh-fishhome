@@ -1,0 +1,32 @@
+{
+  "id": "whale_toy",
+  "name": {
+    "zh": "小鲸鱼玩偶",
+    "en": "Whale plush"
+  },
+  "type": "furniture",
+  "parts": [
+    {
+      "id": "body",
+      "z": 8,
+      "sprite": {
+        "src": "whale-toy.png",
+        "rect": [
+          300,
+          545,
+          100,
+          76
+        ]
+      },
+      "visibleWhen": {
+        "characterEventNot": [
+          "play"
+        ]
+      }
+    }
+  ],
+  "click": {
+    "type": "event",
+    "id": "play"
+  }
+}

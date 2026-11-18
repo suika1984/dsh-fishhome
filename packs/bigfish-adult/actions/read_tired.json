@@ -1,0 +1,23 @@
+{
+  "id": "read_tired",
+  "name": "read_tired",
+  "tags": [
+    "read_tired"
+  ],
+  "asset": "sheetRead",
+  "cell": [
+    350,
+    360
+  ],
+  "frames": [
+    {
+      "rect": [
+        700,
+        360,
+        350,
+        360
+      ],
+      "durationMs": 6000
+    }
+  ]
+}

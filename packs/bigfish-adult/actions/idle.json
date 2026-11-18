@@ -4,53 +4,39 @@
   "tags": [
     "idle"
   ],
-  "asset": "sheet",
+  "asset": "sheetIdle",
+  "cell": [
+    339,
+    360
+  ],
+  "randomStart": true,
   "frames": [
     {
       "rect": [
         0,
         0,
-        293,
-        225
+        339,
+        360
       ],
-      "durationMs": 420
+      "durationMs": 4000
     },
     {
       "rect": [
-        293,
+        339,
         0,
-        293,
-        225
+        339,
+        360
       ],
-      "durationMs": 420
+      "durationMs": 4000
     },
     {
       "rect": [
-        586,
+        678,
         0,
-        293,
-        225
+        339,
+        360
       ],
-      "durationMs": 520
-    },
-    {
-      "rect": [
-        293,
-        0,
-        293,
-        225
-      ],
-      "durationMs": 420
-    },
-    {
-      "rect": [
-        1172,
-        0,
-        293,
-        225
-      ],
-      "durationMs": 420
+      "durationMs": 4000
     }
-  ],
-  "loop": true
+  ]
 }

@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = 'a84d43b1'
+    const BUILD_REV = 'a84de56d'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -28,6 +28,8 @@ window.__ModuleLoader__.load({
     const OFFLINE_CAP_MS = 12 * 60 * 60 * 1000
     const OFFLINE_STEP_MS = 5 * 60 * 1000
     const MAX_LOG = 40
+/** 精力低于这个值时，发呆/看书会换成「打盹」立绘（站着打盹、看书打盹） */
+const TIRED_ENERGY = 30
 /** 有床的房间：睡觉一律回这里（床只在卧室） */
 const SLEEP_ROOM = 'bedroom'
 /** 会话「一轮一停」的抖动窗口：这段时间内的起停只算一次，避免日志出现两条一样的 */
@@ -59,6 +61,7 @@ const NOTE_MARK = '【家园】'
       'map.living': '客厅',
       'map.garden': '花园',
       'scene.rice_bowl': '饭盆',
+      'scene.whale_toy': '小鲸鱼玩偶',
       'scene.door': '门',
       'scene.window': '窗户',
       'scene.rug': '地毯',
@@ -339,6 +342,7 @@ const NOTE_MARK = '【家园】'
       'map.living': 'Living room',
       'map.garden': 'Garden',
       'scene.rice_bowl': 'Rice bowl',
+      'scene.whale_toy': 'Whale plush',
       'scene.door': 'Door',
       'scene.window': 'Window',
       'scene.rug': 'Rug',
@@ -4565,6 +4569,20 @@ async function writeSave(home) {
      * 角色帧：用「嵌套 <svg viewBox=帧矩形>」从精灵图里裁一格。
      * 嵌套 svg 的坐标系就是整张精灵图，viewBox 把视口缩到那一格。
      */
+    /** 系统「减少动态效果」时不做呼吸（只算一次） */
+    let reduceMotionCache = null
+    function prefersReducedMotion() {
+      if (reduceMotionCache !== null) return reduceMotionCache
+      try {
+        reduceMotionCache = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+          ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+          : false
+      } catch {
+        reduceMotionCache = false
+      }
+      return reduceMotionCache
+    }
+
     function CharacterSprite(props) {
       const { view } = props
       const frames = view.frames
@@ -4611,9 +4629,25 @@ async function writeSave(home) {
       const bubbleSize = bubble ? Math.max(24, Number(bubble.size) || 120) : 0
       const bubbleW = bubbleSize
       const bubbleH = bubble ? bubbleSize * (Number(bubble.aspect) || 0.8) : 0
+      // 呼吸：高度缩放到 1.025 再回来，2 秒一个来回。
+      // 用 SVG 的 animateTransform 而不是 CSS scale：SVG 变换的原点固定是本地 (0,0)（脚底），
+      // 所以只有头顶在动；CSS 的 transform-origin 在 <g> 上各浏览器处理不一致，会变成整体上下飘。
+      const breathe = prefersReducedMotion()
+        ? null
+        : h('animateTransform', {
+          attributeName: 'transform',
+          type: 'scale',
+          values: '1 1; 1 1.025; 1 1',
+          keyTimes: '0;0.5;1',
+          calcMode: 'spline',
+          keySplines: '0.42 0 0.58 1;0.42 0 0.58 1',
+          dur: '2s',
+          repeatCount: 'indefinite',
+        })
       return h(
         'g',
         { className: 'fh-sprite-breathe' },
+        breathe,
         h(
           'svg',
           {
@@ -4688,7 +4722,11 @@ async function writeSave(home) {
       const lean = character.lean && character.lean.until > now ? character.lean : null
       // 锚点可以覆盖播放的动画（比如躺床上播 sleep）
       const anchorTag = anchor && anchor.animation ? anchor.animation : null
-      const tag = emote ? emote.tag : (anchorTag || behavior.anim)
+      let tag = emote ? emote.tag : (anchorTag || behavior.anim)
+      // 精力不足：发呆 / 看书换成打盹的那张立绘（pack 里声明的 idle_tired / read_tired）
+      if (!emote && !anchorTag && home.character.energy < TIRED_ENERGY && views[`${tag}_tired`]) {
+        tag = `${tag}_tired`
+      }
       const view = views[tag] || views.idle
       // view 是 { key, frames, cell } 这种「视图数据」，要包成组件才能当子节点用
       const characterNode = view
@@ -6598,11 +6636,8 @@ async function writeSave(home) {
   cursor: grabbing;
 }
 .fh-sprite-breathe {
-  animation: fh-breathe 5.6s ease-in-out infinite;
-}
-@keyframes fh-breathe {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-1.5px); }
+  /* 呼吸不再用 CSS 动画：缩放交给角色 sprite 内部的 SVG animateTransform，
+     这样原点固定在脚底，只有头顶起伏，不会整体上下飘。 */
 }
 @media (prefers-reduced-motion: reduce) {
   .fh-sprite-breathe { animation: none; }
@@ -7459,6 +7494,27 @@ async function writeSave(home) {
               build: typeof BUILD_REV === 'string' ? BUILD_REV : null,
               // 原生打开通道有没有接上（false = 只能复制路径）
               remoteWired: typeof store.openRemote === 'function',
+              // 排查「玩偶看不见 / 贴图不对」时看这几项
+              behavior: store.home && store.home.character ? store.home.character.behaviorId : null,
+              energy: store.home && store.home.character ? Math.round(store.home.character.energy) : null,
+              herScene: store.home && store.home.world ? store.home.world.map : null,
+              // 玩偶诊断：家具表里有没有、visibleWhen 算出来是显示还是隐藏
+              whaleToy: (() => {
+                try {
+                  const def = (furnitureRef.value || []).find((item) => item && item.id === 'whale_toy')
+                  if (!def || !Array.isArray(def.parts) || !def.parts[0]) return 'not-in-scene'
+                  const part = def.parts[0]
+                  return {
+                    visible: partVisible(part, store.home),
+                    rect: part.sprite && part.sprite.rect,
+                    z: part.z,
+                    src: part.sprite && part.sprite.src,
+                    behavior: store.home && store.home.character ? store.home.character.behaviorId : null,
+                  }
+                } catch (error) {
+                  return String(error && error.message ? error.message : error)
+                }
+              })(),
               remoteProbe: (() => { try { return window.__fhRemoteProbe || null } catch { return null } })(),
               // 画面上真实出现的精灵：href + 它挂在哪个 fh-prop-* 下面
               drawn: (() => {

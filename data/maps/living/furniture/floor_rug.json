@@ -1,1 +1,23 @@
-{"id":"floor_rug","name":{"zh":"地毯"},"type":"furniture","parts":[{"id":"body","z":5,"sprite":{"src":"living-rug.png","rect":[347.1328263608384,408.4456315258392,620,269]}}],"click":{"type":"event","id":"play"},"__scene":"living"}
+{
+  "id": "floor_rug",
+  "name": {
+    "zh": "地毯"
+  },
+  "type": "furniture",
+  "parts": [
+    {
+      "id": "body",
+      "z": 5,
+      "sprite": {
+        "src": "living-rug.png",
+        "rect": [
+          347.1328263608384,
+          408.4456315258392,
+          620,
+          269
+        ]
+      }
+    }
+  ],
+  "__scene": "living"
+}

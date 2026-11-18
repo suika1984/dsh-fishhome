@@ -255,11 +255,8 @@
   cursor: grabbing;
 }
 .fh-sprite-breathe {
-  animation: fh-breathe 5.6s ease-in-out infinite;
-}
-@keyframes fh-breathe {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-1.5px); }
+  /* 呼吸不再用 CSS 动画：缩放交给角色 sprite 内部的 SVG animateTransform，
+     这样原点固定在脚底，只有头顶起伏，不会整体上下飘。 */
 }
 @media (prefers-reduced-motion: reduce) {
   .fh-sprite-breathe { animation: none; }

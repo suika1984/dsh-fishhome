@@ -10,6 +10,8 @@
     const OFFLINE_CAP_MS = 12 * 60 * 60 * 1000
     const OFFLINE_STEP_MS = 5 * 60 * 1000
     const MAX_LOG = 40
+/** 精力低于这个值时，发呆/看书会换成「打盹」立绘（站着打盹、看书打盹） */
+const TIRED_ENERGY = 30
 /** 有床的房间：睡觉一律回这里（床只在卧室） */
 const SLEEP_ROOM = 'bedroom'
 /** 会话「一轮一停」的抖动窗口：这段时间内的起停只算一次，避免日志出现两条一样的 */

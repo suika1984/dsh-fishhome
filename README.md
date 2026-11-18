@@ -12,26 +12,26 @@
 
 **卧室**：12×12 格、墙高 280、投影比 0.375。她在书桌前敲键盘，右边是自己的状态（精力 / 饱腹 / 心情），下面是「屋子里的动静」日志。
 
-![卧室面板](docs/images/room-bedroom.png)
+![卧室面板](docs/images/room-bedroom.webp)
 
 **客厅**：大落地窗（三段推拉门 + 横版天空 + 三段窗帘杆）、沙发、厨房岛台。顶部的 `bedroom / living` 下拉就是切房间，也可以点屋里的门走过去。
 
-![客厅](docs/images/room-living.png)
+![客厅](docs/images/room-living.webp)
 
 **编辑器**：屋里所有东西都能在面板里拖拽 / 缩放 / 切变 / 换图，事件（行为）也能可视化改，改完写回 `data/` 下的 JSON。
 
-![编辑器](docs/images/editor.png)
+![编辑器](docs/images/editor.webp)
 
 <details>
 <summary>落地窗是怎么拼出来的（三张合成过程图）</summary>
 
 三段门扇（中间那段是 W-01 双开推拉门）+ 横版天空 + 三段窗帘杆，关帘能严丝合缝地合拢。
 
-![落地窗开/关两种状态](docs/images/window-wide-states.png)
+![落地窗开/关两种状态](docs/images/window-wide-states.webp)
 
 | W-03 外框 + W-01 门扇 | 拉长成三段 | 三段窗帘杆 |
 | --- | --- | --- |
-| ![拼接](docs/images/window-slider-preview.png) | ![拉长](docs/images/window-wide-preview.png) | ![杆](docs/images/window-rod-preview.png) |
+| ![拼接](docs/images/window-slider-preview.webp) | ![拉长](docs/images/window-wide-preview.webp) | ![杆](docs/images/window-rod-preview.webp) |
 
 </details>
 

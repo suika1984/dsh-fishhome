@@ -32,6 +32,9 @@ jobs:
       - name: 零依赖自检（文案 / 死代码 / 数据引用 / 构建新鲜度）
         run: node tools/check.mjs
 
+      - name: 代理渲染检查（布局级：缺图 / 越界 / 遮挡）
+        run: node tools/preview.mjs --check
+
       - name: 四套测试
         run: |
           node test/model.test.js

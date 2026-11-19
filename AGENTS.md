@@ -65,6 +65,7 @@
 | `saveDir` | `%USERPROFILE%\.dsh\fishhome\saves` | 存档目录 |
 | `dataDir` | `%USERPROFILE%\.dsh\fishhome\data` | 场景数据目录：首次启动从包内 `data/` 复制种子，之后读写都在这里（升级不覆盖用户改动） |
 | `dataSync` | `auto` | `auto` = 升级后把包内新增/改动的文件同步过来（用户改过的文件不动）；`off` = 只在空目录时复制一次 |
+| `shotDir` | `test/shots` | 房间截图目录（面板右上「截图」写入；已 gitignore，只用于本地对比调试） |
 | `map` | `bedroom` | 首次进入的房间 id |
 
 ### 装完自检
@@ -86,6 +87,11 @@ node build.mjs
 
 # 自检：构建是否最新 / 片段是否漏登记 / 文案是否缺失 / 有没有死代码 / 数据引用是否对得上
 node tools/check.mjs
+
+# 代理渲染（不开面板、不用浏览器）：布局体检 + 绘制清单
+node tools/preview.mjs           # 全部房间，报告缺图/越界/遮挡
+node tools/preview.mjs --check   # CI 模式：有硬错误退出码 1
+python tools/preview.py          # 把绘制清单画成 test/shots/preview-<map>.png
 
 # 四套测试
 node test/model.test.js    # 纯模型：时间、需求、调度、离线结算、动画帧换算
@@ -221,6 +227,8 @@ index.js        插件入口（返回 inject/apply）
 | 某个事件的 JSON | 面板「编辑」→ 事件 → 「打开 json」 |
 | Host 返回了什么 | `GET /fishhome/api/meta`（含 `packDir` / `dataDir` / `saveDir` / `mapPath`） |
 | 存档在哪 | 默认 `%USERPROFILE%\.dsh\fishhome\saves\state.json`，可用 config `saveDir` 覆盖 |
+| **代理渲染（会话里也能跑）** | `node tools/preview.mjs` → 报告缺图/越界/遮挡；`python tools/preview.py` → `test/shots/preview-<map>.png`（**支持 skew/rotate/flip**：变换串直接取客户端 `spriteTransform()` 的结果）。它读的是**仓库 `data/`**，要看用户目录实际效果加 `--data %USERPROFILE%\.dsh\fishhome\data` |
+| **房间截图** | 面板右上「截图」按钮 → `test/shots/<房间>-<时间戳>.png`，左上角叠了时间/季节/行为/三维数值/包版本/构建号，方便改动前后对比 |
 
 ### Host 路由
 
@@ -306,7 +314,11 @@ Client 每次 tick（5 秒）拉一次，然后：
 14. **切场景是异步的，晚到的响应会把旧房间写回来**：`loadScene()` 现在带 `sceneToken` 守卫，只认最后一次加载；而且**先读完再整体落地**（scene/background/家具/事件一次换），不然会停在「卧室的场景 + 客厅的家具」这种半新半旧状态。回归测试在 `test/model.test.js`（搜「切房间」）。
 15. **React 会在扁平列表里复用旧节点**：家具是 `[{key:'bedid:part'}, …]` 的扁平数组，客厅 12 件 → 卧室 10 件时 diff 可能把上一帧的 `living_window` 组留下（数据干净、DOM 脏，表现为「切回卧室后客厅落地窗还在，切页面才消失」）。现在 `<RoomStage>`/`<SceneSvg>` 用 `key = 场景 id + sceneToken` 强制重挂载。排查这类问题用控制台 `__fhDebug()`：`furniture`（数据）和 `drawn`（DOM 里真实渲染的精灵）对不上就说明是残留。
 16. **这个环境里 spawn 出来的 GUI 进程起不来**：`explorer.exe <目录>` 退出码 1（本机还见过 0xC0000142），`cmd /c start` 也只是"进程起来了但什么都没发生"。所以「打开目录」不要指望裸 spawn，插件现在的做法是：优先原生通道，拿不到就把绝对路径复制到剪贴板（设置面板每行都有「复制路径」）。
-17. **客户端插件要用 `ctx.remote` 得两件事都做**：① `package.json` 的 `dsh.client.inject` 里加上提供它的包（`@deepseek-ai/dsh-api-session-controller`，DSH 自己的 `dsh-client-ui-file-actions` 就是这么写的）；② 代码里等它挂载再取。本项目实测：清单注入后 `ctx.inject(['remote'])` 会触发，但拿到的对象里没有 `session`，所以原生打开通道在这个版本上仍然不通——判断依据看控制台 `__fhDebug().remoteProbe`。
+17. **面板切走就卸载了，别指望在旁边偷偷渲染**：`main` 是 keyed slot，同一时间只挂当前面板；所以在会话界面里没有房间 DOM，真实截图无法后台生成。布局类问题（遮挡/越界/缺图）改用 `tools/preview.mjs` 的代理渲染检查，它不需要浏览器，也能进 CI。
+18. **SVG 变换矩阵和 PIL 的系数顺序不一样**：SVG `matrix(a,b,c,d,e,f)` 是 `x' = a x + c y + e`，而 PIL `AFFINE` 要的是 `x_in = a x + b y + c`（顺序是 a,b,c,d,e,f 但含义换了位），所以代理渲染里要 `(ia, ic, ie, ib, id_, if_)` 换位传入；另外 `skewY` 的系数在 **b 位**（`y' = tan·x + y`），写成 c 位就变成 skewX、图会被拉成条纹。踩过一次。
+19. **改老文件前先确认编码**：`.gitignore` 早期是 GBK，用 `readFileSync(file, 'utf8')` 读进来再写回，会把中文注释变成一堆 `U+FFFD`（`EF BF BD`）——Fork 的 diff 里就是一片乱码。现在全部统一成 UTF-8（LF）。新增/改写脚本一律按 UTF-8 写；要改来源不明的文件，先 `TextDecoder('utf-8', { fatal: true })` 试解码，失败就换 GBK 并整份重写，别“就地修补”。
+20. **处理素材只改 alpha，不要重新量化**：清背景时如果顺手 `quantize(colors=96)` 重建调色板，孤立的单色像素会被就近映射——曾经把绿植的叶子刷成紫灰色（`kit-run.png`）。正确做法：`convert('RGBA')` → 把要删的像素设成 `(0,0,0,0)` → `save(optimize=True)`，RGB 一个都不动；写完用脚本比对「非目标像素必须和原图逐字节相同」再收工。
+21. **客户端插件要用 `ctx.remote` 得两件事都做**：① `package.json` 的 `dsh.client.inject` 里加上提供它的包（`@deepseek-ai/dsh-api-session-controller`，DSH 自己的 `dsh-client-ui-file-actions` 就是这么写的）；② 代码里等它挂载再取。本项目实测：清单注入后 `ctx.inject(['remote'])` 会触发，但拿到的对象里没有 `session`，所以原生打开通道在这个版本上仍然不通——判断依据看控制台 `__fhDebug().remoteProbe`。
 
 ---
 

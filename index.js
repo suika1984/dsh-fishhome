@@ -68,13 +68,18 @@ function normalizeConfig(raw) {
       : path.join(dshHome(), 'fishhome', 'data')
   // 数据同步：auto = 包内新内容自动同步到用户目录（不动用户改过的文件）；off = 只在空目录时复制一次
   const dataSync = config.dataSync === 'off' ? 'off' : 'auto'
+  // 截图目录（本地调试用，默认仓库下 test/shots；写不进去会退回 DSH_HOME）
+  const shotDir =
+    typeof config.shotDir === 'string' && config.shotDir.trim() !== ''
+      ? path.resolve(HERE, config.shotDir.trim())
+      : path.join(HERE, 'test', 'shots')
   const map =
     typeof config.map === 'string' && /^[A-Za-z0-9._-]+$/.test(config.map.trim())
       ? config.map.trim()
       : 'bedroom'
   // 小屋便条：preview = 只在她嘴里说，inject = 真把消息送进当前会话
   const noteMode = config.noteMode === 'inject' ? 'inject' : 'preview'
-  return { characterName, tickSeconds, packDir, saveDir, dataDir, dataSync, map, noteMode }
+  return { characterName, tickSeconds, packDir, saveDir, dataDir, dataSync, shotDir, map, noteMode }
 }
 
 /** 同步清单：记录「上次从包里同步过来的每个文件的哈希」，用来判断用户有没有改过 */
@@ -388,6 +393,10 @@ function createHandler(settings) {
         sendJson(res, 200, { ok: true, files: await listPackImages(settings.config().packDir) })
         return
       }
+      if (rest === '/api/shot' && req.method === 'POST') {
+        await handleShot(req, res, settings.config().shotDir)
+        return
+      }
       if (rest === '/api/sync' && req.method === 'POST') {
         const syncConfig = settings.config()
         await ensureUserData(syncConfig)
@@ -544,6 +553,67 @@ async function handleOpen(req, res, settings) {
     }
   }
   sendJson(res, 200, { ok: true, kind, path: relative, absolute: target, dryRun, openedWith, attempts })
+}
+
+/** 截图目录：仓库下的 test/shots（.gitignore 掉了，只用于本地调试）；写不进去就退回 DSH_HOME */
+const SHOT_DIR = path.join(HERE, 'test', 'shots')
+const SHOT_KEEP = 40
+
+async function shotDirWritable(dir) {
+  try {
+    await fsp.mkdir(dir || SHOT_DIR, { recursive: true })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 保存房间截图：dataUrl 是客户端把 SVG 栅格化后的 PNG（base64 data URL）。
+ * 只存本地 test/shots，按时间命名，超过 SHOT_KEEP 张就把最旧的删掉。
+ */
+async function handleShot(req, res, shotDir) {
+  let payload
+  try {
+    payload = JSON.parse(await readBody(req))
+  } catch (error) {
+    const tooLarge = error && error.code === 'E_TOO_LARGE'
+    sendJson(res, tooLarge ? 413 : 400, { ok: false, error: tooLarge ? '截图太大' : '请求体不是合法 JSON' })
+    return
+  }
+  const dataUrl = payload && typeof payload.dataUrl === 'string' ? payload.dataUrl : ''
+  const match = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl)
+  if (!match) {
+    sendJson(res, 400, { ok: false, error: 'dataUrl 必须是 PNG 的 base64 data URL' })
+    return
+  }
+  const buffer = Buffer.from(match[1], 'base64')
+  if (buffer.length === 0 || buffer.length > 16 * 1024 * 1024) {
+    sendJson(res, 400, { ok: false, error: '截图大小不合法' })
+    return
+  }
+  const map = typeof payload.map === 'string' && /^[A-Za-z0-9_-]+$/.test(payload.map) ? payload.map : 'room'
+  const stamp = new Date()
+  const pad = (n) => String(n).padStart(2, '0')
+  const name = `${map}-${stamp.getFullYear()}${pad(stamp.getMonth() + 1)}${pad(stamp.getDate())}-${pad(stamp.getHours())}${pad(stamp.getMinutes())}${pad(stamp.getSeconds())}.png`
+  const dir = shotDir || SHOT_DIR
+  try {
+    await fsp.mkdir(dir, { recursive: true })
+    await fsp.writeFile(path.join(dir, name), buffer)
+  } catch (error) {
+    sendJson(res, 500, { ok: false, error: error instanceof Error ? error.message : String(error) })
+    return
+  }
+  // 只留最近 SHOT_KEEP 张
+  try {
+    const files = (await fsp.readdir(dir)).filter((f) => f.endsWith('.png')).sort()
+    for (const old of files.slice(0, Math.max(0, files.length - SHOT_KEEP))) {
+      await fsp.rm(path.join(dir, old), { force: true })
+    }
+  } catch {
+    /* 清理失败无所谓 */
+  }
+  sendJson(res, 200, { ok: true, dir, file: name, bytes: buffer.length })
 }
 
 /**

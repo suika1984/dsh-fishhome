@@ -11,6 +11,7 @@ import { apply, syncUserData } from '../index.js'
 
 const saveDir = await mkdtemp(path.join(os.tmpdir(), 'fishhome-test-'))
 const dataDir = await mkdtemp(path.join(os.tmpdir(), 'fishhome-data-'))
+const shotDir = await mkdtemp(path.join(os.tmpdir(), 'fishhome-shots-'))
 
 const routes = []
 const fakeInner = {
@@ -45,7 +46,7 @@ const ctx = {
   },
 }
 
-apply(ctx, { saveDir, dataDir, characterName: '测试鱼', tickSeconds: 7 })
+apply(ctx, { saveDir, dataDir, shotDir, characterName: '测试鱼', tickSeconds: 7 })
 assert.equal(routes.length, 1)
 const route = routes[0]
 assert.equal(route.kind, 'prefix')
@@ -641,6 +642,22 @@ assert.equal(wrongMethod.statusCode, 404)
 
 const outside = await call('/elsewhere')
 assert.equal(outside.statusCode, 404)
+
+/* ---- 截图：合法 PNG 会落到配置的目录；坏数据 400 ---- */
+{
+  const shot = await call('/fishhome/api/shot', 'POST', JSON.stringify({
+    map: 'bedroom',
+    dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  }))
+  assert.equal(shot.statusCode, 200, '截图接口应该成功')
+  const saved = JSON.parse(shot.body)
+  assert.ok(saved.file && saved.file.startsWith('bedroom-'), `文件名应该带房间和时间戳，实际 ${saved.file}`)
+  const onDisk = await readFile(path.join(shotDir, saved.file))
+  assert.ok(onDisk.length > 0, '截图文件应该真的写到了磁盘')
+
+  const bad = await call('/fishhome/api/shot', 'POST', JSON.stringify({ map: 'bedroom', dataUrl: 'not-a-png' }))
+  assert.equal(bad.statusCode, 400, '非 PNG 的 dataUrl 应该被拒')
+}
 
 /* ---- 自动同步：包内更新跟上，用户改过的文件保持不动 ---- */
 {

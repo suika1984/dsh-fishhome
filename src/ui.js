@@ -704,8 +704,110 @@
       return rest === 0 ? t('span.hours', { hours }) : t('span.hoursMinutes', { hours, minutes: rest })
     }
 
+    /**
+     * 把房间 SVG 栅格化成 PNG dataURL：
+     *   1. 克隆当前 <svg class="fh-scene">
+     *   2. 把 <image href> 全部转成 data URL（SVG 脱离页面时外链图不会加载）
+     *   3. 把页面里的样式表塞进 SVG（否则依赖 CSS 的部件会掉色）
+     *   4. 左上角叠一段「关键测试数据」，方便前后对比
+     *   5. 画到 2 倍 canvas 上导出
+     */
+    async function rasterizeSceneSvg(svg, lines, scale = 2) {
+      const clone = svg.cloneNode(true)
+      const images = Array.from(clone.querySelectorAll('image'))
+      await Promise.all(images.map(async (node) => {
+        const href = node.getAttribute('href') || node.getAttribute('xlink:href')
+        if (!href || href.startsWith('data:')) return
+        try {
+          const response = await fetch(href)
+          const blob = await response.blob()
+          const dataUrl = await new Promise((resolve) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(String(reader.result || ''))
+            reader.onerror = () => resolve('')
+            reader.readAsDataURL(blob)
+          })
+          if (dataUrl) node.setAttribute('href', dataUrl)
+        } catch {
+          /* 单张图失败就留空，不挡整张截图 */
+        }
+      }))
+      // 页面样式（同源可读）：让 class 驱动的填充/描边也对
+      try {
+        const css = Array.from(document.styleSheets)
+          .map((sheet) => {
+            try {
+              return Array.from(sheet.cssRules).map((rule) => rule.cssText).join('\n')
+            } catch {
+              return ''
+            }
+          })
+          .join('\n')
+        if (css !== '') {
+          const style = document.createElementNS('http://www.w3.org/2000/svg', 'style')
+          style.textContent = css
+          clone.insertBefore(style, clone.firstChild)
+        }
+      } catch {
+        /* 读不到样式就按内联属性画 */
+      }
+      const viewBox = svg.viewBox && svg.viewBox.baseVal
+      const width = viewBox && viewBox.width > 0 ? viewBox.width : svg.clientWidth || 1000
+      const height = viewBox && viewBox.height > 0 ? viewBox.height : svg.clientHeight || 643
+      clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+      clone.setAttribute('width', String(width))
+      clone.setAttribute('height', String(height))
+      // 关键数据叠加（半透明底 + 等宽小字），方便和旧图对比
+      if (Array.isArray(lines) && lines.length > 0) {
+        const fontSize = Math.max(10, Math.round(width / 78))
+        const pad = Math.round(fontSize * 0.6)
+        const lineHeight = Math.round(fontSize * 1.35)
+        const boxW = Math.min(width - pad * 2, Math.max(...lines.map((line) => line.length)) * fontSize * 0.62 + pad * 2)
+        const boxH = lineHeight * lines.length + pad * 2
+        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g')
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+        rect.setAttribute('x', String(pad))
+        rect.setAttribute('y', String(pad))
+        rect.setAttribute('width', String(boxW))
+        rect.setAttribute('height', String(boxH))
+        rect.setAttribute('rx', String(Math.round(fontSize * 0.5)))
+        rect.setAttribute('fill', 'rgba(20, 28, 44, 0.55)')
+        group.appendChild(rect)
+        lines.forEach((line, index) => {
+          const text = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+          text.setAttribute('x', String(pad * 2))
+          text.setAttribute('y', String(pad * 2 + lineHeight * (index + 1) - lineHeight * 0.25))
+          text.setAttribute('fill', '#f4f8ff')
+          text.setAttribute('font-family', 'Consolas, Menlo, monospace')
+          text.setAttribute('font-size', String(fontSize))
+          text.textContent = line
+          group.appendChild(text)
+        })
+        clone.appendChild(group)
+      }
+      const source = new XMLSerializer().serializeToString(clone)
+      const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' })
+      const url = URL.createObjectURL(blob)
+      try {
+        const image = await new Promise((resolve, reject) => {
+          const img = new Image()
+          img.onload = () => resolve(img)
+          img.onerror = () => reject(new Error('SVG 转图片失败'))
+          img.src = url
+        })
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.round(width * scale)
+        canvas.height = Math.round(height * scale)
+        const context = canvas.getContext('2d')
+        context.drawImage(image, 0, 0, canvas.width, canvas.height)
+        return canvas.toDataURL('image/png')
+      } finally {
+        URL.revokeObjectURL(url)
+      }
+    }
+
     function HeaderActions(props) {
-      const { t, clock, onRefresh, saveState, editOn, onToggleEdit, settingsOn, onToggleSettings, maps, currentMap, onSwitchMap, elsewhere, elsewhereName, onCallPet, zoom, onZoom } = props
+      const { t, clock, onRefresh, saveState, editOn, onToggleEdit, settingsOn, onToggleSettings, maps, currentMap, onSwitchMap, elsewhere, elsewhereName, onCallPet, zoom, onZoom, onShot, shotTip } = props
       const saveLabel = saveState === 'saved'
         ? t('head.saved')
         : saveState === 'saving'
@@ -766,6 +868,12 @@
           onClick: onRefresh,
           title: saveLabel,
         }, t('head.refresh')),
+        h('button', {
+          type: 'button',
+          className: 'fh-ghost-button',
+          onClick: onShot,
+          title: shotTip || t('head.shotHint'),
+        }, t('head.shot')),
       )
     }
 
@@ -1273,6 +1381,44 @@
           alive = false
         }
       }, [edit.on, store])
+      // ---- 截图：只截房间，左上角叠关键测试数据，存到本地 test/shots（不进仓库）----
+      const [shotBusy, setShotBusy] = useState(false)
+      const [shotTip, setShotTip] = useState('')
+      const captureShot = async () => {
+        try {
+          const svg = typeof document !== 'undefined' ? document.querySelector('svg.fh-scene') : null
+          if (!svg) {
+            setShotTip(t('shot.noScene'))
+            return
+          }
+          const meta = snapshot.meta || {}
+          const home = snapshot.home || {}
+          const world = home.world || {}
+          const character = home.character || {}
+          const clockNow = timeSnapshot(new Date(snapshot.now || Date.now()), localeRef.value)
+          const map = meta.map || 'room'
+          const behaviorLabel = t(`behavior.${character.behaviorId || 'idle'}`)
+          const lines = [
+            `${map} · ${clockNow.dateText} ${clockNow.clock} · ${t(`season.${world.season || 'autumn'}`)} ${t(`period.${clockNow.period || 'day'}`)} · ${world.temperature ?? '?'}°C`,
+            `行为 ${behaviorLabel} · 精力 ${Math.round(character.energy || 0)} · 饱腹 ${Math.round(character.satiety || 0)} · 心情 ${Math.round(character.mood || 0)}`,
+            `家具 ${(furnitureRef.value || []).length} · 缩放 ${String(zoom)} · pack ${(meta.pack && meta.pack.version) || '?'}`,
+            `client ${BUILD_REV} · host ${meta.hostRev || '?'}`,
+          ]
+          const dataUrl = await rasterizeSceneSvg(svg, lines, 2)
+          if (typeof store.saveShot !== 'function') {
+            setShotTip(t('shot.noHost'))
+            return
+          }
+          const result = await store.saveShot({ map, dataUrl })
+          setShotTip(result.ok
+            ? t('shot.saved', { file: result.file })
+            : t('shot.failed', { error: result.error || '?' }))
+        } catch (error) {
+          setShotTip(t('shot.failed', { error: error instanceof Error ? error.message : String(error) }))
+        } finally {
+          setShotBusy(false)
+        }
+      }
       const now = useNow(1000)
       const t = translate
       const clock = timeSnapshot(new Date(snapshot.now || now), localeRef.value)
@@ -1508,6 +1654,12 @@
                 t,
                 clock,
                 onRefresh: actions.refresh,
+                onShot: () => {
+                  if (shotBusy) return
+                  setShotBusy(true)
+                  void captureShot()
+                },
+                shotTip: shotTip,
                 maps,
                 zoom,
                 onZoom: (value) => {
@@ -1797,7 +1949,7 @@
                     return h('button', { key: item.key, type: 'button', className: 'fh-toggle', onClick: () => actions.interact('reset') }, localizeText(item.label, lang))
                   })
                 })()),
-                h('p', { className: 'fh-hint' }, t('room.hint')),
+                h('p', { className: 'fh-hint' }, shotTip || t('room.hint')),
               ),
               h('div', { className: 'fh-side' },
                 h(StatusCard, { home: snapshot.home, now, t }),

@@ -204,6 +204,25 @@
           return { ok: false, error: error instanceof Error ? error.message : String(error) }
         }
       },
+      /** 保存房间截图：把客户端栅格化的 PNG 交给 Host 落到 test/shots（本地调试用，不进仓库） */
+      async saveShot(payload) {
+        try {
+          const data = await fetchJson(`${ROUTE}/api/shot`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
+          const ok = !!(data && data.ok)
+          return {
+            ok,
+            error: data && data.error ? String(data.error) : '',
+            file: data && data.file ? String(data.file) : '',
+            dir: data && data.dir ? String(data.dir) : '',
+          }
+        } catch (error) {
+          return { ok: false, error: error instanceof Error ? error.message : String(error), file: '', dir: '' }
+        }
+      },
       /** 回退一步：家具表、删除清单、scene 清单一起回滚 */
       undo() {
         const snapshot = this.history.pop()

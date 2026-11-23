@@ -1,1 +1,28 @@
-{"id":"door","name":{"zh":"门","en":"Door"},"type":"furniture","parts":[{"id":"body","z":94,"sprite":{"src":"door-whale.png","rect":[476.1720700110395,466.6679756132046,134,200],"skew":-0.375}}],"click":{"type":"scene","id":"living"}}
+{
+  "id": "door",
+  "name": {
+    "zh": "门",
+    "en": "Door"
+  },
+  "type": "furniture",
+  "parts": [
+    {
+      "id": "body",
+      "z": 94,
+      "sprite": {
+        "src": "door-whale.png",
+        "rect": [
+          476.1720700110395,
+          466.6679756132046,
+          134,
+          200
+        ],
+        "skew": -0.375
+      }
+    }
+  ],
+  "click": {
+    "type": "scene",
+    "id": "living"
+  }
+}

@@ -1,1 +1,23 @@
-{"id":"plant","name":{"zh":"绿植","en":"Plant"},"type":"furniture","parts":[{"id":"body","z":120,"sprite":{"src":"plant-1.png","rect":[652.9395905842657,383.56899167234985,140,163]}}]}
+{
+  "id": "plant",
+  "name": {
+    "zh": "绿植",
+    "en": "Plant"
+  },
+  "type": "furniture",
+  "parts": [
+    {
+      "id": "body",
+      "z": 120,
+      "sprite": {
+        "src": "plant-1.png",
+        "rect": [
+          652.9395905842657,
+          383.56899167234985,
+          140,
+          163
+        ]
+      }
+    }
+  ]
+}

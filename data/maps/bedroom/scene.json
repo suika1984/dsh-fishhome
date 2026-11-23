@@ -28,9 +28,9 @@
     "rug",
     "whale_toy",
     "desk",
-    "shelf",
     "bed",
     "night_lamp",
+    "telescope",
     "plant",
     "wall_decor",
     "plant-copy",
@@ -46,7 +46,8 @@
     "snack",
     "nap",
     "sleep",
-    "doze"
+    "doze",
+    "stargaze"
   ],
   "spots": {
     "center": {
@@ -60,10 +61,6 @@
     "window": {
       "fx": 3.4,
       "fy": 3.75
-    },
-    "bookshelf": {
-      "fx": 2.6,
-      "fy": 8.1
     },
     "bed": {
       "fx": 4.4,
@@ -144,6 +141,14 @@
       "label": {
         "zh": "回到屋子中间",
         "en": "Back to centre"
+      }
+    },
+    {
+      "kind": "event",
+      "id": "stargaze",
+      "label": {
+        "zh": "看星星",
+        "en": "Stargaze"
       }
     }
   ]

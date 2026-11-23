@@ -1,1 +1,43 @@
-{"id":"night_lamp","name":{"zh":"床头灯","en":"Bedside lamp"},"type":"light","states":{"on":{"default":false}},"parts":[{"id":"body","preset":"night_lamp","z":95,"offset":{"fx":0.7,"fy":-0.25}},{"id":"glow","preset":"night_lamp_glow","layer":"light","z":95,"visibleWhen":{"state":{"bedLamp":true}},"offset":{"fx":-0.1,"fy":-1.6}}],"click":{"type":"toggle","key":"bedLamp"}}
+{
+  "id": "night_lamp",
+  "name": {
+    "zh": "床头灯",
+    "en": "Bedside lamp"
+  },
+  "type": "light",
+  "states": {
+    "on": {
+      "default": false
+    }
+  },
+  "parts": [
+    {
+      "id": "body",
+      "preset": "night_lamp",
+      "z": 95,
+      "offset": {
+        "fx": 0.7,
+        "fy": -0.25
+      }
+    },
+    {
+      "id": "glow",
+      "preset": "night_lamp_glow",
+      "layer": "light",
+      "z": 95,
+      "visibleWhen": {
+        "state": {
+          "bedLamp": true
+        }
+      },
+      "offset": {
+        "fx": -0.1,
+        "fy": -1.6
+      }
+    }
+  ],
+  "click": {
+    "type": "toggle",
+    "key": "bedLamp"
+  }
+}

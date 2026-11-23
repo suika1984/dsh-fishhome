@@ -34,6 +34,7 @@ import { assert, model, home, views, store, render, translate, animations, Panel
 {
   const scene = JSON.parse(readFileSync(path.join(here, '..', 'data', 'maps', 'bedroom', 'scene.json'), 'utf8'))
   const defs = scene.furniture.map((id) => JSON.parse(readFileSync(path.join(here, '..', 'data', 'maps', 'bedroom', 'furniture', id + '.json'), 'utf8')))
+  model.applyScene(scene)   // 偏头方向依赖投影，先把场景落地
   model.applyFurniture(defs)
   const leanStore = new model.HomeStore()
   leanStore.home = model.createHome(Date.now(), '大肥鱼')
@@ -42,8 +43,8 @@ import { assert, model, home, views, store, render, translate, animations, Panel
   leanStore.scheduleSave = () => {}
   leanStore.leanToward('bed')
   assert.equal(leanStore.home.character.lean.dir, 1, '床在右边')
-  leanStore.leanToward('bookshelf')
-  assert.equal(leanStore.home.character.lean.dir, -1, '书架在左边')
+  leanStore.leanToward('desk')
+  assert.equal(leanStore.home.character.lean.dir, -1, '书桌在左边')
   model.applyFurniture(model.DEFAULT_FURNITURE)
 }
 

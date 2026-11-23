@@ -598,6 +598,8 @@
           return t('log.work')
         case 'window':
           return t('log.window')
+        case 'stargaze':
+          return t('log.stargaze')
         case 'play':
           return t('log.play')
         case 'snack':
@@ -712,28 +714,62 @@
      *   4. 左上角叠一段「关键测试数据」，方便前后对比
      *   5. 画到 2 倍 canvas 上导出
      */
-    async function rasterizeSceneSvg(svg, lines, scale = 2) {
+    async function rasterizeSceneSvg(svg, lines, options = {}) {
+      const injectCss = options.injectCss !== false
+      const scale = Number(options.scale) > 0 ? Number(options.scale) : 2
       const clone = svg.cloneNode(true)
+      // 环境光（.fh-ambient）的 fill/opacity 全靠页面 CSS 变量驱动；
+      // 一旦样式表没成功内联，它会变成「整块纯黑铺满画布」。截图里直接把它去掉。
+      for (const ambient of Array.from(clone.querySelectorAll('.fh-ambient'))) {
+        ambient.setAttribute('fill', 'none')
+        ambient.setAttribute('opacity', '0')
+      }
       const images = Array.from(clone.querySelectorAll('image'))
+      let inlined = 0
+      const failed = []
+      const readAsDataUrl = (blob) => new Promise((resolve) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result || ''))
+        reader.onerror = () => resolve('')
+        reader.readAsDataURL(blob)
+      })
+      const inlineOne = async (href) => {
+        const candidates = [href]
+        try {
+          const absolute = new URL(href, typeof location !== 'undefined' ? location.href : 'http://localhost').href
+          if (absolute !== href) candidates.push(absolute)
+        } catch {
+          /* href 不是合法 URL，直接用原样 */
+        }
+        let lastError = null
+        for (const url of candidates) {
+          try {
+            const response = await fetch(url)
+            if (!response.ok) throw new Error(`HTTP ${response.status}`)
+            const dataUrl = await readAsDataUrl(await response.blob())
+            if (!dataUrl) throw new Error('empty data url')
+            return dataUrl
+          } catch (error) {
+            lastError = error
+          }
+        }
+        throw lastError || new Error('fetch failed')
+      }
       await Promise.all(images.map(async (node) => {
         const href = node.getAttribute('href') || node.getAttribute('xlink:href')
         if (!href || href.startsWith('data:')) return
         try {
-          const response = await fetch(href)
-          const blob = await response.blob()
-          const dataUrl = await new Promise((resolve) => {
-            const reader = new FileReader()
-            reader.onload = () => resolve(String(reader.result || ''))
-            reader.onerror = () => resolve('')
-            reader.readAsDataURL(blob)
-          })
-          if (dataUrl) node.setAttribute('href', dataUrl)
-        } catch {
-          /* 单张图失败就留空，不挡整张截图 */
+          const dataUrl = await inlineOne(href)
+          node.setAttribute('href', dataUrl)
+          inlined += 1
+        } catch (error) {
+          // 单张图失败就留空，不挡整张截图，但记下来方便排查
+          failed.push(`${href}（${error && error.message ? error.message : error}）`)
         }
       }))
       // 页面样式（同源可读）：让 class 驱动的填充/描边也对
       try {
+        if (!injectCss) throw new Error('skip css')
         const css = Array.from(document.styleSheets)
           .map((sheet) => {
             try {
@@ -800,6 +836,37 @@
         canvas.height = Math.round(height * scale)
         const context = canvas.getContext('2d')
         context.drawImage(image, 0, 0, canvas.width, canvas.height)
+        // 内容自检：缩到 200x130 采样，统计不透明像素占比。
+        // 空白多半是「内联失败 / 样式表把画面藏起来」，直接报错让上层降级重画，别把黑图存下来。
+        const probe = document.createElement('canvas')
+        probe.width = 200
+        probe.height = 130
+        const probeCtx = probe.getContext('2d')
+        probeCtx.drawImage(image, 0, 0, probe.width, probe.height)
+        const pixels = probeCtx.getImageData(0, 0, probe.width, probe.height).data
+        let solid = 0
+        let dark = 0
+        for (let i = 0; i < pixels.length; i += 4) {
+          if (pixels[i + 3] <= 8) continue
+          solid += 1
+          if (pixels[i] + pixels[i + 1] + pixels[i + 2] < 60) dark += 1
+        }
+        const coverage = solid / (probe.width * probe.height)
+        const darkRatio = solid > 0 ? dark / solid : 1
+        if (typeof console !== 'undefined') {
+          console.log('[fishhome] 截图自检', { coverage: Math.round(coverage * 100) / 100, darkRatio: Math.round(darkRatio * 100) / 100, inlined, images: images.length })
+        }
+        // 整张全黑多半是夜色遮罩/变量没解析，别存黑图，让上层去掉样式表再画
+        if (darkRatio > 0.85 && coverage > 0.15) {
+          throw new Error(`画面几乎全黑（暗像素 ${Math.round(darkRatio * 100)}%，可能是样式表的变量在这个上下文里没解析）`)
+        }
+        if (failed.length > 0 && typeof console !== 'undefined') {
+          console.warn('[fishhome] 截图：这些图没能内联', failed.slice(0, 5))
+        }
+        if (coverage < 0.15) {
+          const hint = failed.length > 0 ? `，首张失败：${failed[0]}` : ''
+          throw new Error(`画面几乎空白（覆盖率 ${Math.round(coverage * 100)}%，图片 ${inlined}/${images.length} 已内联${hint}）`)
+        }
         return canvas.toDataURL('image/png')
       } finally {
         URL.revokeObjectURL(url)
@@ -1404,7 +1471,29 @@
             `家具 ${(furnitureRef.value || []).length} · 缩放 ${String(zoom)} · pack ${(meta.pack && meta.pack.version) || '?'}`,
             `client ${BUILD_REV} · host ${meta.hostRev || '?'}`,
           ]
-          const dataUrl = await rasterizeSceneSvg(svg, lines, 2)
+          if (typeof window !== 'undefined') window.__fhShot = captureShot
+          // 逐级降级：样式表有时会让 SVG 转图片失败，去掉样式再试，最后再降到 1 倍
+          let dataUrl = ''
+          let lastError = null
+          for (const attempt of [{ injectCss: true, scale: 2 }, { injectCss: false, scale: 2 }, { injectCss: false, scale: 1 }]) {
+            try {
+              dataUrl = await rasterizeSceneSvg(svg, lines, attempt)
+              lastError = null
+              break
+            } catch (error) {
+              lastError = error
+              if (typeof console !== 'undefined') console.warn('[fishhome] 截图尝试失败', attempt, error)
+            }
+          }
+          if (!dataUrl) throw lastError || new Error('截图渲染失败')
+          // base64 太大容易被 Host 拒（旧版本只有 512KB 上限）：超过 3MB 就降到 1 倍再截
+          if (dataUrl.length > 3 * 1024 * 1024) {
+            try {
+              dataUrl = await rasterizeSceneSvg(svg, lines, { injectCss: false, scale: 1 })
+            } catch (error) {
+              if (typeof console !== 'undefined') console.warn('[fishhome] 降分辨率重截失败', error)
+            }
+          }
           if (typeof store.saveShot !== 'function') {
             setShotTip(t('shot.noHost'))
             return
@@ -1413,6 +1502,9 @@
           setShotTip(result.ok
             ? t('shot.saved', { file: result.file })
             : t('shot.failed', { error: result.error || '?' }))
+          if (typeof console !== 'undefined') {
+            console.log('[fishhome] 截图结果', { ok: result.ok, file: result.file, bytes: result.bytes, payloadKb: Math.round(dataUrl.length / 1024) })
+          }
         } catch (error) {
           setShotTip(t('shot.failed', { error: error instanceof Error ? error.message : String(error) }))
         } finally {

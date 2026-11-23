@@ -1,1 +1,37 @@
-{"id":"window","label":{"zh":"看窗外"},"kind":"autonomous","spot":"window","anim":"idle","duration":[90,180],"log":"window","cooldown":200,"onTick":{"mood":0.012},"weight":null,"say":{"chance":0.5,"lines":[{"zh":"外面好像下雨了？","en":"Is it raining out?"},{"zh":"今晚星星好多","en":"So many stars tonight"},{"zh":"月亮好圆呀","en":"The moon is so round"}]},"request":null}
+{
+  "id": "window",
+  "label": {
+    "zh": "看窗外"
+  },
+  "kind": "autonomous",
+  "spot": "window",
+  "anim": "idle",
+  "duration": [
+    90,
+    180
+  ],
+  "log": "window",
+  "cooldown": 200,
+  "onTick": {
+    "mood": 0.012
+  },
+  "weight": null,
+  "say": {
+    "chance": 0.5,
+    "lines": [
+      {
+        "zh": "外面好像下雨了？",
+        "en": "Is it raining out?"
+      },
+      {
+        "zh": "今晚星星好多",
+        "en": "So many stars tonight"
+      },
+      {
+        "zh": "月亮好圆呀",
+        "en": "The moon is so round"
+      }
+    ]
+  },
+  "request": null
+}

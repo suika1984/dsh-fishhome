@@ -1,0 +1,47 @@
+{
+  "id": "stargaze",
+  "label": {
+    "zh": "看星星",
+    "en": "Stargazing"
+  },
+  "kind": "autonomous",
+  "spot": "center",
+  "anim": "idle",
+  "duration": [
+    150,
+    300
+  ],
+  "log": "stargaze",
+  "cooldown": 240,
+  "onTick": {
+    "mood": 0.02
+  },
+  "weight": {
+    "base": 1.6,
+    "mods": [
+      {
+        "when": "daylight",
+        "mul": 0
+      }
+    ]
+  },
+  "say": {
+    "chance": 0.5,
+    "lines": [
+      {
+        "zh": "今晚的星星好清楚",
+        "en": "The stars are so clear tonight"
+      },
+      {
+        "zh": "那颗是不是北极星？",
+        "en": "Is that the North Star?"
+      },
+      {
+        "zh": "再陪我看一会儿",
+        "en": "Stay and watch a bit longer"
+      }
+    ]
+  },
+  "request": null,
+  "anchor": "telescope:use"
+}

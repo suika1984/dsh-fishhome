@@ -1,0 +1,43 @@
+{
+  "id": "telescope",
+  "name": {
+    "zh": "望远镜",
+    "en": "Telescope"
+  },
+  "type": "furniture",
+  "parts": [
+    {
+      "id": "body",
+      "z": 12,
+      "sprite": {
+        "src": "telescope.png",
+        "rect": [
+          424.55172093943725,
+          184.04724804103682,
+          87,
+          141
+        ]
+      }
+    }
+  ],
+  "click": {
+    "type": "event",
+    "id": "stargaze"
+  },
+  "animations": [
+    {
+      "id": "use",
+      "position": {
+        "x": 0.02,
+        "y": 0.98
+      },
+      "pivot": [
+        -78,
+        0
+      ],
+      "facing": "front",
+      "pose": null,
+      "renderLayer": "front"
+    }
+  ]
+}

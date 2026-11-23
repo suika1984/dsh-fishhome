@@ -657,6 +657,16 @@ assert.equal(outside.statusCode, 404)
 
   const bad = await call('/fishhome/api/shot', 'POST', JSON.stringify({ map: 'bedroom', dataUrl: 'not-a-png' }))
   assert.equal(bad.statusCode, 400, '非 PNG 的 dataUrl 应该被拒')
+
+  // 真实截图是几 MB 的 base64，不能因为 512KB 的默认请求体上限被拒（曾经 413）
+  const bigPayload = 'A'.repeat(1_600_000)
+  const big = await call('/fishhome/api/shot', 'POST', JSON.stringify({
+    map: 'bedroom',
+    dataUrl: `data:image/png;base64,${bigPayload}`,
+  }))
+  assert.equal(big.statusCode, 200, `大截图（约 ${Math.round(bigPayload.length / 1024)}KB base64）应该能保存，实际 ${big.statusCode}`)
+  const bigSaved = JSON.parse(big.body)
+  assert.ok(bigSaved.bytes > 1_000_000, `服务端应收到完整字节，实际 ${bigSaved.bytes}`)
 }
 
 /* ---- 自动同步：包内更新跟上，用户改过的文件保持不动 ---- */

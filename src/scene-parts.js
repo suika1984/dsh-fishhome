@@ -113,6 +113,8 @@
         pose: typeof source.pose === 'string' && source.pose !== '' ? source.pose : null,
         renderLayer: typeof layer === 'string' ? layer : (Number.isFinite(Number(layer)) ? Number(layer) : 'front'),
         animation: typeof source.animation === 'string' && source.animation !== '' ? source.animation : null,
+        // 指定立在家具的哪个部件上（默认取第一个有 sprite 的部件）
+        part: typeof source.part === 'string' && source.part !== '' ? source.part : null,
         // 接触点偏移（画布像素）：家具自己决定「角色落点相对接触点该偏多少」
         pivot: Array.isArray(source.pivot)
           ? [Number(source.pivot[0]) || 0, Number(source.pivot[1]) || 0]
@@ -131,6 +133,49 @@
     }
 
     /** 锚点在画面上的落点 + 该用的 z */
+    /**
+     * 部件内的比例坐标 → 画布坐标，和实际绘制用同一套变换
+     * （skew / flipX / rotate / part.offset 都会影响落点，忽略它们角色就会站偏）
+     */
+    function anchorPointOnPart(part, pivotX, fx, fy) {
+      const sprite = part && part.sprite ? part.sprite : {}
+      const rect = Array.isArray(sprite.rect) ? sprite.rect.map(Number) : [0, 0, 100, 100]
+      const [x, y, w, h] = rect
+      const projNow = geom && geom.kx ? geom.ky / geom.kx : 0.375
+      const attach = typeof sprite.attach === 'string' ? sprite.attach.toLowerCase() : ''
+      const manualSkew = sprite.skew !== undefined && sprite.skew !== null ? Number(sprite.skew) : NaN
+      const tan = Number.isFinite(manualSkew)
+        ? manualSkew
+        : (attach ? (/left|y$/.test(attach) ? -projNow : projNow) : 0)
+      const flip = sprite.flipX === true
+      const rotate = Number(sprite.rotate) || 0
+      const lx = w * clampNumber(fx, 0, 1, 0.5)
+      const ly = h * clampNumber(fy, 0, 1, 0.92)
+      const anchorX = flip ? x + w : x
+      const compensate = Number.isFinite(pivotX) ? tan * (anchorX - pivotX) : 0
+      // 和 spriteTransform() 的 transform 串一一对应：flip → skewY → translate
+      let sx = flip ? x + w - lx : x + lx
+      let sy = y + compensate + ly + tan * lx
+      if (rotate !== 0) {
+        const px = x + w / 2
+        const py = y + (sprite.pivot === 'center' ? h / 2 : h)
+        const rad = (rotate * Math.PI) / 180
+        const dx = sx - px
+        const dy = sy - py
+        sx = px + dx * Math.cos(rad) - dy * Math.sin(rad)
+        sy = py + dx * Math.sin(rad) + dy * Math.cos(rad)
+      }
+      // part.offset：整件家具的地板格偏移，画的时候是最外层的 translate
+      const offset = part && part.offset && typeof part.offset === 'object' ? part.offset : null
+      if (offset) {
+        const fxOff = Number(offset.fx) || 0
+        const fyOff = Number(offset.fy) || 0
+        sx += (fxOff - fyOff) * geom.kx
+        sy += (fxOff + fyOff) * geom.ky
+      }
+      return [sx, sy]
+    }
+
     function resolveAnchor(ref) {
       const parsed = parseAnchorRef(ref)
       if (!parsed) return null
@@ -143,10 +188,20 @@
       if (list.length === 0) return null
       const raw = list.find((item) => item && (item.id || 'default') === parsed.anchorId) || list[0]
       const anchor = normalizeAnchor(raw)
-      const part = (def.parts || []).find((item) => item && item.sprite && Array.isArray(item.sprite.rect))
+      const rectParts = (def.parts || []).filter((item) => item && item.sprite && Array.isArray(item.sprite.rect))
+      const part = (anchor.part ? rectParts.find((item) => item.id === anchor.part) : null) || rectParts[0]
       if (!part) return null
-      const rect = part.sprite.rect.map(Number)
-      const [rx, ry, rw, rh] = rect
+      // surface：同组部件共用切变原点，锚点也要用同一个，否则和画面差一截
+      const surf = def.surface && typeof def.surface === 'object' ? def.surface : null
+      let surfacePivot
+      if (surf) {
+        const xs = rectParts.map((item) => Number(item.sprite.rect[0])).filter((value) => Number.isFinite(value))
+        if (xs.length > 0) surfacePivot = Math.min(...xs)
+      }
+      const spriteForAnchor = surf && !part.sprite.attach && typeof surf.attach === 'string'
+        ? { ...part.sprite, attach: surf.attach }
+        : part.sprite
+      const [ax, ay] = anchorPointOnPart({ ...part, sprite: spriteForAnchor }, surfacePivot, anchor.position.x, anchor.position.y)
       const baseZ = Number(part.z) || 0
       const layer = anchor.renderLayer
       const z = Number.isFinite(layer)
@@ -159,8 +214,8 @@
       return {
         def,
         anchor,
-        x: rx + rw * anchor.position.x + anchor.pivot[0],
-        y: ry + rh * anchor.position.y + anchor.pivot[1],
+        x: ax + anchor.pivot[0],
+        y: ay + anchor.pivot[1],
         z,
         facing: anchor.facing,
         animation: anchor.animation || anchor.pose || null,

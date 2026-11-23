@@ -686,6 +686,36 @@ assert.equal(zh('status.remain', { seconds: 30 }).includes('30'), true)
   assert.equal(model.partVisible(empty, fakeHome), true, '闲着时空盆显示')
   assert.equal(model.partVisible(full, fakeHome), false, '闲着时满盆隐藏')
 }
+// 保存家具：运行时的 __scene 标记不能写进文件，且整条保存链路不能抛错
+{
+  const store = new model.HomeStore()
+  store.publish = () => {}
+  store.scheduleSave = () => {}
+  store.home = model.createHome(Date.now(), '大肥鱼')
+  store.meta = { map: 'bedroom', mapPath: 'maps/bedroom/scene.json' }
+  const posted = []
+  const realFetch = globalThis.fetch
+  globalThis.fetch = async (url, init) => {
+    posted.push({ url: String(url), body: init && init.body ? String(init.body) : '' })
+    return { ok: true, status: 200, async json() { return { ok: true } } }
+  }
+  try {
+    model.applyFurniture([{
+      id: 'demo',
+      parts: [{ id: 'body', z: 10, sprite: { src: 'demo.png', rect: [0, 0, 10, 10] }, __scene: 'bedroom' }],
+      __scene: 'bedroom',
+    }])
+    await store.saveFurniture()
+  } finally {
+    globalThis.fetch = realFetch
+  }
+  assert.ok(posted.length > 0, '保存应该至少 POST 一次家具')
+  for (const item of posted) {
+    assert.ok(!item.body.includes('__scene'), `写盘内容不能带 __scene：${item.body.slice(0, 120)}`)
+  }
+  model.applyFurniture(model.DEFAULT_FURNITURE)
+}
+
 console.log('model tests passed:', {
   switches,
   energy: Math.round(home.character.energy),

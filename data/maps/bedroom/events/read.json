@@ -1,1 +1,35 @@
-{"id":"read","label":{"zh":"看书"},"kind":"autonomous","spot":"bookshelf","anim":"read","duration":[180,360],"log":"read","cooldown":240,"onTick":{"energy":-0.003,"mood":0.01},"weight":null,"say":{"chance":0.5,"lines":[{"zh":"这页好好笑","en":"This page is funny"},{"zh":"看到精彩的地方了","en":"It's getting good!"}]},"anchor":"shelf:read","request":null}
+{
+  "id": "read",
+  "label": {
+    "zh": "看书"
+  },
+  "kind": "autonomous",
+  "spot": "bed",
+  "anim": "read",
+  "duration": [
+    180,
+    360
+  ],
+  "log": "read",
+  "cooldown": 240,
+  "onTick": {
+    "energy": -0.003,
+    "mood": 0.01
+  },
+  "weight": null,
+  "say": {
+    "chance": 0.5,
+    "lines": [
+      {
+        "zh": "这页好好笑",
+        "en": "This page is funny"
+      },
+      {
+        "zh": "看到精彩的地方了",
+        "en": "It's getting good!"
+      }
+    ]
+  },
+  "anchor": "bed:read",
+  "request": null
+}

@@ -181,10 +181,31 @@ index.js        插件入口（返回 inject/apply）
 
 1. 新建 `data/maps/<map>/events/<id>.json`（字段：`spot` / `anim` / `duration` / `onTick` / `cooldown` / `weight` / `say` / `log` / `anchor`）。
 2. 把 `id` 加进 `scene.json` 的 `events`。
+
 3. **必须补文案**，否则界面上会显示原始键名：
    - `src/locale.js` 里加 `behavior.<id>`、`flavor.<id>`
    - 如果事件的 `log` 是自定义码，再加 `log.<code>`
 4. `node tools/check.mjs` 会检查这三件事。
+
+**落脚点优先用「家具锚点」而不是静态 `spot`**：在地板上的家具（望远镜、椅子、床头这类）自己在 `animations` 里声明一个锚点：
+
+```jsonc
+// furniture/telescope.json
+"animations": [
+  { "id": "use", "position": { "x": 0.02, "y": 0.98 }, "pivot": [-78, 0], "facing": "front", "renderLayer": "front" }
+]
+```
+
+```jsonc
+// events/stargaze.json
+{ "spot": "center", "anchor": "telescope:use" }   // spot 只当家具缺失时的兜底
+```
+
+好处：锚点位置 = `部件 rect × position` 再走一遍**绘制用的同一套变换**（`skew` / `flipX` / `rotate` / `offset`）`+ pivot`，**家具一移动/缩放/歪斜，她的站位自动跟着走**，不需要再改 `scene.spots`。
+
+- `position` 是 0~1 的比例；想再偏移用 `pivot`（画布像素）。
+- 一件家具里想让她落在**某个具体部件**上（比如桌子里的椅子），加 `"part": "chair"`，否则默认取第一个有 sprite 的部件。
+- 墙上的家具（窗、挂画）底边不在 y=地面，不适合做落脚锚点，继续用 `spot`。
 
 ### 5.4 改灯光
 
@@ -318,7 +339,12 @@ Client 每次 tick（5 秒）拉一次，然后：
 18. **SVG 变换矩阵和 PIL 的系数顺序不一样**：SVG `matrix(a,b,c,d,e,f)` 是 `x' = a x + c y + e`，而 PIL `AFFINE` 要的是 `x_in = a x + b y + c`（顺序是 a,b,c,d,e,f 但含义换了位），所以代理渲染里要 `(ia, ic, ie, ib, id_, if_)` 换位传入；另外 `skewY` 的系数在 **b 位**（`y' = tan·x + y`），写成 c 位就变成 skewX、图会被拉成条纹。踩过一次。
 19. **改老文件前先确认编码**：`.gitignore` 早期是 GBK，用 `readFileSync(file, 'utf8')` 读进来再写回，会把中文注释变成一堆 `U+FFFD`（`EF BF BD`）——Fork 的 diff 里就是一片乱码。现在全部统一成 UTF-8（LF）。新增/改写脚本一律按 UTF-8 写；要改来源不明的文件，先 `TextDecoder('utf-8', { fatal: true })` 试解码，失败就换 GBK 并整份重写，别“就地修补”。
 20. **处理素材只改 alpha，不要重新量化**：清背景时如果顺手 `quantize(colors=96)` 重建调色板，孤立的单色像素会被就近映射——曾经把绿植的叶子刷成紫灰色（`kit-run.png`）。正确做法：`convert('RGBA')` → 把要删的像素设成 `(0,0,0,0)` → `save(optimize=True)`，RGB 一个都不动；写完用脚本比对「非目标像素必须和原图逐字节相同」再收工。
-21. **客户端插件要用 `ctx.remote` 得两件事都做**：① `package.json` 的 `dsh.client.inject` 里加上提供它的包（`@deepseek-ai/dsh-api-session-controller`，DSH 自己的 `dsh-client-ui-file-actions` 就是这么写的）；② 代码里等它挂载再取。本项目实测：清单注入后 `ctx.inject(['remote'])` 会触发，但拿到的对象里没有 `session`，所以原生打开通道在这个版本上仍然不通——判断依据看控制台 `__fhDebug().remoteProbe`。
+21. **锚点必须跟着 `skew` 一起算**：`resolveAnchor()` 早期只拿 `rect` 算比例点，忽略 `sprite.skew` / `flipX` / `rotate` / `offset`，于是家具一设畸变（比如书桌 `skew: -0.1`），角色就站偏了（表现为「她不在椅面上」）。现在统一走 `anchorPointOnPart()`，和 `spriteTransform()` 的变换一一对应；新增锚点相关代码别再自己拿 rect 乘比例。
+22. **带棋盘格底的素材别用「亮度阈值 + 洪水」抠**：望远镜脚架是细白管，亮度跟棋盘格浅格几乎一样，按阈值洪水会把管子掏空、却把三角里**被围住**的棋盘格留下来（正好反了）。可用的两段式：
+   ① 高斯模糊 σ≈2 后算梯度当屏障，从边界洪水 → 得到物体轮廓（细管的深色描边能挡住洪水）；
+   ② 对「物体内部」再用**局部密度**判棋盘格：11×11 窗口里深格像素数 ≥22 就算棋盘格（白管内部几乎没有深格），删掉。
+   最后再清一次 <12px 的孤立小点。验证方式：把结果合成到洋红底上看，镂空处必须是透明、管子必须实心。
+23. **客户端插件要用 `ctx.remote` 得两件事都做**：① `package.json` 的 `dsh.client.inject` 里加上提供它的包（`@deepseek-ai/dsh-api-session-controller`，DSH 自己的 `dsh-client-ui-file-actions` 就是这么写的）；② 代码里等它挂载再取。本项目实测：清单注入后 `ctx.inject(['remote'])` 会触发，但拿到的对象里没有 `session`，所以原生打开通道在这个版本上仍然不通——判断依据看控制台 `__fhDebug().remoteProbe`。
 
 ---
 

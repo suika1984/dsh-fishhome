@@ -1,1 +1,51 @@
-{"id":"nap","label":{"zh":"打盹"},"kind":"autonomous","spot":"bed","anim":"sleep","duration":[900,1500],"log":"nap","cooldown":900,"onTick":{"energy":0.02,"satiety":-0.001},"weight":null,"request":{"accept":["energyLow","energyUnder35","night"],"refuse":{"lines":[{"zh":"{user}，我不困啦！","en":"Not tired at all!"},{"zh":"{user}，现在睡不着啦～","en":"Can't nap right now~"}],"anim":"idle","mood":0}},"say":{"chance":0.5,"lines":[{"zh":"眯一小会儿就好","en":"Just a short nap"}]},"anchor":"bed:nap"}
+{
+  "id": "nap",
+  "label": {
+    "zh": "打盹"
+  },
+  "kind": "autonomous",
+  "spot": "bed",
+  "anim": "sleep",
+  "duration": [
+    900,
+    1500
+  ],
+  "log": "nap",
+  "cooldown": 900,
+  "onTick": {
+    "energy": 0.02,
+    "satiety": -0.001
+  },
+  "weight": null,
+  "request": {
+    "accept": [
+      "energyLow",
+      "energyUnder35",
+      "night"
+    ],
+    "refuse": {
+      "lines": [
+        {
+          "zh": "{user}，我不困啦！",
+          "en": "Not tired at all!"
+        },
+        {
+          "zh": "{user}，现在睡不着啦～",
+          "en": "Can't nap right now~"
+        }
+      ],
+      "anim": "idle",
+      "mood": 0
+    }
+  },
+  "say": {
+    "chance": 0.5,
+    "lines": [
+      {
+        "zh": "眯一小会儿就好",
+        "en": "Just a short nap"
+      }
+    ]
+  },
+  "anchor": "bed:nap"
+}

@@ -314,7 +314,8 @@
       },
       /** 把当前家具定义逐件写回 data/（每件一个文件），并同步 scene.json / 删掉被移除的文件 */
       async saveFurniture() {
-        const defs = furnitureRef.value
+        // __scene 是运行时给家具打的房间标记，不能写进仓库（否则下次同步会把它当成「用户改过」）
+        const defs = furnitureRef.value.map((def) => stripRuntimeKeys(def))
         let saved = 0
         for (const def of defs) {
           if (!def || typeof def.id !== 'string') continue

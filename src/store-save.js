@@ -144,3 +144,20 @@ async function writeSave(home) {
     function cloneJson(value) {
       return value === undefined ? value : JSON.parse(JSON.stringify(value))
     }
+
+    /**
+     * 去掉以 __ 开头的运行时字段（applyFurniture 会给家具打 __scene 标记）。
+     * 写盘前必须剥掉，否则下次同步会把「只是被打过标记」的文件当成用户改过、永不覆盖。
+     */
+    function stripRuntimeKeys(value) {
+      if (Array.isArray(value)) return value.map(stripRuntimeKeys)
+      if (value && typeof value === 'object') {
+        const out = {}
+        for (const key of Object.keys(value)) {
+          if (key.startsWith('__')) continue
+          out[key] = stripRuntimeKeys(value[key])
+        }
+        return out
+      }
+      return value
+    }

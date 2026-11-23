@@ -24,7 +24,9 @@ const argv = process.argv.slice(2)
 const checkMode = argv.includes('--check')
 const dataFlag = argv.indexOf('--data')
 const dataArg = dataFlag >= 0 ? argv[dataFlag + 1] : ''
-const args = argv.filter((item, index) => !item.startsWith('--') && !(dataFlag >= 0 && index === dataFlag + 1))
+const behaviorFlag = argv.indexOf('--behavior')
+const behaviorArg = behaviorFlag >= 0 ? argv[behaviorFlag + 1] : ''
+const args = argv.filter((item, index) => !item.startsWith('--') && !(dataFlag >= 0 && index === dataFlag + 1) && !(behaviorFlag >= 0 && index === behaviorFlag + 1))
 const dataDir = dataArg ? path.resolve(dataArg) : path.join(root, 'data')
 const packDir = path.join(root, 'packs', 'bigfish-adult')
 const outDir = path.join(root, 'test', 'shots')
@@ -68,7 +70,7 @@ const FIXED_NOW = new Date(2026, 10, 19, 14, 0, 0).getTime()
 
 function makeHome() {
   const home = model.createHome(FIXED_NOW, '大肥鱼')
-  home.character.behaviorId = 'idle'
+  home.character.behaviorId = behaviorArg || 'idle'
   home.character.energy = 80
   home.character.satiety = 70
   home.character.mood = 70
@@ -118,8 +120,21 @@ function backgroundShapes(scene, geom, background) {
 /** 角色：用 idle 动作的格子比例算屏幕框，落点取行为的 spot */
 function characterShape(scene, geom, home, pet, actions) {
   const behavior = model.BEHAVIOR_BY_ID[home.character.behaviorId] || model.BEHAVIOR_BY_ID.idle
-  const spot = (scene.spots && scene.spots[behavior.spot]) || (scene.spots && scene.spots.center) || { fx: 5, fy: 7 }
-  const [x, y] = model.project(Number(spot.fx) || 0, Number(spot.fy) || 0)
+  let x
+  let y
+  let z = 100
+  let anchorInfo = null
+  // 事件带锚点（坐床头、趴桌、躺床…）时按家具锚点落位，和页面里看到的一致
+  const anchor = behavior.anchor ? model.resolveAnchor(behavior.anchor) : null
+  if (anchor) {
+    x = anchor.x
+    y = anchor.y
+    z = anchor.z
+    anchorInfo = behavior.anchor
+  } else {
+    const spot = (scene.spots && scene.spots[behavior.spot]) || (scene.spots && scene.spots.center) || { fx: 5, fy: 7 }
+    ;[x, y] = model.project(Number(spot.fx) || 0, Number(spot.fy) || 0)
+  }
   const idle = actions.find((action) => action.id === 'idle') || actions[0]
   const cell = idle && Array.isArray(idle.cell) ? idle.cell : [pet?.canvas?.[0] || 293, pet?.canvas?.[1] || 225]
   const height = (geom.wall || 280) * 0.62
@@ -127,7 +142,9 @@ function characterShape(scene, geom, home, pet, actions) {
   return {
     kind: 'character',
     behavior: home.character.behaviorId,
-    anchor: [Math.round(x), Math.round(y)],
+    z,
+    anchor: anchorInfo,
+    anchorPoint: [Math.round(x), Math.round(y)],
     rect: [Math.round(x - width / 2), Math.round(y - height), Math.round(width), Math.round(height)],
     cell,
   }
@@ -189,8 +206,16 @@ for (const map of targets) {
     }
     defs.push(def)
   }
+  // 事件也要加载：行为的锚点（bed:read 之类）写在事件里
+  const eventDefs = []
+  for (const id of scene.events || []) {
+    const def = readIfExists(path.join(dataDir, 'maps', map, 'events', `${id}.json`))
+    if (def) eventDefs.push(def)
+    else report.push({ map, level: 'error', code: 'missing-event', text: `事件定义缺失：${id}.json` })
+  }
   const home = makeHome()
   model.applyScene(scene)
+  model.applyEvents(eventDefs)
   if (background) model.applyBackground(background)
   model.applyFurniture(defs)
   const geom = model.geom

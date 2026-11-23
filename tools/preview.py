@@ -198,7 +198,7 @@ def draw_room(data):
 
     character = data.get("character")
     if character:
-        cx, cy = character["anchor"]
+        cx, cy = character.get("anchorPoint") or character.get("anchor")
         rx, ry, rw, rh = character["rect"]
         overlay = Image.new("RGBA", canvas.size, (0, 0, 0, 0))
         od = ImageDraw.Draw(overlay)

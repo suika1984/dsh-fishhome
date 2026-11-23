@@ -1,1 +1,131 @@
-{"id":"desk","name":{"zh":"书桌","en":"Desk"},"type":"furniture","parts":[{"id":"body-off","z":70,"sprite":{"src":"desk-off.png","rect":[314,198,210,171],"rotate":0,"group":"body","skew":-0.04},"visibleWhen":{"state":{"deskLamp":false}}},{"id":"body-on","z":70,"sprite":{"src":"desk-on-screen.png","rect":[314,198,210,171],"rotate":0,"group":"body","skew":-0.04},"visibleWhen":{"state":{"deskLamp":true}}},{"id":"glow","preset":"desk_glow","layer":"light","z":70,"offset":{"fx":-1.43,"fy":-4.11},"visibleWhen":{"state":{"deskLamp":true}}}],"click":{"type":"event","id":"work"},"interactionAnchors":[{"id":"sit","position":{"x":0.5,"y":1.02},"facing":"front","pose":"sit","renderLayer":"front","animation":"work"}],"animations":[{"id":"sit","animation":"work45","position":{"x":0.5,"y":1.12},"pivot":[0,-6],"facing":"front","renderLayer":"front"},{"id":"doze","animation":"doze45","position":{"x":0.5,"y":1.12},"pivot":[0,-6],"facing":"front","renderLayer":"front"}]}
+{
+  "id": "desk",
+  "name": {
+    "zh": "书桌",
+    "en": "Desk"
+  },
+  "type": "furniture",
+  "parts": [
+    {
+      "id": "body-off",
+      "z": 70,
+      "sprite": {
+        "src": "desk-off.png",
+        "rect": [
+          108.14639131141325,
+          157.1811220275216,
+          218,
+          290
+        ],
+        "rotate": 0,
+        "group": "body",
+        "skew": -0.1
+      },
+      "visibleWhen": {
+        "state": {
+          "deskLamp": false
+        }
+      }
+    },
+    {
+      "id": "body-on",
+      "z": 70,
+      "sprite": {
+        "src": "desk-on-screen.png",
+        "rect": [
+          108.14639131141325,
+          157.1811220275216,
+          218,
+          290
+        ],
+        "rotate": 0,
+        "group": "body",
+        "skew": -0.1
+      },
+      "visibleWhen": {
+        "state": {
+          "deskLamp": true
+        }
+      }
+    },
+    {
+      "id": "glow",
+      "preset": "lamp_glow",
+      "layer": "light",
+      "z": 71,
+      "rect": [
+        386,
+        231,
+        51,
+        44
+      ],
+      "visibleWhen": {
+        "state": {
+          "deskLamp": true
+        }
+      }
+    },
+    {
+      "id": "chair",
+      "z": 128,
+      "sprite": {
+        "src": "bedroom-chair.png",
+        "rect": [
+          231.6810008474598,
+          341.65097042949503,
+          91,
+          121
+        ]
+      }
+    }
+  ],
+  "click": {
+    "type": "event",
+    "id": "work"
+  },
+  "interactionAnchors": [
+    {
+      "id": "sit",
+      "position": {
+        "x": 0.5,
+        "y": 0.855
+      },
+      "facing": "front",
+      "pose": "sit",
+      "renderLayer": "front",
+      "animation": "work"
+    }
+  ],
+  "animations": [
+    {
+      "id": "sit",
+      "animation": "work45",
+      "position": {
+        "x": 0.5,
+        "y": 0.46
+      },
+      "pivot": [
+        0,
+        0
+      ],
+      "facing": "front",
+      "renderLayer": "front",
+      "part": "chair"
+    },
+    {
+      "id": "doze",
+      "animation": "doze45",
+      "position": {
+        "x": 0.5,
+        "y": 0.46
+      },
+      "pivot": [
+        0,
+        0
+      ],
+      "facing": "front",
+      "renderLayer": "front",
+      "part": "chair"
+    }
+  ]
+}

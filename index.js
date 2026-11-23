@@ -31,6 +31,8 @@ const DEFAULT_PACK_DIR = path.join(HERE, 'packs', 'bigfish-adult')
 /** 包内自带的场景定义（出厂模板；用户改动会复制到 dataDir，升级不会覆盖） */
 const PKG_DATA_DIR = path.join(HERE, 'data')
 const MAX_BODY_BYTES = 512 * 1024
+/** 房间截图是 base64 的 PNG（2 倍分辨率能有几 MB），单独放宽 */
+const MAX_SHOT_BYTES = 32 * 1024 * 1024
 const MAX_PACK_FILE_BYTES = 8 * 1024 * 1024
 const PACK_FILE_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 /** 允许「一层子目录/文件」：角色包里的 actions/ 用得上 */
@@ -101,9 +103,34 @@ async function walkFiles(root, prefix = '') {
   return out
 }
 
+/** 去掉 JSON 里的运行时临时字段（__scene 之类），让「只是被打过标记」的文件仍然算作包内原样 */
+function stripRuntimeKeys(value) {
+  if (Array.isArray(value)) return value.map(stripRuntimeKeys)
+  if (value && typeof value === 'object') {
+    const out = {}
+    for (const key of Object.keys(value)) {
+      if (key.startsWith('__')) continue
+      out[key] = stripRuntimeKeys(value[key])
+    }
+    return out
+  }
+  return value
+}
+
+function normalizedBytes(file) {
+  const buffer = readFileSync(file)
+  if (!file.toLowerCase().endsWith('.json')) return buffer
+  try {
+    const parsed = JSON.parse(buffer.toString('utf8'))
+    return Buffer.from(JSON.stringify(stripRuntimeKeys(parsed)), 'utf8')
+  } catch {
+    return buffer
+  }
+}
+
 function hashFileSync(file) {
   try {
-    return createHash('sha1').update(readFileSync(file)).digest('hex')
+    return createHash('sha1').update(normalizedBytes(file)).digest('hex')
   } catch {
     return ''
   }
@@ -161,7 +188,15 @@ export async function syncUserData(pkgDir, userDir) {
       continue
     }
     if (recorded === '') {
-      result.kept.push(rel)
+      // 之前被判成「用户改过」，但如果现在内容其实和包内一致（比如只是多了 __scene 标记），认回包管
+      if (userHash === pkgHash) {
+        await fsp.copyFile(pkgFile, userFile)
+        manifest.files[rel] = pkgHash
+        dirty = true
+        result.updated.push(rel)
+      } else {
+        result.kept.push(rel)
+      }
       continue
     }
     if (pkgHash === recorded) {
@@ -296,12 +331,12 @@ function sendText(res, status, text) {
   res.end(text)
 }
 
-async function readBody(req) {
+async function readBody(req, limit = MAX_BODY_BYTES) {
   const chunks = []
   let size = 0
   for await (const chunk of req) {
     size += chunk.length
-    if (size > MAX_BODY_BYTES) {
+    if (size > limit) {
       const error = new Error('body too large')
       error.code = 'E_TOO_LARGE'
       throw error
@@ -575,7 +610,7 @@ async function shotDirWritable(dir) {
 async function handleShot(req, res, shotDir) {
   let payload
   try {
-    payload = JSON.parse(await readBody(req))
+    payload = JSON.parse(await readBody(req, MAX_SHOT_BYTES))
   } catch (error) {
     const tooLarge = error && error.code === 'E_TOO_LARGE'
     sendJson(res, tooLarge ? 413 : 400, { ok: false, error: tooLarge ? '截图太大' : '请求体不是合法 JSON' })

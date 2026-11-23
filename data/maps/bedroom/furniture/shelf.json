@@ -1,1 +1,0 @@
-{"id":"shelf","name":{"zh":"书架","en":"Shelf"},"type":"furniture","parts":[{"id":"body","z":80,"sprite":{"src":"shelf.png","rect":[95,181,160,270],"skew":-0.04}}],"click":{"type":"event","id":"read"},"interactionAnchors":[{"id":"read","position":{"x":0.58,"y":1},"facing":"front_right","pose":"stand","renderLayer":"front","animation":"read"}]}

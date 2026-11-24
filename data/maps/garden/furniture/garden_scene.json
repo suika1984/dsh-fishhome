@@ -1,0 +1,106 @@
+{
+  "id": "garden_scene",
+  "name": {
+    "zh": "花园",
+    "en": "Garden"
+  },
+  "type": "decor",
+  "parts": [
+    {
+      "id": "spring",
+      "z": -1000,
+      "sprite": {
+        "src": "garden-spring.png",
+        "rect": [
+          0,
+          123,
+          1200,
+          677
+        ]
+      },
+      "visibleWhen": {
+        "season": [
+          "spring"
+        ]
+      }
+    },
+    {
+      "id": "summer",
+      "z": -1000,
+      "sprite": {
+        "src": "garden-summer.png",
+        "rect": [
+          0,
+          144,
+          1200,
+          656
+        ]
+      },
+      "visibleWhen": {
+        "season": [
+          "summer"
+        ]
+      }
+    },
+    {
+      "id": "autumn",
+      "z": -1000,
+      "sprite": {
+        "src": "garden-autumn.png",
+        "rect": [
+          0,
+          139,
+          1200,
+          661
+        ]
+      },
+      "visibleWhen": {
+        "season": [
+          "autumn"
+        ]
+      }
+    },
+    {
+      "id": "winter-snow",
+      "z": -1000,
+      "sprite": {
+        "src": "garden-winter.png",
+        "rect": [
+          0,
+          140,
+          1200,
+          660
+        ]
+      },
+      "visibleWhen": {
+        "season": [
+          "winter"
+        ],
+        "state": {
+          "gardenSnow": true
+        }
+      }
+    },
+    {
+      "id": "winter-nosnow",
+      "z": -1000,
+      "sprite": {
+        "src": "garden-winter-nosnow.png",
+        "rect": [
+          0,
+          140,
+          1200,
+          660
+        ]
+      },
+      "visibleWhen": {
+        "season": [
+          "winter"
+        ],
+        "state": {
+          "gardenSnow": false
+        }
+      }
+    }
+  ]
+}

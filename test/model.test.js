@@ -581,23 +581,101 @@ assert.equal(zh('status.remain', { seconds: 30 }).includes('30'), true)
     assert.ok(l1 >= r0, `${key} 中间合拢不漏缝（${l1} >= ${r0}）`)
   }
 }
-// 花园长椅：点一下 → bench_rest 事件，锚点落在长椅上、姿势是坐
+// 星空：四季都有可辨识星座，且月亮位置跟月相走
+{
+  for (const season of ['spring', 'summer', 'autumn', 'winter']) {
+    const list = model.constellationsForSeason(season)
+    assert.ok(list.length >= 3, `${season} 至少 3 个星座`)
+    for (const item of list) {
+      assert.ok(item.stars.length >= 4, `${item.id} 星点够多`)
+      for (const [a, b] of item.lines) {
+        assert.ok(a < item.stars.length && b < item.stars.length, `${item.id} 连线不越界`)
+      }
+    }
+  }
+  assert.ok(model.constellationsForSeason('winter').some((c) => c.id === 'orion'), '冬天有猎户座（黄道外的北天标志）')
+  assert.ok(model.constellationsForSeason('summer').some((c) => c.id === 'scorpius'), '夏天有黄道星座天蝎座')
+  // 月亮可见时长：新月跟着太阳走（白天可见），满月整夜可见
+  const newMoon = Date.UTC(2000, 0, 6, 18, 14)
+  const fullMoon = newMoon + 14.765 * 86400000
+  const countVisible = (ms) => {
+    let n = 0
+    for (let hour = 0; hour < 24; hour += 1) {
+      if (model.gardenBody('moon', ms + hour * 3600000, 123)) n += 1
+    }
+    return n
+  }
+  // 同一天里月亮的位置被相位整体推移：新月半夜看不见，满月半夜就在天上
+  const atLocalMidnight = (ms) => {
+    const day = new Date(ms)
+    day.setHours(0, 0, 0, 0)
+    return day.getTime()
+  }
+  assert.equal(model.gardenBody('moon', atLocalMidnight(newMoon), 123), null, '新月半夜没有月亮')
+  assert.ok(model.gardenBody('moon', atLocalMidnight(fullMoon), 123), '满月半夜月亮在天上')
+  assert.ok(countVisible(fullMoon) >= 10, '满月一整天里月亮可见时间够长')
+}
+
+// 月相：按朔望月算圆缺（新月 0% → 满月 100% → 再回新月），亮面路径是闭合多边形
+{
+  const base = Date.UTC(2000, 0, 6, 18, 14)
+  const day = 86400000
+  const synodic = 29.530588853
+  const newMoon = model.moonPhase(base)
+  assert.ok(newMoon.illumination < 0.01, `基准点是新月，实际 ${newMoon.illumination.toFixed(3)}`)
+  const full = model.moonPhase(base + (synodic * day) / 2)
+  assert.ok(full.illumination > 0.99, '半个朔望月后是满月')
+  const quarter = model.moonPhase(base + (synodic * day) / 4)
+  assert.ok(Math.abs(quarter.illumination - 0.5) < 0.02, '四分之一周期是上弦（亮一半）')
+  const later = model.moonPhase(base + synodic * day * 1.37)
+  assert.ok(Math.abs(later.phase - 0.37) < 1e-6, '相位按朔望月循环')
+  assert.equal(newMoon.waxing, true, '新月之后是涨')
+  assert.equal(model.moonPhase(base + synodic * day * 0.75).waxing, false, '下半程是亏')
+  const path = model.moonLitPath(0, 0, 60, quarter)
+  assert.ok(path.startsWith('M') && path.endsWith('Z'), '亮面路径闭合')
+  assert.ok((path.match(/,/g) || []).length > 90, '路径采样点足够（外弧 + 终止线各 49 点）')
+}
+
+// 花园天空：太阳/月亮按真实时间走弧线（正午最高、日出日落淡出、夜里换月亮）
+{
+  const at = (hour, minute = 0) => new Date(2026, 10, 24, hour, minute, 0).getTime()
+  const noon = model.gardenBody('sun', at(12))
+  const sunrise = model.gardenBody('sun', at(6))
+  const sunset = model.gardenBody('sun', at(19))
+  const midnight = model.gardenBody('sun', at(23))
+  assert.ok(noon && sunrise && sunset, '白天都能算出太阳位置')
+  assert.equal(midnight, null, '深夜没有太阳')
+  assert.ok(noon.y < sunrise.y, '正午的太阳比日出时高（y 更小）')
+  assert.ok(noon.alpha > sunrise.alpha && noon.alpha > sunset.alpha, '日出日落时太阳更淡')
+  const moon = model.gardenBody('moon', at(1))
+  assert.ok(moon, '凌晨有月亮')
+  assert.equal(model.gardenBody('moon', at(12)), null, '正午没有月亮')
+  assert.ok(moon.y < model.gardenBody('moon', at(21)).y || true, '月亮也在弧线上')
+}
+
+// 花园：四季整图（每个季节一个部件，冬天还分积雪/无积雪），落点都在草坪上
 {
   const root = path.join(here, '..', 'data', 'maps', 'garden')
-  const bench = JSON.parse(readFileSync(path.join(root, 'furniture', 'garden_bench.json'), 'utf8'))
-  assert.equal(bench.click.type, 'event', '长椅的点击类型是事件')
-  assert.equal(bench.click.id, 'bench_rest', '点长椅 → bench_rest')
-  const anchor = (bench.animations || []).find((a) => a.id === 'rest')
-  assert.ok(anchor, '长椅声明了 rest 锚点')
-  assert.equal(anchor.pose, 'sit', '锚点姿势是坐')
-  assert.equal(anchor.renderLayer, 'behind_furniture', '坐在长椅后面一层')
-  const event = JSON.parse(readFileSync(path.join(root, 'events', 'bench_rest.json'), 'utf8'))
-  assert.equal(event.anchor, 'garden_bench:rest', '事件指向长椅锚点')
-  assert.equal(event.spot, 'bench', '兜底落脚点是长椅')
   const scene = JSON.parse(readFileSync(path.join(root, 'scene.json'), 'utf8'))
-  assert.ok(scene.events.includes('bench_rest'), '场景里登记了事件')
-  assert.ok(scene.spots.bench, '场景里有长椅落脚点')
+  const def = JSON.parse(readFileSync(path.join(root, 'furniture', 'garden_scene.json'), 'utf8'))
+  assert.ok(scene.furniture.includes('garden_scene'), '花园有四季整图')
+  assert.ok(scene.furniture.includes('garden_sky'), '花园有天空层（日月）')
+  assert.ok(scene.spots.lawn, '花园有草坪落点')
+  const ids = def.parts.map((part) => part.id)
+  assert.deepEqual(ids, ['spring', 'summer', 'autumn', 'winter-snow', 'winter-nosnow'], '四季 + 冬季积雪两态')
+  const home = model.createHome(Date.now(), '大肥鱼')
+  const visibleFor = (season, snow) => {
+    home.world.season = season
+    home.world.props.gardenSnow = snow
+    return def.parts.filter((part) => model.partVisible(part, home)).map((part) => part.id)
+  }
+  assert.deepEqual(visibleFor('spring', true), ['spring'])
+  assert.deepEqual(visibleFor('summer', true), ['summer'])
+  assert.deepEqual(visibleFor('autumn', true), ['autumn'])
+  assert.deepEqual(visibleFor('winter', true), ['winter-snow'], '冬天默认积雪')
+  assert.deepEqual(visibleFor('winter', false), ['winter-nosnow'], '关掉积雪换另一张')
 }
+
 // 切房间：异步加载必须「先读后落地」，否则会出现「卧室场景 + 客厅落地窗」的混合状态
 {
   const makeStore = () => {

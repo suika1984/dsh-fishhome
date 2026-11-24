@@ -72,6 +72,8 @@
           ? `${month} 月 ${day} 日 · 周${WEEKDAYS_ZH[date.getDay()]}`
           : `${month}/${day} · ${WEEKDAYS_EN[date.getDay()]}`,
         daylight: daylight(hour + minute / 60),
+        // 月相：满月 > 0.9，用来压住「睡不着」这类权重
+        moon: moonPhase(Date.now()).illumination,
         sleepiness: sleepiness(hour + minute / 60),
       }
     }
@@ -146,6 +148,7 @@
       workHours: (c, clock) => clock.hour > 8 && clock.hour < 22,
       evening: (c, clock) => clock.hour > 14 && clock.hour < 23,
       night: (c, clock) => clock.period === 'night' || clock.period === 'deepNight',
+      fullMoon: (c, clock) => (clock.moon || 0) > 0.9 && (clock.period === 'night' || clock.period === 'deepNight'),
       daylight: (c, clock) => clock.daylight > 0.22,
       lampOn: (c, clock, props) => props.deskLamp === true,
       curtainClosed: (c, clock, props) => props.curtainOpen !== true,
@@ -170,6 +173,8 @@
 
     const DEFAULT_PROPS = {
       deskLamp: false,
+      // 花园：冬天是否积雪（切换 garden-winter / garden-winter-nosnow 两张图）
+      gardenSnow: true,
       bedLamp: false,
       livingLamp: false,
       curtainOpen: true,

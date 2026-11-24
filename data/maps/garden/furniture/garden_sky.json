@@ -1,0 +1,35 @@
+{
+  "id": "garden_sky",
+  "name": {
+    "zh": "天空",
+    "en": "Sky"
+  },
+  "type": "decor",
+  "parts": [
+    {
+      "id": "sky",
+      "z": -2000,
+      "preset": "garden_sky"
+    },
+    {
+      "id": "stars",
+      "z": -1950,
+      "preset": "garden_stars",
+      "band": 123
+    },
+    {
+      "id": "moon",
+      "z": -1900,
+      "preset": "garden_moon",
+      "layer": "light",
+      "band": 123
+    },
+    {
+      "id": "sun",
+      "z": -1899,
+      "preset": "garden_sun",
+      "layer": "light",
+      "band": 123
+    }
+  ]
+}

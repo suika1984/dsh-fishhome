@@ -882,6 +882,10 @@
           : saveState === 'offline'
             ? t('head.offline')
             : t('head.pending')
+      const moonInfo = moonPhase()
+      const moonChip = h(Chip, {
+        title: `${Math.round(moonInfo.illumination * 100)}%`,
+      }, fillText(t('moon.chip', { name: t(`moon.${moonPhaseKey(moonInfo)}`) })))
       return h(
         'div',
         { className: 'fh-head-side' },
@@ -895,6 +899,7 @@
             }, fillText(t('head.elsewhere', { room: elsewhere }), { characterName: elsewhereName }))
             : null,
           h(Chip, null, clock.dateText),
+          moonChip,
           h(Chip, null, `${clock.clock}`),
           h(Chip, null, t(`season.${clock.season}`)),
           h(Chip, null, t(`period.${clock.period}`)),

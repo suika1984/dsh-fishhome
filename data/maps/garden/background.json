@@ -9,18 +9,13 @@
         "stops": [
           {
             "at": 0,
-            "color": "#dcefc4"
+            "color": "#e9eff6"
           },
           {
             "at": 1,
-            "color": "#c2e2a4"
+            "color": "#d7e2ee"
           }
         ]
-      },
-      "grid": {
-        "color": "#a8cc86",
-        "opacity": 0.18,
-        "step": 1
       }
     }
   ],

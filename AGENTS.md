@@ -231,6 +231,24 @@ index.js        插件入口（返回 inject/apply）
 2. 把 `<id>` 加进 `data/maps/index.json` 的地图清单。
 3. `scene.json` 关键字段：`room`（`cols`/`rows`/`wallHeight`/`canvas`/`projection`/`camera`）、`spots`、`spawn`、`furniture`、`events`、`controls`。
 
+**整图场景（花园）**：花园不是「家具拼出来」的，而是四季各一张整图。做法是把它做成一件家具 `garden_scene`，每个季节一个部件，靠 `visibleWhen.season` 切换：
+
+```jsonc
+"parts": [
+  { "id": "spring", "z": -1000, "sprite": { "src": "garden-spring.png", "rect": [0, 0, 1200, 677] },
+    "visibleWhen": { "season": ["spring"] } },
+  { "id": "winter-snow", "visibleWhen": { "season": ["winter"], "state": { "gardenSnow": true } } }
+]
+```
+
+- `visibleWhen.season` 支持字符串或数组，和 `home.world.season` 比对（`partVisible()` 里实现）
+- 四季图**按底边对齐**（每张 `rect.y = 画布高 - 图高`），否则房子的位置会在换季时跳
+- 整图铺满画布时房间的等距网格只用来算 `spots`（她站哪儿），不再用于铺地板
+- 换季图有细微差异（树/花），别去逐像素对齐，底边对齐就够了
+
+**花园的天空**：`furniture/garden_sky.json` 三个预设件 —— `garden_sky`（整块天空，按时段取 `#fh-sky-*` 渐变）、`garden_sun`、`garden_moon`（`layer: "light"`，画在夜色之上）。日月位置由 `gardenBody(kind, nowMs, band)` 按真实时间算弧线，`band` 是顶部留出的天空带高度（现在 108px，四季图缩到 84% 让出来的）。
+月亮圆缺由 `moonPhase(nowMs)` 算：朔望月 29.530588853 天，基准新月 `Date.UTC(2000,0,6,18,14)`；亮面用 `moonLitPath()` 采样成闭合多边形（**别用 SVG 圆弧 sweep 标志**，月牙/凸月特别容易画反）。新月不画多边形、满月直接画圆，否则会留 1px 亮边。
+
 ### 5.6 换角色素材 / 切片
 
 - 角色包 `pet.json` 的 `assets` 声明图纸尺寸，`actions/*.json` 里每帧用 `rect` 从图纸裁一格。

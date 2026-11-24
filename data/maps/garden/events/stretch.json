@@ -4,7 +4,7 @@
     "zh": "伸懒腰"
   },
   "kind": "autonomous",
-  "spot": "bench",
+  "spot": "lawn",
   "anim": "stretch",
   "duration": [
     14,

@@ -7,10 +7,10 @@
   "room": {
     "cols": 14,
     "rows": 10,
-    "wallHeight": 60,
+    "wallHeight": 333,
     "canvas": [
       1200,
-      502
+      800
     ],
     "margin": {
       "x": 24,
@@ -26,17 +26,13 @@
       "fx": 7,
       "fy": 5
     },
-    "bench": {
-      "fx": 3.5,
-      "fy": 3.2
+    "lawn": {
+      "fx": 5.2,
+      "fy": 6.4
     },
-    "tree": {
-      "fx": 10.5,
+    "door": {
+      "fx": 7,
       "fy": 2.4
-    },
-    "flowers": {
-      "fx": 5,
-      "fy": 7.2
     }
   },
   "spawn": [
@@ -44,26 +40,24 @@
     5
   ],
   "furniture": [
-    "garden_path",
-    "garden_bench",
-    "garden_tree",
-    "garden_flowers",
-    "garden_fence"
+    "garden_sky",
+    "garden_scene",
+    "garden_light"
   ],
   "events": [
     "idle",
     "stretch",
-    "play",
-    "bench_rest"
+    "play"
   ],
   "controls": [
     {
-      "kind": "event",
-      "id": "bench_rest",
+      "kind": "toggle",
+      "key": "gardenSnow",
       "label": {
-        "zh": "坐下歇会儿",
-        "en": "Rest on the bench"
-      }
+        "zh": "积雪",
+        "en": "Snow"
+      },
+      "suffix": "state"
     },
     {
       "kind": "event",
@@ -97,5 +91,5 @@
       }
     }
   ],
-  "characterHeight": 200
+  "characterHeight": 196
 }

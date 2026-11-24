@@ -26,7 +26,9 @@ const dataFlag = argv.indexOf('--data')
 const dataArg = dataFlag >= 0 ? argv[dataFlag + 1] : ''
 const behaviorFlag = argv.indexOf('--behavior')
 const behaviorArg = behaviorFlag >= 0 ? argv[behaviorFlag + 1] : ''
-const args = argv.filter((item, index) => !item.startsWith('--') && !(dataFlag >= 0 && index === dataFlag + 1) && !(behaviorFlag >= 0 && index === behaviorFlag + 1))
+const seasonFlag = argv.indexOf('--season')
+const seasonArg = seasonFlag >= 0 ? argv[seasonFlag + 1] : ''
+const args = argv.filter((item, index) => !item.startsWith('--') && !(dataFlag >= 0 && index === dataFlag + 1) && !(behaviorFlag >= 0 && index === behaviorFlag + 1) && !(seasonFlag >= 0 && index === seasonFlag + 1))
 const dataDir = dataArg ? path.resolve(dataArg) : path.join(root, 'data')
 const packDir = path.join(root, 'packs', 'bigfish-adult')
 const outDir = path.join(root, 'test', 'shots')
@@ -78,6 +80,7 @@ function makeHome() {
   home.character.emote = null
   home.character.lean = null
   home.world.map = 'bedroom'
+  if (seasonArg) home.world.season = seasonArg
   return home
 }
 

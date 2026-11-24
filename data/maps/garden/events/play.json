@@ -4,7 +4,7 @@
     "zh": "玩鲸鱼"
   },
   "kind": "autonomous",
-  "spot": "flowers",
+  "spot": "lawn",
   "anim": "play",
   "duration": [
     60,

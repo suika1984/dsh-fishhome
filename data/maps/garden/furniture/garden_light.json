@@ -1,0 +1,30 @@
+{
+  "id": "garden_light",
+  "name": {
+    "zh": "夜光",
+    "en": "Night light"
+  },
+  "type": "decor",
+  "parts": [
+    {
+      "id": "falloff",
+      "z": 150,
+      "preset": "garden_night",
+      "lights": [
+        [
+          0.4,
+          0.42
+        ],
+        [
+          0.61,
+          0.42
+        ],
+        [
+          0.52,
+          0.55
+        ]
+      ],
+      "radius": 0.6
+    }
+  ]
+}

@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = '659e8997'
+    const BUILD_REV = '7a7898bc'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -54,6 +54,19 @@ const NOTE_MARK = '【家园】'
       'scene.desk': '书桌',
       'scene.desk_chair': '电脑椅',
       'scene.telescope': '望远镜',
+      'scene.garden_scene': '花园',
+      'scene.garden_sky': '天空',
+      'scene.garden_light': '夜光',
+      'moon.new': '新月',
+      'moon.waxingCrescent': '蛾眉月',
+      'moon.firstQuarter': '上弦月',
+      'moon.waxingGibbous': '盈凸月',
+      'moon.full': '满月',
+      'moon.waningGibbous': '亏凸月',
+      'moon.lastQuarter': '下弦月',
+      'moon.waningCrescent': '残月',
+      'moon.chip': '月相 {name}',
+
       'behavior.stargaze': '在看星星',
       'flavor.stargaze': '她把眼睛凑到望远镜前，慢慢调着焦距。',
       'log.stargaze': '{name}趴到望远镜前看了一会儿星星。',
@@ -346,6 +359,19 @@ const NOTE_MARK = '【家园】'
       'scene.desk': 'Desk',
       'scene.desk_chair': 'Desk chair',
       'scene.telescope': 'Telescope',
+      'scene.garden_scene': 'Garden',
+      'scene.garden_sky': 'Sky',
+      'scene.garden_light': 'Night light',
+      'moon.new': 'New moon',
+      'moon.waxingCrescent': 'Waxing crescent',
+      'moon.firstQuarter': 'First quarter',
+      'moon.waxingGibbous': 'Waxing gibbous',
+      'moon.full': 'Full moon',
+      'moon.waningGibbous': 'Waning gibbous',
+      'moon.lastQuarter': 'Last quarter',
+      'moon.waningCrescent': 'Waning crescent',
+      'moon.chip': '{name}',
+
       'behavior.stargaze': 'Stargazing',
       'flavor.stargaze': 'She leans into the eyepiece and slowly turns the focuser.',
       'log.stargaze': '{name} spent a while at the telescope looking at the stars.',
@@ -728,6 +754,8 @@ const NOTE_MARK = '【家园】'
           ? `${month} 月 ${day} 日 · 周${WEEKDAYS_ZH[date.getDay()]}`
           : `${month}/${day} · ${WEEKDAYS_EN[date.getDay()]}`,
         daylight: daylight(hour + minute / 60),
+        // 月相：满月 > 0.9，用来压住「睡不着」这类权重
+        moon: moonPhase(Date.now()).illumination,
         sleepiness: sleepiness(hour + minute / 60),
       }
     }
@@ -802,6 +830,7 @@ const NOTE_MARK = '【家园】'
       workHours: (c, clock) => clock.hour > 8 && clock.hour < 22,
       evening: (c, clock) => clock.hour > 14 && clock.hour < 23,
       night: (c, clock) => clock.period === 'night' || clock.period === 'deepNight',
+      fullMoon: (c, clock) => (clock.moon || 0) > 0.9 && (clock.period === 'night' || clock.period === 'deepNight'),
       daylight: (c, clock) => clock.daylight > 0.22,
       lampOn: (c, clock, props) => props.deskLamp === true,
       curtainClosed: (c, clock, props) => props.curtainOpen !== true,
@@ -826,6 +855,8 @@ const NOTE_MARK = '【家园】'
 
     const DEFAULT_PROPS = {
       deskLamp: false,
+      // 花园：冬天是否积雪（切换 garden-winter / garden-winter-nosnow 两张图）
+      gardenSnow: true,
       bedLamp: false,
       livingLamp: false,
       curtainOpen: true,
@@ -3363,6 +3394,11 @@ async function writeSave(home) {
           h('stop', { offset: '45%', stopColor: '#dbe9ff', stopOpacity: 0.45 }),
           h('stop', { offset: '100%', stopColor: '#cfe0ff', stopOpacity: 0 }),
         ),
+        h('radialGradient', { id: 'fh-moon-light' },
+          h('stop', { offset: '0%', stopColor: '#eaf2ff', stopOpacity: 0.75 }),
+          h('stop', { offset: '45%', stopColor: '#cfe0ff', stopOpacity: 0.28 }),
+          h('stop', { offset: '100%', stopColor: '#cfe0ff', stopOpacity: 0 }),
+        ),
         h('radialGradient', { id: 'fh-sun-light' },
           h('stop', { offset: '0%', stopColor: '#fff0c9', stopOpacity: 0.85 }),
           h('stop', { offset: '100%', stopColor: '#fff0c9', stopOpacity: 0 }),
@@ -3967,6 +4003,131 @@ async function writeSave(home) {
      * preset 注册表：数据里写 preset 名字，代码里负责怎么画（位置用 offset 调）。
      * 带 _glow 的是「光源」：数据里配 layer: "light"，会画在环境光之上。
      */
+    /** 朔望月：29.530588853 天。取 2000-01-06 18:14 UTC 的新月作为基准 */
+    const SYNODIC_DAYS = 29.530588853
+    const NEW_MOON_AT = Date.UTC(2000, 0, 6, 18, 14)
+
+    /**
+     * 月相：返回 { phase 0~1（0/1 新月、0.5 满月）, illumination 亮面比例, waxing 是否在涨 }。
+     * 只依赖日期，不需要联网。
+     */
+    function moonPhase(nowMs) {
+      const ms = Number.isFinite(nowMs) ? nowMs : Date.now()
+      const days = (ms - NEW_MOON_AT) / 86400000
+      let phase = (days % SYNODIC_DAYS) / SYNODIC_DAYS
+      if (phase < 0) phase += 1
+      const illumination = (1 - Math.cos(2 * Math.PI * phase)) / 2
+      return { phase, illumination, waxing: phase < 0.5 }
+    }
+
+    /** 相位 → 8 个名字的键（面板显示用） */
+    function moonPhaseKey(info) {
+      const p = info && typeof info.phase === 'number' ? info.phase : 0
+      const names = ['new', 'waxingCrescent', 'firstQuarter', 'waxingGibbous', 'full', 'waningGibbous', 'lastQuarter', 'waningCrescent']
+      return names[Math.round(p * 8) % 8]
+    }
+
+    /**
+     * 亮面的多边形路径：外弧 = 亮面半圆；终止线 = 椭圆（半轴 a = r·|cos(2π·phase)|）的投影。
+     * 用采样点而不是 SVG 圆弧，避免 sweep 方向搞反（月牙/凸月很容易画反）。
+     */
+    function moonLitPath(cx, cy, r, info) {
+      const N = 48
+      const a = r * Math.abs(Math.cos(2 * Math.PI * info.phase))
+      const side = info.waxing ? 1 : -1
+      const bulge = info.illumination < 0.5 ? 1 : -1
+      const points = []
+      for (let i = 0; i <= N; i += 1) {
+        const t = -Math.PI / 2 + (Math.PI * i) / N
+        points.push([cx + side * r * Math.cos(t), cy + r * Math.sin(t)])
+      }
+      for (let i = N; i >= 0; i -= 1) {
+        const t = -Math.PI / 2 + (Math.PI * i) / N
+        const dy = Math.sin(t)
+        points.push([cx + side * bulge * a * Math.sqrt(Math.max(0, 1 - dy * dy)), cy + r * dy])
+      }
+      return `M${points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join('L')}Z`
+    }
+
+    /**
+     * 花园天空里的太阳 / 月亮：按真实时间算弧线位置。
+     * 太阳 5:30 升起、19:30 落下；月亮 18:30 升起、次日 6:30 落下。
+     * 返回 { x, y, r, alpha }，不在这个时段返回 null（测试直接调这个函数）。
+     */
+    function gardenBody(kind, nowMs, band) {
+      const ms = Number.isFinite(nowMs) ? nowMs : Date.now()
+      const date = new Date(ms)
+      const hour = date.getHours() + date.getMinutes() / 60
+      const W = geom.canvasW || 1200
+      const H = geom.canvasH || 677
+      const isSun = kind === 'sun'
+      let t
+      if (isSun) {
+        if (hour <= 5.5 || hour >= 19.5) return null
+        t = (hour - 5.5) / 14
+      } else {
+        // 月亮：按当天月相把「上中天」往后推，新月贴着太阳、满月整夜挂着
+        const monthPhase = moonPhase(ms)
+        const moonHour = ((hour - monthPhase.phase * 24) % 24 + 24) % 24
+        if (moonHour <= 5.5 || moonHour >= 19.5) return null
+        t = (moonHour - 5.5) / 14
+      }
+      // band：顶部留给天空的高度（像素）。日月都在这条带子里走，不会钻到房子后面
+      const strip = Number.isFinite(Number(band)) && Number(band) > 0 ? Number(band) : H * 0.35
+      const r = Math.min(Math.max(10, strip * 0.26), Math.max(10, W * 0.026))
+      const x = W * (0.1 + 0.8 * t)
+      // 收在天空带里，别被画布顶边裁掉
+      const rawY = strip * (0.52 - Math.sin(Math.PI * t) * 0.3)
+      const y = Math.min(Math.max(rawY, r + 2), Math.max(r + 2, strip - r - 2))
+      // 太阳贴着地平线时淡出；月亮整夜稳定
+      const alpha = isSun ? Math.min(1, 0.2 + daylight(hour) * 1.2) : 0.85
+      return { x, y, r, alpha: Math.max(0, Math.min(1, alpha)), t }
+    }
+
+    /**
+     * 季节星座：挑的是「当季天黑后好认」的几个——黄道星座 + 北半球常见星座。
+     * 坐标是归一化的 0~1（左上角原点），画的时候乘天空带尺寸。
+     */
+    const SEASON_CONSTELLATIONS = {
+      spring: [
+        { id: 'leo', name: '狮子座', box: [0.08, 0.18, 0.24, 0.5], stars: [[0.1, 0.82], [0.05, 0.55], [0.3, 0.62], [0.48, 0.85], [0.7, 0.6], [0.86, 0.42], [0.66, 0.2]], lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 3]] },
+        { id: 'virgo', name: '室女座', box: [0.42, 0.3, 0.22, 0.42], stars: [[0.1, 0.7], [0.35, 0.45], [0.55, 0.6], [0.8, 0.35], [0.6, 0.15]], lines: [[0, 1], [1, 2], [2, 3], [3, 4]] },
+        { id: 'ursa-major', name: '大熊座', box: [0.7, 0.5, 0.26, 0.3], stars: [[0.05, 0.55], [0.2, 0.65], [0.35, 0.75], [0.5, 0.7], [0.6, 0.5], [0.72, 0.62], [0.85, 0.55]], lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6]] },
+      ],
+      summer: [
+        { id: 'scorpius', name: '天蝎座', box: [0.06, 0.25, 0.26, 0.55], stars: [[0.12, 0.2], [0.2, 0.35], [0.28, 0.5], [0.42, 0.62], [0.58, 0.7], [0.72, 0.62], [0.8, 0.45], [0.7, 0.3]], lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7]] },
+        { id: 'cygnus', name: '天鹅座', box: [0.42, 0.18, 0.22, 0.5], stars: [[0.5, 0.05], [0.5, 0.4], [0.5, 0.95], [0.15, 0.55], [0.85, 0.55]], lines: [[0, 1], [1, 2], [3, 1], [1, 4]] },
+        { id: 'sagittarius', name: '人马座', box: [0.7, 0.42, 0.24, 0.42], stars: [[0.2, 0.8], [0.35, 0.5], [0.45, 0.2], [0.65, 0.35], [0.72, 0.7], [0.5, 0.75]], lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 0]] },
+      ],
+      autumn: [
+        { id: 'cassiopeia', name: '仙后座', box: [0.1, 0.2, 0.26, 0.4], stars: [[0.05, 0.7], [0.28, 0.3], [0.5, 0.62], [0.72, 0.25], [0.92, 0.6]], lines: [[0, 1], [1, 2], [2, 3], [3, 4]] },
+        { id: 'pegasus', name: '飞马座', box: [0.42, 0.25, 0.26, 0.5], stars: [[0.1, 0.15], [0.8, 0.2], [0.85, 0.75], [0.15, 0.8], [0.95, 0.45]], lines: [[0, 1], [1, 4], [4, 2], [2, 3], [3, 0]] },
+        { id: 'andromeda', name: '仙女座', box: [0.72, 0.4, 0.24, 0.35], stars: [[0.05, 0.75], [0.3, 0.55], [0.55, 0.42], [0.82, 0.25]], lines: [[0, 1], [1, 2], [2, 3]] },
+      ],
+      winter: [
+        { id: 'orion', name: '猎户座', box: [0.08, 0.25, 0.24, 0.6], stars: [[0.15, 0.12], [0.85, 0.2], [0.45, 0.5], [0.55, 0.52], [0.65, 0.54], [0.1, 0.85], [0.9, 0.9]], lines: [[0, 2], [1, 4], [2, 3], [3, 4], [0, 5], [1, 6]] },
+        { id: 'taurus', name: '金牛座', box: [0.4, 0.35, 0.22, 0.45], stars: [[0.2, 0.85], [0.35, 0.5], [0.6, 0.35], [0.85, 0.45], [0.75, 0.15]], lines: [[0, 1], [1, 2], [2, 3], [2, 4]] },
+        { id: 'canis-major', name: '大犬座', box: [0.7, 0.5, 0.24, 0.4], stars: [[0.15, 0.3], [0.45, 0.5], [0.7, 0.65], [0.9, 0.8], [0.6, 0.85]], lines: [[0, 1], [1, 2], [2, 3], [2, 4]] },
+      ],
+    }
+
+    /** 固定随机种子：同一季节的星场不会每天乱跳 */
+    function seededRandom(seed) {
+      let value = seed % 2147483647
+      if (value <= 0) value += 2147483646
+      return () => {
+        value = (value * 16807) % 2147483647
+        return (value - 1) / 2147483646
+      }
+    }
+
+    const SEASON_SEED = { spring: 11, summer: 37, autumn: 59, winter: 83 }
+
+    /** 某个季节的星座列表（测试直接调） */
+    function constellationsForSeason(season) {
+      return SEASON_CONSTELLATIONS[season] || SEASON_CONSTELLATIONS.spring
+    }
+
     const PRESETS = {
       desk: (props) => h(DeskView, { lamp: props.home.world.props.deskLamp }),
       desk_glow: (props) => h(DeskGlow, {
@@ -3978,6 +4139,150 @@ async function writeSave(home) {
       plant: () => h(PlantView, null),
       night_lamp: (props) => h(NightLampView, { lamp: props.home.world.props.bedLamp }),
       night_lamp_glow: (props) => h(NightLampGlow, { lamp: props.home.world.props.bedLamp }),
+      // 花园：夜间光照衰减。白天不画，夜里以「墙面灯笼」为中心向外压暗，
+      // 用 multiply 混合，所以离灯越远越黑，比平铺一层灰更像真的光。
+      garden_night: (props) => {
+        const W = geom.canvasW || 1200
+        const H = geom.canvasH || 677
+        const now = new Date()
+        const hour = now.getHours() + now.getMinutes() / 60
+        const dark = Math.pow(1 - daylight(hour), 1.15)
+        if (dark <= 0.04) return null
+        const part = (props && props.part) || {}
+        const lamps = Array.isArray(part.lights) && part.lights.length > 0
+          ? part.lights
+          : [[0.42, 0.42], [0.62, 0.42]]
+        const radius = Number(part.radius) > 0 ? Number(part.radius) : 0.62
+        return h('g', { className: 'fh-garden-night', 'data-dark': dark.toFixed(2), pointerEvents: 'none' },
+          h('defs', null,
+            h('radialGradient', { id: 'fh-garden-night-grad', cx: '50%', cy: '42%', r: `${Math.round(radius * 100)}%` },
+              h('stop', { offset: '0%', stopColor: '#fff0d2', stopOpacity: 0 }),
+              h('stop', { offset: '40%', stopColor: '#3a3350', stopOpacity: 0.18 }),
+              h('stop', { offset: '72%', stopColor: '#241f38', stopOpacity: 0.46 }),
+              h('stop', { offset: '100%', stopColor: '#151228', stopOpacity: 0.72 }),
+            ),
+          ),
+          h('rect', {
+            x: 0,
+            y: 0,
+            width: W,
+            height: H,
+            fill: 'url(#fh-garden-night-grad)',
+            opacity: dark,
+            style: { mixBlendMode: 'multiply' },
+          }),
+          // 门口/墙灯的暖光池（screen 叠加，越靠近灯越亮）
+          h('g', { opacity: dark * 0.85, style: { mixBlendMode: 'screen' } },
+            lamps.map((lamp, index) => h('circle', {
+              key: `lamp-${index}`,
+              cx: lamp[0] * W,
+              cy: lamp[1] * H,
+              r: Math.max(90, W * 0.085),
+              fill: 'url(#fh-room-light)',
+            })),
+          ),
+        )
+      },
+      // 花园：星空 + 当季星座（只在天空带里画，天亮了自动淡出）
+      garden_stars: (props) => {
+        const home = props && props.home
+        const world = home && home.world ? home.world : {}
+        const season = world.season || 'spring'
+        const period = world.period || 'noon'
+        const W = geom.canvasW || 1200
+        const H = geom.canvasH || 677
+        const band = Number(props && props.part && props.part.band) > 0 ? Number(props.part.band) : H * 0.22
+        // 天亮/傍晚星星淡掉；夜里最亮
+        const nightness = period === 'deepNight' ? 1 : period === 'night' ? 0.9 : period === 'evening' || period === 'dawn' ? 0.35 : 0
+        if (nightness <= 0.02) return null
+        const random = seededRandom(SEASON_SEED[season] || 7)
+        const dots = []
+        for (let i = 0; i < 90; i += 1) {
+          const x = random() * W
+          const y = random() * band * 0.92 + band * 0.04
+          const r = 0.6 + random() * 1.4
+          dots.push(h('circle', {
+            key: `star-${i}`,
+            cx: x.toFixed(1),
+            cy: y.toFixed(1),
+            r: r.toFixed(2),
+            fill: '#eef4ff',
+            opacity: (0.25 + random() * 0.6) * nightness,
+          }))
+        }
+        const shapes = []
+        const list = constellationsForSeason(season)
+        list.forEach((item, index) => {
+          const [bx, by] = item.box
+          // 等比缩放：星图的 x/y 用同一个比例，否则星座会被压扁
+          const side = band * 0.95
+          const ox = bx * W
+          const oy = Math.min(by * band, Math.max(0, band - side * 0.95))
+          const point = (p) => [ox + p[0] * side, oy + p[1] * side]
+          const pts = item.stars.map(point)
+          shapes.push(h('g', { key: `line-${item.id}`, className: 'fh-constellation', opacity: 0.16 * nightness },
+            item.lines.map((pair, k) => h('line', {
+              key: `l${k}`,
+              x1: pts[pair[0]][0].toFixed(1),
+              y1: pts[pair[0]][1].toFixed(1),
+              x2: pts[pair[1]][0].toFixed(1),
+              y2: pts[pair[1]][1].toFixed(1),
+              stroke: '#cfe0ff',
+              strokeWidth: 0.9,
+            })),
+          ))
+          pts.forEach((p, k) => {
+            shapes.push(h('circle', {
+              key: `star-${item.id}-${k}`,
+              cx: p[0].toFixed(1),
+              cy: p[1].toFixed(1),
+              r: k < 2 ? 2 : 1.5,
+              fill: '#f4f8ff',
+              opacity: 0.85 * nightness,
+            }))
+          })
+        })
+        return h('g', { className: 'fh-garden-stars', 'data-season': season }, dots, shapes)
+      },
+      // 花园：整块天空（按时段取渐变）
+      garden_sky: (props) => {
+        const period = props && props.home && props.home.world ? props.home.world.period : 'noon'
+        return h('rect', {
+          x: 0,
+          y: 0,
+          width: geom.canvasW || 1200,
+          height: geom.canvasH || 677,
+          fill: `url(#fh-sky-${period || 'noon'})`,
+        })
+      },
+      garden_sun: (props) => {
+        const body = gardenBody('sun', undefined, props && props.part ? props.part.band : 0)
+        if (!body) return null
+        return h('g', { className: 'fh-garden-sun', opacity: body.alpha },
+          h('circle', { cx: body.x, cy: body.y, r: body.r * 4.2, fill: 'url(#fh-sun-light)' }),
+          h('circle', { cx: body.x, cy: body.y, r: body.r, fill: '#fff4c9' }),
+        )
+      },
+      garden_moon: (props) => {
+        const body = gardenBody('moon', undefined, props && props.part ? props.part.band : 0)
+        if (!body) return null
+        const r = body.r * 0.92
+        const info = moonPhase()
+        // 新月几乎全暗，光晕也淡一点，避免"没有月亮却有一团光"
+        const glowAlpha = body.alpha * (0.35 + info.illumination * 0.65)
+        // 新月（几乎全暗）不画多边形，否则外弧采样会留一道 1px 亮边；满月直接画圆
+        const lit = info.illumination < 0.02
+          ? null
+          : info.illumination > 0.98
+            ? h('circle', { cx: body.x, cy: body.y, r, fill: '#f2f7ff', opacity: body.alpha })
+            : h('path', { d: moonLitPath(body.x, body.y, r, info), fill: '#f2f7ff', opacity: body.alpha })
+        return h('g', { className: 'fh-garden-moon', 'data-phase': info.phase.toFixed(2) },
+          h('circle', { cx: body.x, cy: body.y, r: body.r * 3.6, fill: 'url(#fh-moon-light)', opacity: glowAlpha }),
+          // 暗面：很淡的冷灰，让"被遮住的那半"也能看出轮廓
+          h('circle', { cx: body.x, cy: body.y, r, fill: '#7d8bab', opacity: body.alpha * 0.45 }),
+          lit,
+        )
+      },
       // 通用灯罩发光：位置取 part.rect（灯罩光晕 + 地面光池），客厅落地灯用
       lamp_glow: (props) => {
         const part = props.part || {}
@@ -4146,6 +4451,13 @@ async function writeSave(home) {
       }
       if (Array.isArray(when.period) && !when.period.includes(home.world.period)) {
         return false
+      }
+      // 季节条件：字符串或数组，和 world.season 比对（花园四季整图就靠它切换）
+      if (when.season !== undefined && when.season !== null) {
+        const seasons = Array.isArray(when.season) ? when.season : [when.season]
+        if (seasons.length > 0 && !seasons.includes(home.world.season)) {
+          return false
+        }
       }
       if (when.state && typeof when.state === 'object') {
         for (const key of Object.keys(when.state)) {
@@ -5555,6 +5867,10 @@ async function writeSave(home) {
           : saveState === 'offline'
             ? t('head.offline')
             : t('head.pending')
+      const moonInfo = moonPhase()
+      const moonChip = h(Chip, {
+        title: `${Math.round(moonInfo.illumination * 100)}%`,
+      }, fillText(t('moon.chip', { name: t(`moon.${moonPhaseKey(moonInfo)}`) })))
       return h(
         'div',
         { className: 'fh-head-side' },
@@ -5568,6 +5884,7 @@ async function writeSave(home) {
             }, fillText(t('head.elsewhere', { room: elsewhere }), { characterName: elsewhereName }))
             : null,
           h(Chip, null, clock.dateText),
+          moonChip,
           h(Chip, null, `${clock.clock}`),
           h(Chip, null, t(`season.${clock.season}`)),
           h(Chip, null, t(`period.${clock.period}`)),
@@ -7983,6 +8300,11 @@ async function writeSave(home) {
         resolveDataPath,
         project,
         geom,
+        gardenBody,
+        moonPhase,
+        moonPhaseKey,
+        constellationsForSeason,
+        moonLitPath,
         bgRef,
         sceneRef,
       },

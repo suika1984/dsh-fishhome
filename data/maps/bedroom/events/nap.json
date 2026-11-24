@@ -16,7 +16,15 @@
     "energy": 0.02,
     "satiety": -0.001
   },
-  "weight": null,
+  "weight": {
+    "base": 1,
+    "mods": [
+      {
+        "when": "fullMoon",
+        "mul": 0.55
+      }
+    ]
+  },
   "request": {
     "accept": [
       "energyLow",

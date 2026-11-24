@@ -972,6 +972,18 @@
   border-color: var(--dsw-alias-border-subtle, rgba(0, 0, 0, 0.08));
   color: var(--dsw-alias-text-secondary);
 }
+/* ---- 花园天气：雨丝下落 / 雪花飘落 ----
+ * 只动一个图层，粒子本身是静态的（图案比画布高，循环一次看不出接缝）。
+ * 系统开了「减少动态效果」就不动，天气照样压在画面上。
+ */
+@keyframes fh-weather-fall {
+  from { transform: translateY(-40px); }
+  to { transform: translateY(0); }
+}
+.fh-weather-fall { animation: fh-weather-fall 1.1s linear infinite; }
+.fh-weather-snow .fh-weather-fall { animation-duration: 7s; animation-timing-function: linear; }
+.fh-weather-drizzle .fh-weather-fall { animation-duration: 1.6s; }
+@media (prefers-reduced-motion: reduce) {
+  .fh-weather-fall { animation: none; }
+}
 `
-
-

@@ -472,6 +472,10 @@ function createHandler(settings) {
         await handleNoteTarget(req, res, settings)
         return
       }
+      if (rest === '/api/weather' && (req.method === 'GET' || req.method === 'HEAD')) {
+        await handleWeather(req, res, url, settings.config())
+        return true
+      }
       if (rest === '/api/activity' && (req.method === 'GET' || req.method === 'HEAD')) {
         const activity = settings.activity ? settings.activity() : null
         if (!activity) {
@@ -1509,5 +1513,116 @@ function activitySnapshot(activity, notes, mode) {
     // 已经静默多久（前端判断"还在忙吗"）
     idleMs: activity.lastAt > 0 ? now - activity.lastAt : -1,
     notes: notes ? notesSnapshot(notes, mode) : undefined,
+  }
+}
+
+/* ======================================================================
+ * 真实天气：Open-Meteo（免费、免 key）
+ *   - 只在客户端带了经纬度时才请求（位置由用户在设置里填）
+ *   - 缓存 6 小时，避免每次都打网络；失败退回缓存，再失败返回 ok:false
+ *   - Host 不猜位置，缓存文件放在 dataDir/weather/<lat>_<lon>.json
+ * ==================================================================== */
+const WEATHER_TTL_MS = 6 * 60 * 60 * 1000
+const WEATHER_TIMEOUT_MS = 4500
+
+function weatherCachePath(config, lat, lon) {
+  const key = lat.toFixed(3) + '_' + lon.toFixed(3)
+  return path.join(config.dataDir, 'weather', key.replace(/-/g, 'm') + '.json')
+}
+
+async function readWeatherCache(config, lat, lon) {
+  try {
+    const raw = await fsp.readFile(weatherCachePath(config, lat, lon), 'utf8')
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' ? parsed : null
+  } catch {
+    return null
+  }
+}
+
+async function writeWeatherCache(config, lat, lon, payload) {
+  const file = weatherCachePath(config, lat, lon)
+  try {
+    await fsp.mkdir(path.dirname(file), { recursive: true })
+    await fsp.writeFile(file, JSON.stringify(payload), 'utf8')
+  } catch {
+    /* 缓存写不进去不影响主流程 */
+  }
+}
+
+async function fetchOpenMeteo(lat, lon) {
+  const query = new URLSearchParams({
+    latitude: String(lat),
+    longitude: String(lon),
+    hourly: 'temperature_2m,weather_code,precipitation,snowfall,cloud_cover',
+    current: 'temperature_2m,weather_code',
+    daily: 'temperature_2m_max,temperature_2m_min',
+    timezone: 'auto',
+    forecast_days: '1',
+  })
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), WEATHER_TIMEOUT_MS)
+  try {
+    const target = 'https://api.open-meteo.com/v1/forecast?' + query.toString()
+    const response = await fetch(target, { signal: controller.signal, headers: { accept: 'application/json' } })
+    if (!response.ok) throw new Error('HTTP ' + response.status)
+    const data = await response.json()
+    const hourlyRaw = data.hourly || {}
+    const hours = Array.isArray(hourlyRaw.time) ? hourlyRaw.time : []
+    const hourly = hours.map((time, index) => ({
+      hour: String(time).slice(11, 16),
+      temp: Number(hourlyRaw.temperature_2m?.[index]),
+      code: Number(hourlyRaw.weather_code?.[index]),
+      precip: Number(hourlyRaw.precipitation?.[index] ?? 0),
+      snow: Number(hourlyRaw.snowfall?.[index] ?? 0),
+      cloud: Number(hourlyRaw.cloud_cover?.[index] ?? 0),
+    }))
+    const daily = data.daily || {}
+    return {
+      ok: true,
+      source: 'open-meteo',
+      lat,
+      lon,
+      timezone: data.timezone || '',
+      current: {
+        temp: Number(data.current?.temperature_2m),
+        code: Number(data.current?.weather_code),
+      },
+      today: {
+        max: Number(daily.temperature_2m_max?.[0]),
+        min: Number(daily.temperature_2m_min?.[0]),
+      },
+      hourly,
+      fetchedAt: Date.now(),
+    }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+async function handleWeather(req, res, url, config) {
+  const lat = Number(url.searchParams.get('lat'))
+  const lon = Number(url.searchParams.get('lon'))
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+    sendJson(res, 400, { ok: false, error: 'lat/lon 不合法' })
+    return
+  }
+  const place = String(url.searchParams.get('place') || '').slice(0, 40)
+  const cached = await readWeatherCache(config, lat, lon)
+  if (cached && Date.now() - Number(cached.fetchedAt || 0) < WEATHER_TTL_MS) {
+    sendJson(res, 200, { ...cached, place, stale: false })
+    return
+  }
+  try {
+    const payload = await fetchOpenMeteo(lat, lon)
+    await writeWeatherCache(config, lat, lon, payload)
+    sendJson(res, 200, { ...payload, place, stale: false })
+  } catch (error) {
+    const message = String(error && error.message ? error.message : error)
+    if (cached) {
+      sendJson(res, 200, { ...cached, place, stale: true, error: message })
+      return
+    }
+    sendJson(res, 200, { ok: false, error: message })
   }
 }

@@ -180,6 +180,7 @@
     }
 
     const SEASON_SEED = { spring: 11, summer: 37, autumn: 59, winter: 83 }
+    const WEATHER_SEED = { overcast: 5, drizzle: 17, rain: 23, snow: 41 }
 
     /** 某个季节的星座列表（测试直接调） */
     function constellationsForSeason(season) {
@@ -190,13 +191,70 @@
       desk: (props) => h(DeskView, { lamp: props.home.world.props.deskLamp }),
       desk_glow: (props) => h(DeskGlow, {
         lamp: props.home.world.props.deskLamp,
-        glow: props.home.world.props.deskLamp || props.home.world.props.bedLamp,
+        // 正在用电脑时，屏幕本身也该亮着（哪怕台灯没开）
+        glow: props.home.world.props.deskLamp || props.home.world.props.bedLamp ||
+          (props.home.character && props.home.character.behaviorId === 'work'),
       }),
       shelf: () => h(ShelfView, null),
       rug: () => h(RugView, null),
       plant: () => h(PlantView, null),
       night_lamp: (props) => h(NightLampView, { lamp: props.home.world.props.bedLamp }),
       night_lamp_glow: (props) => h(NightLampGlow, { lamp: props.home.world.props.bedLamp }),
+      // 花园天气：阴天 / 小雨 / 大雨 / 雪。只在花园用，别的房间不画。
+      garden_weather: (props) => {
+        const world = props && props.home && props.home.world ? props.home.world : {}
+        const weather = currentWeather(props && props.home)
+        if (weather === 'clear') return null
+        const W = geom.canvasW || 1200
+        const H = geom.canvasH || 677
+        const random = seededRandom(WEATHER_SEED[weather] || 13)
+        // 阴天/雨天整体压一层冷灰；雪天压一层冷白
+        const veil = weather === 'overcast'
+          ? { color: '#5f6673', opacity: 0.22 }
+          : weather === 'drizzle' ? { color: '#586274', opacity: 0.26 }
+            : weather === 'rain' ? { color: '#48536b', opacity: 0.34 }
+              : { color: '#c9d6e8', opacity: 0.18 }
+        const drops = []
+        if (weather === 'drizzle' || weather === 'rain') {
+          const count = weather === 'rain' ? 170 : 110
+          const len = weather === 'rain' ? 18 : 13
+          for (let i = 0; i < count; i += 1) {
+            const x = random() * (W + 120) - 60
+            const y = random() * (H + 40) - 40
+            drops.push(h('line', {
+              key: `drop-${i}`,
+              x1: x.toFixed(1),
+              y1: y.toFixed(1),
+              x2: (x - len * 0.28).toFixed(1),
+              y2: (y + len).toFixed(1),
+              stroke: '#dbe6f5',
+              strokeWidth: weather === 'rain' ? 1.6 : 1.1,
+              strokeLinecap: 'round',
+              opacity: (0.3 + random() * 0.45).toFixed(2),
+            }))
+          }
+        }
+        if (weather === 'snow') {
+          for (let i = 0; i < 90; i += 1) {
+            const x = random() * W
+            const y = random() * (H + 30) - 30
+            const r = 1 + random() * 2.2
+            drops.push(h('circle', {
+              key: `flake-${i}`,
+              cx: x.toFixed(1),
+              cy: y.toFixed(1),
+              r: r.toFixed(1),
+              fill: '#ffffff',
+              opacity: (0.35 + random() * 0.45).toFixed(2),
+            }))
+          }
+        }
+        const falling = weather !== 'overcast'
+        return h('g', { className: `fh-weather fh-weather-${weather}`, 'data-weather': weather, pointerEvents: 'none' },
+          h('rect', { x: 0, y: 0, width: W, height: H, fill: veil.color, opacity: veil.opacity }),
+          h('g', { className: falling ? 'fh-weather-fall' : undefined }, drops),
+        )
+      },
       // 花园：夜间光照衰减。白天不画，夜里以「墙面灯笼」为中心向外压暗，
       // 用 multiply 混合，所以离灯越远越黑，比平铺一层灰更像真的光。
       garden_night: (props) => {
@@ -250,6 +308,8 @@
         const W = geom.canvasW || 1200
         const H = geom.canvasH || 677
         const band = Number(props && props.part && props.part.band) > 0 ? Number(props.part.band) : H * 0.22
+        // 阴雨天云层压住星空
+        if (currentWeather(home) !== 'clear') return null
         // 天亮/傍晚星星淡掉；夜里最亮
         const nightness = period === 'deepNight' ? 1 : period === 'night' ? 0.9 : period === 'evening' || period === 'dawn' ? 0.35 : 0
         if (nightness <= 0.02) return null
@@ -305,15 +365,23 @@
       // 花园：整块天空（按时段取渐变）
       garden_sky: (props) => {
         const period = props && props.home && props.home.world ? props.home.world.period : 'noon'
-        return h('rect', {
-          x: 0,
-          y: 0,
-          width: geom.canvasW || 1200,
-          height: geom.canvasH || 677,
-          fill: `url(#fh-sky-${period || 'noon'})`,
-        })
+        const weather = currentWeather(props && props.home)
+        const W = geom.canvasW || 1200
+        const H = geom.canvasH || 677
+        const veil = weather === 'overcast'
+          ? { color: '#8d95a4', opacity: 0.45 }
+          : weather === 'drizzle' ? { color: '#7f899b', opacity: 0.5 }
+            : weather === 'rain' ? { color: '#6b7689', opacity: 0.58 }
+              : weather === 'snow' ? { color: '#c6d2e2', opacity: 0.38 }
+                : null
+        return h('g', null,
+          h('rect', { x: 0, y: 0, width: W, height: H, fill: `url(#fh-sky-${period || 'noon'})` }),
+          veil ? h('rect', { x: 0, y: 0, width: W, height: H, fill: veil.color, opacity: veil.opacity }) : null,
+        )
       },
       garden_sun: (props) => {
+        // 阴天/雨天/雪天看不到太阳
+        if (currentWeather(props && props.home) !== 'clear') return null
         const body = gardenBody('sun', undefined, props && props.part ? props.part.band : 0)
         if (!body) return null
         return h('g', { className: 'fh-garden-sun', opacity: body.alpha },
@@ -322,6 +390,8 @@
         )
       },
       garden_moon: (props) => {
+        // 有云/下雨/下雪时月亮也看不见
+        if (currentWeather(props && props.home) !== 'clear') return null
         const body = gardenBody('moon', undefined, props && props.part ? props.part.band : 0)
         if (!body) return null
         const r = body.r * 0.92
@@ -500,6 +570,10 @@
     function partVisible(part, home) {
       const when = part && part.visibleWhen
       if (!when || typeof when !== 'object') return true
+      // 或条件：any: [ {...}, {...} ]，任意一条成立就画（用来做「台灯开着 或 正在用电脑」）
+      if (Array.isArray(when.any)) {
+        return when.any.some((one) => one && partVisible({ visibleWhen: one }, home))
+      }
       if (Array.isArray(when.characterEvent) && !when.characterEvent.includes(home.character.behaviorId)) {
         return false
       }

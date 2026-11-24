@@ -423,6 +423,19 @@
           const trimmed = value.trim().slice(0, max)
           return trimmed === '' ? fallback : trimmed
         }
+        // 天气设置：存在 props 里（props 本来就被存档序列化）
+        const props = this.home.world.props
+        if (typeof patch.weatherEnabled === 'boolean') props.weatherEnabled = patch.weatherEnabled
+        if (typeof patch.weatherPlace === 'string') {
+          const place = patch.weatherPlace.trim().slice(0, 16)
+          props.weatherPlace = place === '' ? '成都' : place
+        }
+        for (const [key, fallback, max] of [['weatherLat', 30.5728, 90], ['weatherLon', 104.0668, 180]]) {
+          if (patch[key] === undefined) continue
+          const value = Number(patch[key])
+          if (Number.isFinite(value) && Math.abs(value) <= max) props[key] = value
+          else if (String(patch[key]).trim() === '') props[key] = fallback
+        }
         this.home.characterName = clean(patch.characterName, this.home.characterName, 12)
         this.home.selfName = clean(patch.selfName, this.home.selfName, 8)
         this.home.roomName = clean(patch.roomName, this.home.roomName, 16)

@@ -581,6 +581,44 @@ assert.equal(zh('status.remain', { seconds: 30 }).includes('30'), true)
     assert.ok(l1 >= r0, `${key} 中间合拢不漏缝（${l1} >= ${r0}）`)
   }
 }
+// 真实天气：WMO 码翻译 + 室内温度混合
+{
+  assert.equal(model.weatherCodeToId(0), 'clear', '晴')
+  assert.equal(model.weatherCodeToId(3), 'overcast', '阴')
+  assert.equal(model.weatherCodeToId(53), 'drizzle', '毛毛雨')
+  assert.equal(model.weatherCodeToId(63), 'rain', '中雨')
+  assert.equal(model.weatherCodeToId(73), 'snow', '雪')
+  assert.equal(model.weatherCodeToId(95), 'rain', '雷雨当大雨')
+  assert.equal(model.weatherCodeToId(undefined), 'clear', '没数据当晴')
+  // 室内温度：离 24° 越远混得越少，且有上下限
+  assert.equal(model.blendIndoorTemp(null, 'winter'), 18, '没数据退回季节表')
+  assert.equal(model.blendIndoorTemp(5, 'winter'), 16, '冷天室内压到下限 16°（18×0.7 + 5×0.3 = 14.1 → 夹到 16）')
+  assert.equal(model.blendIndoorTemp(20, 'winter'), Math.round(18 * 0.7 + 20 * 0.3), '室外 20° 时室内接近 19°')
+  assert.ok(model.blendIndoorTemp(-30, 'winter') >= 16, '再冷也不会低于 16°')
+  assert.ok(model.blendIndoorTemp(45, 'summer') <= 30, '再热也不会高于 30°')
+}
+
+// 天气：按日期+季节稳定摇一个，冬天才可能下雪
+{
+  const day = new Date(2026, 0, 15, 12, 0, 0).getTime()
+  const again = new Date(2026, 0, 15, 23, 30, 0).getTime()
+  assert.equal(model.weatherOf(day, 'winter'), model.weatherOf(again, 'winter'), '同一天天气不变')
+  const ids = new Set()
+  for (let i = 0; i < 365; i += 1) {
+    const ms = new Date(2026, 0, 1 + i, 12, 0, 0).getTime()
+    for (const season of ['spring', 'summer', 'autumn', 'winter']) {
+      ids.add(model.weatherOf(ms, season))
+    }
+  }
+  assert.deepEqual([...ids].sort(), ['clear', 'drizzle', 'overcast', 'rain', 'snow'], '四种天气都出现过')
+  let snowSummer = false
+  for (let i = 0; i < 200; i += 1) {
+    const ms = new Date(2026, 5, 1 + i, 12, 0, 0).getTime()
+    if (model.weatherOf(ms, 'summer') === 'snow') snowSummer = true
+  }
+  assert.equal(snowSummer, false, '夏天不会下雪')
+}
+
 // 星空：四季都有可辨识星座，且月亮位置跟月相走
 {
   for (const season of ['spring', 'summer', 'autumn', 'winter']) {
@@ -651,6 +689,30 @@ assert.equal(zh('status.remain', { seconds: 30 }).includes('30'), true)
   assert.ok(moon, '凌晨有月亮')
   assert.equal(model.gardenBody('moon', at(12)), null, '正午没有月亮')
   assert.ok(moon.y < model.gardenBody('moon', at(21)).y || true, '月亮也在弧线上')
+}
+
+// 书桌：正在用电脑时，亮屏那张要出现（哪怕台灯没开）
+{
+  const desk = JSON.parse(readFileSync(path.join(here, '..', 'data', 'maps', 'bedroom', 'furniture', 'desk.json'), 'utf8'))
+  const home = model.createHome(Date.now(), '大肥鱼')
+  const visible = (id) => {
+    const part = desk.parts.find((item) => item.id === id)
+    return model.partVisible(part, home)
+  }
+  home.world.props.deskLamp = false
+  home.character.behaviorId = 'idle'
+  assert.equal(visible('body-on'), false, '台灯关着又没在用电脑 → 暗屏')
+  assert.equal(visible('body-off'), true, '暗屏那张应该在')
+  home.character.behaviorId = 'work'
+  assert.equal(visible('body-on'), true, '用电脑时屏幕亮起')
+  assert.equal(visible('body-off'), false, '暗屏那张要让位')
+  home.world.props.deskLamp = true
+  home.character.behaviorId = 'idle'
+  assert.equal(visible('body-on'), true, '台灯开着也是亮屏')
+  const anyPart = { visibleWhen: { any: [{ state: { deskLamp: false } }, { characterEvent: ['sleep'] }] } }
+  assert.equal(model.partVisible(anyPart, home), false, 'any 里都不成立 → 不画')
+  home.character.behaviorId = 'sleep'
+  assert.equal(model.partVisible(anyPart, home), true, 'any 里任意一条成立就画')
 }
 
 // 花园：四季整图（每个季节一个部件，冬天还分积雪/无积雪），落点都在草坪上

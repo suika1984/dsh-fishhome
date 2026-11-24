@@ -24,7 +24,10 @@
       "visibleWhen": {
         "state": {
           "deskLamp": false
-        }
+        },
+        "characterEventNot": [
+          "work"
+        ]
       }
     },
     {
@@ -43,9 +46,18 @@
         "skew": -0.1
       },
       "visibleWhen": {
-        "state": {
-          "deskLamp": true
-        }
+        "any": [
+          {
+            "state": {
+              "deskLamp": true
+            }
+          },
+          {
+            "characterEvent": [
+              "work"
+            ]
+          }
+        ]
       }
     },
     {
@@ -60,9 +72,18 @@
         44
       ],
       "visibleWhen": {
-        "state": {
-          "deskLamp": true
-        }
+        "any": [
+          {
+            "state": {
+              "deskLamp": true
+            }
+          },
+          {
+            "characterEvent": [
+              "work"
+            ]
+          }
+        ]
       }
     },
     {

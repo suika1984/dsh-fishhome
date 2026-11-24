@@ -1,0 +1,15 @@
+{
+  "id": "garden_weather",
+  "name": {
+    "zh": "天气",
+    "en": "Weather"
+  },
+  "type": "decor",
+  "parts": [
+    {
+      "id": "fx",
+      "z": 160,
+      "preset": "garden_weather"
+    }
+  ]
+}

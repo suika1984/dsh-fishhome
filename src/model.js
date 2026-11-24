@@ -36,6 +36,73 @@
       return 'night'
     }
 
+    /**
+     * 天气：不联网，按「日期 + 季节」稳定地摇一个出来（同一天刷新不变）。
+     * 只有花园会画天气效果，卧室/客厅不受影响。
+     */
+    const WEATHER_TABLE = {
+      spring: [['clear', 5], ['overcast', 3], ['drizzle', 2], ['rain', 1]],
+      summer: [['clear', 6], ['overcast', 2], ['drizzle', 1], ['rain', 1]],
+      autumn: [['clear', 5], ['overcast', 3], ['drizzle', 1], ['rain', 1]],
+      winter: [['clear', 4], ['overcast', 3], ['snow', 2], ['rain', 1]],
+    }
+    const WEATHER_IDS = ['clear', 'overcast', 'drizzle', 'rain', 'snow']
+
+    function weatherOf(nowMs, season) {
+      const date = new Date(Number.isFinite(nowMs) ? nowMs : Date.now())
+      const table = WEATHER_TABLE[season] || WEATHER_TABLE.spring
+      const start = new Date(date.getFullYear(), 0, 0)
+      const dayIndex = Math.floor((date.getTime() - start.getTime()) / 86400000)
+      const total = table.reduce((sum, entry) => sum + entry[1], 0)
+      let pick = Math.abs(dayIndex * 31 + date.getFullYear() * 7) % total
+      for (const [id, weight] of table) {
+        if (pick < weight) return id
+        pick -= weight
+      }
+      return 'clear'
+    }
+
+    /** WMO 天气码 → 家园里的四档（+ 晴）。真实天气接进来时用它翻译 */
+    /**
+     * 当前天气：开了真实天气且最近拉到过数据就用它，否则退回按日期摇号。
+     * 花园的天气滤镜和面板芯片都用这个。
+     */
+    function currentWeather(home) {
+      const props = (home && home.world && home.world.props) || {}
+      const code = Number(props.liveWeatherCode)
+      const at = Number(props.liveWeatherAt)
+      if (props.weatherEnabled === true && Number.isFinite(code) && Number.isFinite(at) && at > 0) {
+        return weatherCodeToId(code)
+      }
+      return (home && home.world && home.world.weather) || 'clear'
+    }
+
+    function weatherCodeToId(code) {
+      const value = Number(code)
+      if (!Number.isFinite(value)) return 'clear'
+      if (value === 0 || value === 1) return 'clear'
+      if (value === 2 || value === 3 || value === 45 || value === 48) return 'overcast'
+      if (value >= 51 && value <= 57) return 'drizzle'
+      if ((value >= 61 && value <= 67) || (value >= 80 && value <= 82)) return 'rain'
+      if ((value >= 71 && value <= 77) || value === 85 || value === 86) return 'snow'
+      if (value >= 95) return 'rain'
+      return 'overcast'
+    }
+
+    /**
+     * 室内温度：有真实室外温度时按「房子会保温」混一下，别让面板显示 -3° 却看着暖和。
+     * 没数据就退回季节表（indoorTemperature）。
+     */
+    function blendIndoorTemp(outdoor, season) {
+      const base = indoorTemperature(season)
+      // 注意 Number(null) === 0，必须先挡掉空值，否则「没数据」会被当成 0°
+      if (outdoor === null || outdoor === undefined || outdoor === '') return base
+      const value = Number(outdoor)
+      if (!Number.isFinite(value)) return base
+      const mixed = base * 0.7 + value * 0.3
+      return Math.round(Math.min(30, Math.max(16, mixed)))
+    }
+
     /** 0 = 全黑，1 = 正午。用来做灯光、窗帘与行为倾向，不写死整点。 */
     function daylight(hour) {
       const x = (hour - 6) / 12
@@ -74,6 +141,7 @@
         daylight: daylight(hour + minute / 60),
         // 月相：满月 > 0.9，用来压住「睡不着」这类权重
         moon: moonPhase(Date.now()).illumination,
+        weather: weatherOf(date.getTime(), seasonOf(date)),
         sleepiness: sleepiness(hour + minute / 60),
       }
     }
@@ -175,6 +243,14 @@
       deskLamp: false,
       // 花园：冬天是否积雪（切换 garden-winter / garden-winter-nosnow 两张图）
       gardenSnow: true,
+      // 真实天气（Open-Meteo）：开关 + 位置 + 最近一次结果
+      weatherEnabled: false,
+      weatherPlace: '成都',
+      weatherLat: 30.5728,
+      weatherLon: 104.0668,
+      liveWeatherTemp: null,
+      liveWeatherCode: null,
+      liveWeatherAt: 0,
       bedLamp: false,
       livingLamp: false,
       curtainOpen: true,
@@ -737,7 +813,12 @@
       const clock = timeSnapshot(date, 'zh')
       home.world.season = clock.season
       home.world.period = clock.period
-      home.world.temperature = indoorTemperature(clock.season)
+    // 手动预览用：weatherOverride 非空就固定天气（__fhWeather('rain')），否则按日期自动
+    home.world.weather = home.world.weatherOverride || clock.weather
+      const liveTemp = home.world.props && home.world.props.weatherEnabled === true
+      ? home.world.props.liveWeatherTemp
+      : null
+    home.world.temperature = blendIndoorTemp(liveTemp, clock.season)
 
       const behavior = BEHAVIOR_BY_ID[home.character.behaviorId] || BEHAVIOR_BY_ID.idle
       const character = home.character

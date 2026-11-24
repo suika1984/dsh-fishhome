@@ -42,7 +42,8 @@
   "furniture": [
     "garden_sky",
     "garden_scene",
-    "garden_light"
+    "garden_light",
+    "garden_weather"
   ],
   "events": [
     "idle",

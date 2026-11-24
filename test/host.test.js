@@ -658,6 +658,48 @@ assert.equal(outside.statusCode, 404)
   const bad = await call('/fishhome/api/shot', 'POST', JSON.stringify({ map: 'bedroom', dataUrl: 'not-a-png' }))
   assert.equal(bad.statusCode, 400, '非 PNG 的 dataUrl 应该被拒')
 
+
+  // 真实天气接口：带 lat/lon 才请求；返回曲线；第二次走缓存不再打网络
+  {
+    const realFetch = globalThis.fetch
+    let calls = 0
+    globalThis.fetch = async (target) => {
+      calls += 1
+      assert.ok(String(target).includes('api.open-meteo.com'), `应该请求 Open-Meteo，实际 ${target}`)
+      const body = {
+        timezone: 'Asia/Shanghai',
+        current: { temperature_2m: 12.4, weather_code: 51 },
+        daily: { temperature_2m_max: [15.2], temperature_2m_min: [9.1] },
+        hourly: {
+          time: ['2026-11-24T13:00', '2026-11-24T14:00'],
+          temperature_2m: [12.4, 13.1],
+          weather_code: [51, 61],
+          precipitation: [0.2, 0.6],
+          snowfall: [0, 0],
+          cloud_cover: [90, 95],
+        },
+      }
+      return { ok: true, status: 200, async json() { return body } }
+    }
+    try {
+      const res = await call('/fishhome/api/weather?lat=30.5728&lon=104.0668&place=成都')
+      assert.equal(res.statusCode, 200, `天气接口应该 200，实际 ${res.statusCode}: ${res.body}`)
+      const data = JSON.parse(res.body)
+      assert.equal(data.ok, true)
+      assert.equal(data.current.temp, 12.4, '当前温度透传')
+      assert.equal(data.hourly.length, 2, '小时曲线透传')
+      assert.equal(data.hourly[1].code, 61)
+      assert.equal(data.place, '成都')
+      assert.equal(calls, 1)
+      const again = await call('/fishhome/api/weather?lat=30.5728&lon=104.0668')
+      assert.equal(again.statusCode, 200)
+      assert.equal(calls, 1, '6 小时内再请求应该走缓存')
+      const bad = await call('/fishhome/api/weather?lat=abc&lon=1')
+      assert.equal(bad.statusCode, 400, '缺经纬度/非法要 400')
+    } finally {
+      globalThis.fetch = realFetch
+    }
+  }
   // 真实截图是几 MB 的 base64，不能因为 512KB 的默认请求体上限被拒（曾经 413）
   const bigPayload = 'A'.repeat(1_600_000)
   const big = await call('/fishhome/api/shot', 'POST', JSON.stringify({

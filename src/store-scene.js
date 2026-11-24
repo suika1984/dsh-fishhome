@@ -35,7 +35,51 @@
         return ''
       },
       /** 切场景：重新拉 scene/background/furniture/events */
-      async setMap(mapId) {
+      /**
+     * 拉一次真实天气（Host 负责请求 + 6h 缓存），把结果写进 props。
+     * 没开开关 / 没坐标 / 请求失败 → 什么都不改，花园继续用按日期摇号的天气。
+     */
+    async refreshWeather() {
+      const home = this.home
+      if (!home || !home.world || !home.world.props) return false
+      const props = home.world.props
+      if (props.weatherEnabled !== true) return false
+      const lat = Number(props.weatherLat)
+      const lon = Number(props.weatherLon)
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false
+      const place = encodeURIComponent(String(props.weatherPlace || ''))
+      try {
+        const response = await fetch(ROUTE + '/api/weather?lat=' + lat + '&lon=' + lon + '&place=' + place, {
+          headers: { accept: 'application/json' },
+        })
+        if (!response.ok) return false
+        const data = await response.json()
+        if (!data || data.ok !== true) return false
+        const temp = Number(data.current && data.current.temp)
+        const code = Number(data.current && data.current.code)
+        if (!Number.isFinite(temp) || !Number.isFinite(code)) return false
+        props.liveWeatherTemp = temp
+        props.liveWeatherCode = code
+        props.liveWeatherAt = Date.now()
+        home.world.weather = currentWeather(home)
+        if (typeof this.publish === 'function') this.publish()
+        if (typeof this.scheduleSave === 'function') this.scheduleSave(800)
+        return true
+      } catch {
+        return false
+      }
+    },
+
+    /** 固定花园天气（调试/预览用），空字符串 = 恢复自动 */
+    setWeatherOverride(value) {
+      const next = value ? String(value) : ''
+      if (next) this.home.world.weatherOverride = next
+      else delete this.home.world.weatherOverride
+      this.home.world.weather = next || undefined
+      if (typeof this.publish === 'function') this.publish()
+    },
+
+    async setMap(mapId) {
         if (typeof mapId !== 'string' || mapId === '') return false
         try {
           window.localStorage.setItem(`${LS_KEY}:map`, mapId)

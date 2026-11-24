@@ -376,7 +376,7 @@
           'div',
           { className: 'fh-room-badge' },
           h('span', { className: 'fh-room-name' }, home.roomName || t('room.title', { name: home.characterName })),
-          h('span', { className: 'fh-room-meta' }, `${clock.clock} · ${t(`season.${home.world.season}`)} ${home.world.temperature}°`),
+          h('span', { className: 'fh-room-meta' }, `${clock.clock} · ${t(`season.${home.world.season}`)} ${home.world.temperature}°${outdoorSuffix(home)}`),
         ),
         h(
           'div',
@@ -873,8 +873,16 @@
       }
     }
 
+    /** 开了真实天气就带上室外温度：室内 18° · 室外 13° */
+    function outdoorSuffix(home) {
+      const props = (home && home.world && home.world.props) || {}
+      const temp = Number(props.liveWeatherTemp)
+      if (props.weatherEnabled !== true || !Number.isFinite(temp) || !(Number(props.liveWeatherAt) > 0)) return ''
+      return ` · 室外 ${Math.round(temp)}°`
+    }
+
     function HeaderActions(props) {
-      const { t, clock, onRefresh, saveState, editOn, onToggleEdit, settingsOn, onToggleSettings, maps, currentMap, onSwitchMap, elsewhere, elsewhereName, onCallPet, zoom, onZoom, onShot, shotTip } = props
+      const { t, clock, onRefresh, saveState, editOn, onToggleEdit, settingsOn, onToggleSettings, maps, currentMap, onSwitchMap, elsewhere, elsewhereName, onCallPet, zoom, onZoom, onShot, shotTip, weather } = props
       const saveLabel = saveState === 'saved'
         ? t('head.saved')
         : saveState === 'saving'
@@ -882,6 +890,11 @@
           : saveState === 'offline'
             ? t('head.offline')
             : t('head.pending')
+      // 天气只在花园生效，所以芯片也只在花园显示
+      const weatherNow = weather || (clock && clock.weather) || 'clear'
+      const weatherChip = currentMap === 'garden'
+        ? h(Chip, { title: t('scene.garden_weather') }, fillText(t(`weather.${weatherNow}`)))
+        : null
       const moonInfo = moonPhase()
       const moonChip = h(Chip, {
         title: `${Math.round(moonInfo.illumination * 100)}%`,
@@ -899,6 +912,7 @@
             }, fillText(t('head.elsewhere', { room: elsewhere }), { characterName: elsewhereName }))
             : null,
           h(Chip, null, clock.dateText),
+          weatherChip,
           moonChip,
           h(Chip, null, `${clock.clock}`),
           h(Chip, null, t(`season.${clock.season}`)),
@@ -969,6 +983,18 @@
           h('span', { className: 'fh-muted' }, t('settings.hint')),
         ),
         h('div', { className: 'fh-form' },
+          h('label', { className: 'fh-field' },
+            h('span', { className: 'fh-field-label' }, t('settings.weather')),
+            h('span', { className: 'fh-field-row' },
+              h('input', {
+                type: 'checkbox',
+                checked: profile.weatherEnabled === true,
+                onChange: (event) => onChange('weatherEnabled', event.target.checked),
+              }),
+              h('span', { className: 'fh-muted' }, t('settings.weatherHint')))),
+          field(t('settings.weatherPlace'), 'weatherPlace', '成都'),
+          field(t('settings.weatherLat'), 'weatherLat', '30.5728'),
+          field(t('settings.weatherLon'), 'weatherLon', '104.0668'),
           field(t('settings.characterName'), 'characterName', '大肥鱼'),
           field(t('settings.selfName'), 'selfName', '我'),
           field(t('settings.userName'), 'userName', '用户'),
@@ -1432,6 +1458,15 @@
       const [profile, setProfile] = useState({ characterName: '', selfName: '', roomName: '', userName: '' })
       const [draft, setDraft] = useState(null)
       useEffect(() => store.subscribe(setSnapshot), [store])
+      // 真实天气：打开面板拉一次，之后每 30 分钟一次（Host 侧还有 6 小时缓存）
+      useEffect(() => {
+        if (typeof store.refreshWeather !== 'function') return undefined
+        void store.refreshWeather()
+        const timer = setInterval(() => {
+          void store.refreshWeather()
+        }, 30 * 60 * 1000)
+        return () => clearInterval(timer)
+      }, [store])
       useEffect(() => {
         if (typeof store.loadMaps !== 'function') return undefined
         let alive = true
@@ -1476,7 +1511,21 @@
             `家具 ${(furnitureRef.value || []).length} · 缩放 ${String(zoom)} · pack ${(meta.pack && meta.pack.version) || '?'}`,
             `client ${BUILD_REV} · host ${meta.hostRev || '?'}`,
           ]
-          if (typeof window !== 'undefined') window.__fhShot = captureShot
+          if (typeof window !== 'undefined') {
+            window.__fhShot = captureShot
+            /**
+             * 调试用：__fhWeather('rain') 固定天气、__fhWeather('auto') 恢复自动。
+             * 只有花园会画天气效果。
+             */
+            window.__fhWeather = (value) => {
+              const target = !value || value === 'auto' ? '' : String(value)
+              if (target && !['overcast', 'drizzle', 'rain', 'snow'].includes(target)) {
+                return { ok: false, error: `未知天气: ${target}` }
+              }
+              if (store && typeof store.setWeatherOverride === 'function') store.setWeatherOverride(target)
+              return { ok: true, weatherOverride: target }
+            }
+          }
           // 逐级降级：样式表有时会让 SVG 转图片失败，去掉样式再试，最后再降到 1 倍
           let dataUrl = ''
           let lastError = null
@@ -1793,6 +1842,7 @@
                   setEdit((prev) => ({ ...prev, on: next, selected: null, status: '' }))
                 },
                 settingsOn: settingsOpen,
+                weather: snapshot.home ? currentWeather(snapshot.home) : 'clear',
                 onToggleSettings: () => {
                   const next = !settingsOpen
                   if (next && snapshot.home) {
@@ -1801,6 +1851,10 @@
                       selfName: snapshot.home.selfName || '我',
         userName: snapshot.home.userName || '用户',
                       roomName: snapshot.home.roomName || '',
+                      weatherEnabled: (snapshot.home.world && snapshot.home.world.props && snapshot.home.world.props.weatherEnabled) === true,
+                      weatherPlace: (snapshot.home.world && snapshot.home.world.props && snapshot.home.world.props.weatherPlace) || '成都',
+                      weatherLat: String((snapshot.home.world && snapshot.home.world.props && snapshot.home.world.props.weatherLat) ?? 30.5728),
+                      weatherLon: String((snapshot.home.world && snapshot.home.world.props && snapshot.home.world.props.weatherLon) ?? 104.0668),
                     })
                   }
                   setSettingsOpen(next)
@@ -1874,6 +1928,7 @@
                 onChange: (key, value) => setProfile((prev) => ({ ...prev, [key]: value })),
                 onSave: () => {
                   store.updateProfile(profile)
+  if (typeof store.refreshWeather === 'function') void store.refreshWeather()
                   setSettingsOpen(false)
                 },
                 onClose: () => setSettingsOpen(false),

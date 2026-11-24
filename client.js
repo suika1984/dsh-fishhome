@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = '7a7898bc'
+    const BUILD_REV = '836d5c6c'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -57,6 +57,13 @@ const NOTE_MARK = '【家园】'
       'scene.garden_scene': '花园',
       'scene.garden_sky': '天空',
       'scene.garden_light': '夜光',
+      'scene.garden_weather': '天气',
+      'weather.clear': '晴',
+      'weather.overcast': '阴天',
+      'weather.drizzle': '小雨',
+      'weather.rain': '大雨',
+      'weather.snow': '雪',
+      'weather.chip': '{name}',
       'moon.new': '新月',
       'moon.waxingCrescent': '蛾眉月',
       'moon.firstQuarter': '上弦月',
@@ -109,6 +116,11 @@ const NOTE_MARK = '【家园】'
       'settings.selfName': '自称',
       'settings.roomName': '房间名',
       'settings.userName': '她怎么叫你',
+      'settings.weather': '真实天气',
+      'settings.weatherHint': '勾选后每天向 Open-Meteo 查一次（只发经纬度）',
+      'settings.weatherPlace': '城市名',
+      'settings.weatherLat': '纬度',
+      'settings.weatherLon': '经度',
       'settings.save': '保存',
       'settings.close': '关闭',
       'settings.files': '文件位置（点一下复制路径）',
@@ -362,6 +374,13 @@ const NOTE_MARK = '【家园】'
       'scene.garden_scene': 'Garden',
       'scene.garden_sky': 'Sky',
       'scene.garden_light': 'Night light',
+      'scene.garden_weather': 'Weather',
+      'weather.clear': 'Clear',
+      'weather.overcast': 'Overcast',
+      'weather.drizzle': 'Drizzle',
+      'weather.rain': 'Heavy rain',
+      'weather.snow': 'Snow',
+      'weather.chip': '{name}',
       'moon.new': 'New moon',
       'moon.waxingCrescent': 'Waxing crescent',
       'moon.firstQuarter': 'First quarter',
@@ -414,6 +433,11 @@ const NOTE_MARK = '【家园】'
       'settings.selfName': 'Self-reference',
       'settings.roomName': 'Room name',
       'settings.userName': 'How she calls you',
+      'settings.weather': 'Live weather',
+      'settings.weatherHint': 'Queries Open-Meteo daily (sends only coordinates)',
+      'settings.weatherPlace': 'City',
+      'settings.weatherLat': 'Latitude',
+      'settings.weatherLon': 'Longitude',
       'settings.save': 'Save',
       'settings.close': 'Close',
       'settings.files': 'File locations (click to copy)',
@@ -718,6 +742,73 @@ const NOTE_MARK = '【家园】'
       return 'night'
     }
 
+    /**
+     * 天气：不联网，按「日期 + 季节」稳定地摇一个出来（同一天刷新不变）。
+     * 只有花园会画天气效果，卧室/客厅不受影响。
+     */
+    const WEATHER_TABLE = {
+      spring: [['clear', 5], ['overcast', 3], ['drizzle', 2], ['rain', 1]],
+      summer: [['clear', 6], ['overcast', 2], ['drizzle', 1], ['rain', 1]],
+      autumn: [['clear', 5], ['overcast', 3], ['drizzle', 1], ['rain', 1]],
+      winter: [['clear', 4], ['overcast', 3], ['snow', 2], ['rain', 1]],
+    }
+    const WEATHER_IDS = ['clear', 'overcast', 'drizzle', 'rain', 'snow']
+
+    function weatherOf(nowMs, season) {
+      const date = new Date(Number.isFinite(nowMs) ? nowMs : Date.now())
+      const table = WEATHER_TABLE[season] || WEATHER_TABLE.spring
+      const start = new Date(date.getFullYear(), 0, 0)
+      const dayIndex = Math.floor((date.getTime() - start.getTime()) / 86400000)
+      const total = table.reduce((sum, entry) => sum + entry[1], 0)
+      let pick = Math.abs(dayIndex * 31 + date.getFullYear() * 7) % total
+      for (const [id, weight] of table) {
+        if (pick < weight) return id
+        pick -= weight
+      }
+      return 'clear'
+    }
+
+    /** WMO 天气码 → 家园里的四档（+ 晴）。真实天气接进来时用它翻译 */
+    /**
+     * 当前天气：开了真实天气且最近拉到过数据就用它，否则退回按日期摇号。
+     * 花园的天气滤镜和面板芯片都用这个。
+     */
+    function currentWeather(home) {
+      const props = (home && home.world && home.world.props) || {}
+      const code = Number(props.liveWeatherCode)
+      const at = Number(props.liveWeatherAt)
+      if (props.weatherEnabled === true && Number.isFinite(code) && Number.isFinite(at) && at > 0) {
+        return weatherCodeToId(code)
+      }
+      return (home && home.world && home.world.weather) || 'clear'
+    }
+
+    function weatherCodeToId(code) {
+      const value = Number(code)
+      if (!Number.isFinite(value)) return 'clear'
+      if (value === 0 || value === 1) return 'clear'
+      if (value === 2 || value === 3 || value === 45 || value === 48) return 'overcast'
+      if (value >= 51 && value <= 57) return 'drizzle'
+      if ((value >= 61 && value <= 67) || (value >= 80 && value <= 82)) return 'rain'
+      if ((value >= 71 && value <= 77) || value === 85 || value === 86) return 'snow'
+      if (value >= 95) return 'rain'
+      return 'overcast'
+    }
+
+    /**
+     * 室内温度：有真实室外温度时按「房子会保温」混一下，别让面板显示 -3° 却看着暖和。
+     * 没数据就退回季节表（indoorTemperature）。
+     */
+    function blendIndoorTemp(outdoor, season) {
+      const base = indoorTemperature(season)
+      // 注意 Number(null) === 0，必须先挡掉空值，否则「没数据」会被当成 0°
+      if (outdoor === null || outdoor === undefined || outdoor === '') return base
+      const value = Number(outdoor)
+      if (!Number.isFinite(value)) return base
+      const mixed = base * 0.7 + value * 0.3
+      return Math.round(Math.min(30, Math.max(16, mixed)))
+    }
+
     /** 0 = 全黑，1 = 正午。用来做灯光、窗帘与行为倾向，不写死整点。 */
     function daylight(hour) {
       const x = (hour - 6) / 12
@@ -756,6 +847,7 @@ const NOTE_MARK = '【家园】'
         daylight: daylight(hour + minute / 60),
         // 月相：满月 > 0.9，用来压住「睡不着」这类权重
         moon: moonPhase(Date.now()).illumination,
+        weather: weatherOf(date.getTime(), seasonOf(date)),
         sleepiness: sleepiness(hour + minute / 60),
       }
     }
@@ -857,6 +949,14 @@ const NOTE_MARK = '【家园】'
       deskLamp: false,
       // 花园：冬天是否积雪（切换 garden-winter / garden-winter-nosnow 两张图）
       gardenSnow: true,
+      // 真实天气（Open-Meteo）：开关 + 位置 + 最近一次结果
+      weatherEnabled: false,
+      weatherPlace: '成都',
+      weatherLat: 30.5728,
+      weatherLon: 104.0668,
+      liveWeatherTemp: null,
+      liveWeatherCode: null,
+      liveWeatherAt: 0,
       bedLamp: false,
       livingLamp: false,
       curtainOpen: true,
@@ -1419,7 +1519,12 @@ const NOTE_MARK = '【家园】'
       const clock = timeSnapshot(date, 'zh')
       home.world.season = clock.season
       home.world.period = clock.period
-      home.world.temperature = indoorTemperature(clock.season)
+    // 手动预览用：weatherOverride 非空就固定天气（__fhWeather('rain')），否则按日期自动
+    home.world.weather = home.world.weatherOverride || clock.weather
+      const liveTemp = home.world.props && home.world.props.weatherEnabled === true
+      ? home.world.props.liveWeatherTemp
+      : null
+    home.world.temperature = blendIndoorTemp(liveTemp, clock.season)
 
       const behavior = BEHAVIOR_BY_ID[home.character.behaviorId] || BEHAVIOR_BY_ID.idle
       const character = home.character
@@ -1923,7 +2028,51 @@ async function writeSave(home) {
         return ''
       },
       /** 切场景：重新拉 scene/background/furniture/events */
-      async setMap(mapId) {
+      /**
+     * 拉一次真实天气（Host 负责请求 + 6h 缓存），把结果写进 props。
+     * 没开开关 / 没坐标 / 请求失败 → 什么都不改，花园继续用按日期摇号的天气。
+     */
+    async refreshWeather() {
+      const home = this.home
+      if (!home || !home.world || !home.world.props) return false
+      const props = home.world.props
+      if (props.weatherEnabled !== true) return false
+      const lat = Number(props.weatherLat)
+      const lon = Number(props.weatherLon)
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false
+      const place = encodeURIComponent(String(props.weatherPlace || ''))
+      try {
+        const response = await fetch(ROUTE + '/api/weather?lat=' + lat + '&lon=' + lon + '&place=' + place, {
+          headers: { accept: 'application/json' },
+        })
+        if (!response.ok) return false
+        const data = await response.json()
+        if (!data || data.ok !== true) return false
+        const temp = Number(data.current && data.current.temp)
+        const code = Number(data.current && data.current.code)
+        if (!Number.isFinite(temp) || !Number.isFinite(code)) return false
+        props.liveWeatherTemp = temp
+        props.liveWeatherCode = code
+        props.liveWeatherAt = Date.now()
+        home.world.weather = currentWeather(home)
+        if (typeof this.publish === 'function') this.publish()
+        if (typeof this.scheduleSave === 'function') this.scheduleSave(800)
+        return true
+      } catch {
+        return false
+      }
+    },
+
+    /** 固定花园天气（调试/预览用），空字符串 = 恢复自动 */
+    setWeatherOverride(value) {
+      const next = value ? String(value) : ''
+      if (next) this.home.world.weatherOverride = next
+      else delete this.home.world.weatherOverride
+      this.home.world.weather = next || undefined
+      if (typeof this.publish === 'function') this.publish()
+    },
+
+    async setMap(mapId) {
         if (typeof mapId !== 'string' || mapId === '') return false
         try {
           window.localStorage.setItem(`${LS_KEY}:map`, mapId)
@@ -2527,6 +2676,19 @@ async function writeSave(home) {
           if (typeof value !== 'string') return fallback
           const trimmed = value.trim().slice(0, max)
           return trimmed === '' ? fallback : trimmed
+        }
+        // 天气设置：存在 props 里（props 本来就被存档序列化）
+        const props = this.home.world.props
+        if (typeof patch.weatherEnabled === 'boolean') props.weatherEnabled = patch.weatherEnabled
+        if (typeof patch.weatherPlace === 'string') {
+          const place = patch.weatherPlace.trim().slice(0, 16)
+          props.weatherPlace = place === '' ? '成都' : place
+        }
+        for (const [key, fallback, max] of [['weatherLat', 30.5728, 90], ['weatherLon', 104.0668, 180]]) {
+          if (patch[key] === undefined) continue
+          const value = Number(patch[key])
+          if (Number.isFinite(value) && Math.abs(value) <= max) props[key] = value
+          else if (String(patch[key]).trim() === '') props[key] = fallback
         }
         this.home.characterName = clean(patch.characterName, this.home.characterName, 12)
         this.home.selfName = clean(patch.selfName, this.home.selfName, 8)
@@ -4122,6 +4284,7 @@ async function writeSave(home) {
     }
 
     const SEASON_SEED = { spring: 11, summer: 37, autumn: 59, winter: 83 }
+    const WEATHER_SEED = { overcast: 5, drizzle: 17, rain: 23, snow: 41 }
 
     /** 某个季节的星座列表（测试直接调） */
     function constellationsForSeason(season) {
@@ -4132,13 +4295,70 @@ async function writeSave(home) {
       desk: (props) => h(DeskView, { lamp: props.home.world.props.deskLamp }),
       desk_glow: (props) => h(DeskGlow, {
         lamp: props.home.world.props.deskLamp,
-        glow: props.home.world.props.deskLamp || props.home.world.props.bedLamp,
+        // 正在用电脑时，屏幕本身也该亮着（哪怕台灯没开）
+        glow: props.home.world.props.deskLamp || props.home.world.props.bedLamp ||
+          (props.home.character && props.home.character.behaviorId === 'work'),
       }),
       shelf: () => h(ShelfView, null),
       rug: () => h(RugView, null),
       plant: () => h(PlantView, null),
       night_lamp: (props) => h(NightLampView, { lamp: props.home.world.props.bedLamp }),
       night_lamp_glow: (props) => h(NightLampGlow, { lamp: props.home.world.props.bedLamp }),
+      // 花园天气：阴天 / 小雨 / 大雨 / 雪。只在花园用，别的房间不画。
+      garden_weather: (props) => {
+        const world = props && props.home && props.home.world ? props.home.world : {}
+        const weather = currentWeather(props && props.home)
+        if (weather === 'clear') return null
+        const W = geom.canvasW || 1200
+        const H = geom.canvasH || 677
+        const random = seededRandom(WEATHER_SEED[weather] || 13)
+        // 阴天/雨天整体压一层冷灰；雪天压一层冷白
+        const veil = weather === 'overcast'
+          ? { color: '#5f6673', opacity: 0.22 }
+          : weather === 'drizzle' ? { color: '#586274', opacity: 0.26 }
+            : weather === 'rain' ? { color: '#48536b', opacity: 0.34 }
+              : { color: '#c9d6e8', opacity: 0.18 }
+        const drops = []
+        if (weather === 'drizzle' || weather === 'rain') {
+          const count = weather === 'rain' ? 170 : 110
+          const len = weather === 'rain' ? 18 : 13
+          for (let i = 0; i < count; i += 1) {
+            const x = random() * (W + 120) - 60
+            const y = random() * (H + 40) - 40
+            drops.push(h('line', {
+              key: `drop-${i}`,
+              x1: x.toFixed(1),
+              y1: y.toFixed(1),
+              x2: (x - len * 0.28).toFixed(1),
+              y2: (y + len).toFixed(1),
+              stroke: '#dbe6f5',
+              strokeWidth: weather === 'rain' ? 1.6 : 1.1,
+              strokeLinecap: 'round',
+              opacity: (0.3 + random() * 0.45).toFixed(2),
+            }))
+          }
+        }
+        if (weather === 'snow') {
+          for (let i = 0; i < 90; i += 1) {
+            const x = random() * W
+            const y = random() * (H + 30) - 30
+            const r = 1 + random() * 2.2
+            drops.push(h('circle', {
+              key: `flake-${i}`,
+              cx: x.toFixed(1),
+              cy: y.toFixed(1),
+              r: r.toFixed(1),
+              fill: '#ffffff',
+              opacity: (0.35 + random() * 0.45).toFixed(2),
+            }))
+          }
+        }
+        const falling = weather !== 'overcast'
+        return h('g', { className: `fh-weather fh-weather-${weather}`, 'data-weather': weather, pointerEvents: 'none' },
+          h('rect', { x: 0, y: 0, width: W, height: H, fill: veil.color, opacity: veil.opacity }),
+          h('g', { className: falling ? 'fh-weather-fall' : undefined }, drops),
+        )
+      },
       // 花园：夜间光照衰减。白天不画，夜里以「墙面灯笼」为中心向外压暗，
       // 用 multiply 混合，所以离灯越远越黑，比平铺一层灰更像真的光。
       garden_night: (props) => {
@@ -4192,6 +4412,8 @@ async function writeSave(home) {
         const W = geom.canvasW || 1200
         const H = geom.canvasH || 677
         const band = Number(props && props.part && props.part.band) > 0 ? Number(props.part.band) : H * 0.22
+        // 阴雨天云层压住星空
+        if (currentWeather(home) !== 'clear') return null
         // 天亮/傍晚星星淡掉；夜里最亮
         const nightness = period === 'deepNight' ? 1 : period === 'night' ? 0.9 : period === 'evening' || period === 'dawn' ? 0.35 : 0
         if (nightness <= 0.02) return null
@@ -4247,15 +4469,23 @@ async function writeSave(home) {
       // 花园：整块天空（按时段取渐变）
       garden_sky: (props) => {
         const period = props && props.home && props.home.world ? props.home.world.period : 'noon'
-        return h('rect', {
-          x: 0,
-          y: 0,
-          width: geom.canvasW || 1200,
-          height: geom.canvasH || 677,
-          fill: `url(#fh-sky-${period || 'noon'})`,
-        })
+        const weather = currentWeather(props && props.home)
+        const W = geom.canvasW || 1200
+        const H = geom.canvasH || 677
+        const veil = weather === 'overcast'
+          ? { color: '#8d95a4', opacity: 0.45 }
+          : weather === 'drizzle' ? { color: '#7f899b', opacity: 0.5 }
+            : weather === 'rain' ? { color: '#6b7689', opacity: 0.58 }
+              : weather === 'snow' ? { color: '#c6d2e2', opacity: 0.38 }
+                : null
+        return h('g', null,
+          h('rect', { x: 0, y: 0, width: W, height: H, fill: `url(#fh-sky-${period || 'noon'})` }),
+          veil ? h('rect', { x: 0, y: 0, width: W, height: H, fill: veil.color, opacity: veil.opacity }) : null,
+        )
       },
       garden_sun: (props) => {
+        // 阴天/雨天/雪天看不到太阳
+        if (currentWeather(props && props.home) !== 'clear') return null
         const body = gardenBody('sun', undefined, props && props.part ? props.part.band : 0)
         if (!body) return null
         return h('g', { className: 'fh-garden-sun', opacity: body.alpha },
@@ -4264,6 +4494,8 @@ async function writeSave(home) {
         )
       },
       garden_moon: (props) => {
+        // 有云/下雨/下雪时月亮也看不见
+        if (currentWeather(props && props.home) !== 'clear') return null
         const body = gardenBody('moon', undefined, props && props.part ? props.part.band : 0)
         if (!body) return null
         const r = body.r * 0.92
@@ -4442,6 +4674,10 @@ async function writeSave(home) {
     function partVisible(part, home) {
       const when = part && part.visibleWhen
       if (!when || typeof when !== 'object') return true
+      // 或条件：any: [ {...}, {...} ]，任意一条成立就画（用来做「台灯开着 或 正在用电脑」）
+      if (Array.isArray(when.any)) {
+        return when.any.some((one) => one && partVisible({ visibleWhen: one }, home))
+      }
       if (Array.isArray(when.characterEvent) && !when.characterEvent.includes(home.character.behaviorId)) {
         return false
       }
@@ -5361,7 +5597,7 @@ async function writeSave(home) {
           'div',
           { className: 'fh-room-badge' },
           h('span', { className: 'fh-room-name' }, home.roomName || t('room.title', { name: home.characterName })),
-          h('span', { className: 'fh-room-meta' }, `${clock.clock} · ${t(`season.${home.world.season}`)} ${home.world.temperature}°`),
+          h('span', { className: 'fh-room-meta' }, `${clock.clock} · ${t(`season.${home.world.season}`)} ${home.world.temperature}°${outdoorSuffix(home)}`),
         ),
         h(
           'div',
@@ -5858,8 +6094,16 @@ async function writeSave(home) {
       }
     }
 
+    /** 开了真实天气就带上室外温度：室内 18° · 室外 13° */
+    function outdoorSuffix(home) {
+      const props = (home && home.world && home.world.props) || {}
+      const temp = Number(props.liveWeatherTemp)
+      if (props.weatherEnabled !== true || !Number.isFinite(temp) || !(Number(props.liveWeatherAt) > 0)) return ''
+      return ` · 室外 ${Math.round(temp)}°`
+    }
+
     function HeaderActions(props) {
-      const { t, clock, onRefresh, saveState, editOn, onToggleEdit, settingsOn, onToggleSettings, maps, currentMap, onSwitchMap, elsewhere, elsewhereName, onCallPet, zoom, onZoom, onShot, shotTip } = props
+      const { t, clock, onRefresh, saveState, editOn, onToggleEdit, settingsOn, onToggleSettings, maps, currentMap, onSwitchMap, elsewhere, elsewhereName, onCallPet, zoom, onZoom, onShot, shotTip, weather } = props
       const saveLabel = saveState === 'saved'
         ? t('head.saved')
         : saveState === 'saving'
@@ -5867,6 +6111,11 @@ async function writeSave(home) {
           : saveState === 'offline'
             ? t('head.offline')
             : t('head.pending')
+      // 天气只在花园生效，所以芯片也只在花园显示
+      const weatherNow = weather || (clock && clock.weather) || 'clear'
+      const weatherChip = currentMap === 'garden'
+        ? h(Chip, { title: t('scene.garden_weather') }, fillText(t(`weather.${weatherNow}`)))
+        : null
       const moonInfo = moonPhase()
       const moonChip = h(Chip, {
         title: `${Math.round(moonInfo.illumination * 100)}%`,
@@ -5884,6 +6133,7 @@ async function writeSave(home) {
             }, fillText(t('head.elsewhere', { room: elsewhere }), { characterName: elsewhereName }))
             : null,
           h(Chip, null, clock.dateText),
+          weatherChip,
           moonChip,
           h(Chip, null, `${clock.clock}`),
           h(Chip, null, t(`season.${clock.season}`)),
@@ -5954,6 +6204,18 @@ async function writeSave(home) {
           h('span', { className: 'fh-muted' }, t('settings.hint')),
         ),
         h('div', { className: 'fh-form' },
+          h('label', { className: 'fh-field' },
+            h('span', { className: 'fh-field-label' }, t('settings.weather')),
+            h('span', { className: 'fh-field-row' },
+              h('input', {
+                type: 'checkbox',
+                checked: profile.weatherEnabled === true,
+                onChange: (event) => onChange('weatherEnabled', event.target.checked),
+              }),
+              h('span', { className: 'fh-muted' }, t('settings.weatherHint')))),
+          field(t('settings.weatherPlace'), 'weatherPlace', '成都'),
+          field(t('settings.weatherLat'), 'weatherLat', '30.5728'),
+          field(t('settings.weatherLon'), 'weatherLon', '104.0668'),
           field(t('settings.characterName'), 'characterName', '大肥鱼'),
           field(t('settings.selfName'), 'selfName', '我'),
           field(t('settings.userName'), 'userName', '用户'),
@@ -6417,6 +6679,15 @@ async function writeSave(home) {
       const [profile, setProfile] = useState({ characterName: '', selfName: '', roomName: '', userName: '' })
       const [draft, setDraft] = useState(null)
       useEffect(() => store.subscribe(setSnapshot), [store])
+      // 真实天气：打开面板拉一次，之后每 30 分钟一次（Host 侧还有 6 小时缓存）
+      useEffect(() => {
+        if (typeof store.refreshWeather !== 'function') return undefined
+        void store.refreshWeather()
+        const timer = setInterval(() => {
+          void store.refreshWeather()
+        }, 30 * 60 * 1000)
+        return () => clearInterval(timer)
+      }, [store])
       useEffect(() => {
         if (typeof store.loadMaps !== 'function') return undefined
         let alive = true
@@ -6461,7 +6732,21 @@ async function writeSave(home) {
             `家具 ${(furnitureRef.value || []).length} · 缩放 ${String(zoom)} · pack ${(meta.pack && meta.pack.version) || '?'}`,
             `client ${BUILD_REV} · host ${meta.hostRev || '?'}`,
           ]
-          if (typeof window !== 'undefined') window.__fhShot = captureShot
+          if (typeof window !== 'undefined') {
+            window.__fhShot = captureShot
+            /**
+             * 调试用：__fhWeather('rain') 固定天气、__fhWeather('auto') 恢复自动。
+             * 只有花园会画天气效果。
+             */
+            window.__fhWeather = (value) => {
+              const target = !value || value === 'auto' ? '' : String(value)
+              if (target && !['overcast', 'drizzle', 'rain', 'snow'].includes(target)) {
+                return { ok: false, error: `未知天气: ${target}` }
+              }
+              if (store && typeof store.setWeatherOverride === 'function') store.setWeatherOverride(target)
+              return { ok: true, weatherOverride: target }
+            }
+          }
           // 逐级降级：样式表有时会让 SVG 转图片失败，去掉样式再试，最后再降到 1 倍
           let dataUrl = ''
           let lastError = null
@@ -6778,6 +7063,7 @@ async function writeSave(home) {
                   setEdit((prev) => ({ ...prev, on: next, selected: null, status: '' }))
                 },
                 settingsOn: settingsOpen,
+                weather: snapshot.home ? currentWeather(snapshot.home) : 'clear',
                 onToggleSettings: () => {
                   const next = !settingsOpen
                   if (next && snapshot.home) {
@@ -6786,6 +7072,10 @@ async function writeSave(home) {
                       selfName: snapshot.home.selfName || '我',
         userName: snapshot.home.userName || '用户',
                       roomName: snapshot.home.roomName || '',
+                      weatherEnabled: (snapshot.home.world && snapshot.home.world.props && snapshot.home.world.props.weatherEnabled) === true,
+                      weatherPlace: (snapshot.home.world && snapshot.home.world.props && snapshot.home.world.props.weatherPlace) || '成都',
+                      weatherLat: String((snapshot.home.world && snapshot.home.world.props && snapshot.home.world.props.weatherLat) ?? 30.5728),
+                      weatherLon: String((snapshot.home.world && snapshot.home.world.props && snapshot.home.world.props.weatherLon) ?? 104.0668),
                     })
                   }
                   setSettingsOpen(next)
@@ -6859,6 +7149,7 @@ async function writeSave(home) {
                 onChange: (key, value) => setProfile((prev) => ({ ...prev, [key]: value })),
                 onSave: () => {
                   store.updateProfile(profile)
+  if (typeof store.refreshWeather === 'function') void store.refreshWeather()
                   setSettingsOpen(false)
                 },
                 onClose: () => setSettingsOpen(false),
@@ -8033,9 +8324,21 @@ async function writeSave(home) {
   border-color: var(--dsw-alias-border-subtle, rgba(0, 0, 0, 0.08));
   color: var(--dsw-alias-text-secondary);
 }
+/* ---- 花园天气：雨丝下落 / 雪花飘落 ----
+ * 只动一个图层，粒子本身是静态的（图案比画布高，循环一次看不出接缝）。
+ * 系统开了「减少动态效果」就不动，天气照样压在画面上。
+ */
+@keyframes fh-weather-fall {
+  from { transform: translateY(-40px); }
+  to { transform: translateY(0); }
+}
+.fh-weather-fall { animation: fh-weather-fall 1.1s linear infinite; }
+.fh-weather-snow .fh-weather-fall { animation-duration: 7s; animation-timing-function: linear; }
+.fh-weather-drizzle .fh-weather-fall { animation-duration: 1.6s; }
+@media (prefers-reduced-motion: reduce) {
+  .fh-weather-fall { animation: none; }
+}
 `
-
-
     /* ======================================================================
      * 10. 插件入口
      * ==================================================================== */
@@ -8302,6 +8605,10 @@ async function writeSave(home) {
         geom,
         gardenBody,
         moonPhase,
+        weatherOf,
+        weatherCodeToId,
+        currentWeather,
+        blendIndoorTemp,
         moonPhaseKey,
         constellationsForSeason,
         moonLitPath,

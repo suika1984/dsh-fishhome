@@ -1523,7 +1523,7 @@ function activitySnapshot(activity, notes, mode) {
  *   - Host 不猜位置，缓存文件放在 dataDir/weather/<lat>_<lon>.json
  * ==================================================================== */
 const WEATHER_TTL_MS = 6 * 60 * 60 * 1000
-const WEATHER_TIMEOUT_MS = 4500
+const WEATHER_TIMEOUT_MS = 12000
 
 function weatherCachePath(config, lat, lon) {
   const key = lat.toFixed(3) + '_' + lon.toFixed(3)

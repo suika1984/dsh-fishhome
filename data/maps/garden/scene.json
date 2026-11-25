@@ -7,10 +7,10 @@
   "room": {
     "cols": 14,
     "rows": 10,
-    "wallHeight": 333,
+    "wallHeight": 433,
     "canvas": [
       1200,
-      800
+      900
     ],
     "margin": {
       "x": 24,

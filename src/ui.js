@@ -1458,14 +1458,36 @@
       const [profile, setProfile] = useState({ characterName: '', selfName: '', roomName: '', userName: '' })
       const [draft, setDraft] = useState(null)
       useEffect(() => store.subscribe(setSnapshot), [store])
-      // 真实天气：打开面板拉一次，之后每 30 分钟一次（Host 侧还有 6 小时缓存）
+      // 真实天气：打开面板先拉一次；没成功就 5s / 30s / 2min 重试（存档可能还没读完、
+      // 或 Host 冷启动那次网络慢），成功后改成每 30 分钟一次（Host 侧还有 6 小时缓存）
       useEffect(() => {
         if (typeof store.refreshWeather !== 'function') return undefined
-        void store.refreshWeather()
-        const timer = setInterval(() => {
-          void store.refreshWeather()
-        }, 30 * 60 * 1000)
-        return () => clearInterval(timer)
+        let alive = true
+        let timer = null
+        const delays = [0, 5000, 30000, 120000]
+        const tick = async (index) => {
+          if (!alive) return
+          const done = await store.refreshWeather()
+          if (!alive || done === true) {
+            if (alive) {
+              timer = setInterval(() => { void store.refreshWeather() }, 30 * 60 * 1000)
+            }
+            return
+          }
+          if (index + 1 < delays.length) {
+            timer = setTimeout(() => { void tick(index + 1) }, delays[index + 1])
+          } else {
+            if (typeof console !== 'undefined') console.warn('[fishhome] 真实天气多次拉取失败，沿用上次数据')
+          }
+        }
+        void tick(0)
+        return () => {
+          alive = false
+          if (timer) {
+            clearTimeout(timer)
+            clearInterval(timer)
+          }
+        }
       }, [store])
       useEffect(() => {
         if (typeof store.loadMaps !== 'function') return undefined

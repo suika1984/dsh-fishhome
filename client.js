@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = '836d5c6c'
+    const BUILD_REV = '878ae6ee'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -4212,11 +4212,28 @@ async function writeSave(home) {
     }
 
     /**
+     * 太阳高度角（度）：用赤纬 + 时角算，纬度和日期都进公式。
+     * 这样 11 月的成都早上 9 点多太阳只在天边 20° 出头，不会顶在天花板上。
+     */
+    function sunAltitude(hour, latDeg) {
+      const rad = Math.PI / 180
+      const date = new Date()
+      const start = new Date(date.getFullYear(), 0, 0)
+      const dayOfYear = Math.floor((date.getTime() - start.getTime()) / 86400000)
+      const declination = -23.44 * Math.cos((2 * Math.PI * (dayOfYear + 10)) / 365)
+      const hourAngle = (hour - 12) * 15 * rad
+      const phi = (Number.isFinite(Number(latDeg)) ? Number(latDeg) : 30.57) * rad
+      const decl = declination * rad
+      const sinAlt = Math.sin(phi) * Math.sin(decl) + Math.cos(phi) * Math.cos(decl) * Math.cos(hourAngle)
+      return Math.asin(Math.max(-1, Math.min(1, sinAlt))) / rad
+    }
+
+    /**
      * 花园天空里的太阳 / 月亮：按真实时间算弧线位置。
      * 太阳 5:30 升起、19:30 落下；月亮 18:30 升起、次日 6:30 落下。
      * 返回 { x, y, r, alpha }，不在这个时段返回 null（测试直接调这个函数）。
      */
-    function gardenBody(kind, nowMs, band) {
+    function gardenBody(kind, nowMs, band, latitude) {
       const ms = Number.isFinite(nowMs) ? nowMs : Date.now()
       const date = new Date(ms)
       const hour = date.getHours() + date.getMinutes() / 60
@@ -4235,12 +4252,29 @@ async function writeSave(home) {
         t = (moonHour - 5.5) / 14
       }
       // band：顶部留给天空的高度（像素）。日月都在这条带子里走，不会钻到房子后面
-      const strip = Number.isFinite(Number(band)) && Number(band) > 0 ? Number(band) : H * 0.35
+      const strip = Number.isFinite(Number(band)) && Number(band) > 0 ? Number(band) : Math.round(H * 0.16)
       const r = Math.min(Math.max(10, strip * 0.26), Math.max(10, W * 0.026))
-      const x = W * (0.1 + 0.8 * t)
+      // 房间坐北朝南（我们站在南边往北看）：左 = 西、右 = 东。
+      // 所以太阳/月亮都从右边（东）升、往左边（西）落。
+      const x = W * (0.9 - 0.8 * t)
       // 收在天空带里，别被画布顶边裁掉
       const rawY = strip * (0.52 - Math.sin(Math.PI * t) * 0.3)
-      const y = Math.min(Math.max(rawY, r + 2), Math.max(r + 2, strip - r - 2))
+      let y = Math.min(Math.max(rawY, r + 2), Math.max(r + 2, strip - r - 2))
+      if (isSun) {
+        // 太阳用真实高度角：地平线 = 天空带底部，正午最高点 = 顶部
+        let maxAlt = 1
+        for (let probe = 5; probe <= 19; probe += 0.25) {
+          maxAlt = Math.max(maxAlt, sunAltitude(probe, latitude))
+        }
+        const alt = Math.max(0, sunAltitude(hour, latitude))
+        // 别贴天空带最顶：舞台是 `preserveAspectRatio slice`，上下有时会被裁掉几像素
+        const top = Math.max(r + 3, strip * 0.22)
+        // 下沿压到屋顶线以下一点：日出日落时太阳会被房子/树挡住一部分，看起来像"落到屋后"
+        const bottom = Math.max(top + 1, strip * 0.9)
+        // A 方案：高度角做 1.8 次幂压缩 → 早上/傍晚明显更贴地平线，正午仍在最高点
+        const ratio = Math.pow(Math.max(0, alt) / maxAlt, 1.8)
+        y = bottom - ratio * (bottom - top)
+      }
       // 太阳贴着地平线时淡出；月亮整夜稳定
       const alpha = isSun ? Math.min(1, 0.2 + daylight(hour) * 1.2) : 0.85
       return { x, y, r, alpha: Math.max(0, Math.min(1, alpha)), t }
@@ -4369,9 +4403,14 @@ async function writeSave(home) {
         const dark = Math.pow(1 - daylight(hour), 1.15)
         if (dark <= 0.04) return null
         const part = (props && props.part) || {}
-        const lamps = Array.isArray(part.lights) && part.lights.length > 0
+        const rect = Array.isArray(part.anchorRect) ? part.anchorRect.map(Number) : null
+        const rawLamps = Array.isArray(part.lights) && part.lights.length > 0
           ? part.lights
           : [[0.42, 0.42], [0.62, 0.42]]
+        // 声明了 anchor 的（比如花园的四季图）按家具内部比例换算，否则仍按画布比例
+        const lamps = rect
+          ? rawLamps.map((lamp) => [rect[0] + lamp[0] * rect[2], rect[1] + lamp[1] * rect[3]])
+          : rawLamps.map((lamp) => [lamp[0] * W, lamp[1] * H])
         const radius = Number(part.radius) > 0 ? Number(part.radius) : 0.62
         return h('g', { className: 'fh-garden-night', 'data-dark': dark.toFixed(2), pointerEvents: 'none' },
           h('defs', null,
@@ -4395,8 +4434,8 @@ async function writeSave(home) {
           h('g', { opacity: dark * 0.85, style: { mixBlendMode: 'screen' } },
             lamps.map((lamp, index) => h('circle', {
               key: `lamp-${index}`,
-              cx: lamp[0] * W,
-              cy: lamp[1] * H,
+              cx: rect ? lamp[0] : lamp[0] * W,
+              cy: rect ? lamp[1] : lamp[1] * H,
               r: Math.max(90, W * 0.085),
               fill: 'url(#fh-room-light)',
             })),
@@ -4411,7 +4450,7 @@ async function writeSave(home) {
         const period = world.period || 'noon'
         const W = geom.canvasW || 1200
         const H = geom.canvasH || 677
-        const band = Number(props && props.part && props.part.band) > 0 ? Number(props.part.band) : H * 0.22
+        const band = Number(props && props.part && props.part.band) > 0 ? Number(props.part.band) : Math.round(H * 0.16)
         // 阴雨天云层压住星空
         if (currentWeather(home) !== 'clear') return null
         // 天亮/傍晚星星淡掉；夜里最亮
@@ -4437,7 +4476,7 @@ async function writeSave(home) {
         list.forEach((item, index) => {
           const [bx, by] = item.box
           // 等比缩放：星图的 x/y 用同一个比例，否则星座会被压扁
-          const side = band * 0.95
+          const side = band * 0.62
           const ox = bx * W
           const oy = Math.min(by * band, Math.max(0, band - side * 0.95))
           const point = (p) => [ox + p[0] * side, oy + p[1] * side]
@@ -4486,9 +4525,12 @@ async function writeSave(home) {
       garden_sun: (props) => {
         // 阴天/雨天/雪天看不到太阳
         if (currentWeather(props && props.home) !== 'clear') return null
-        const body = gardenBody('sun', undefined, props && props.part ? props.part.band : 0)
+        const lat = props && props.home && props.home.world && props.home.world.props
+          ? props.home.world.props.weatherLat
+          : 30.57
+        const body = gardenBody('sun', undefined, props && props.part ? props.part.band : 0, lat)
         if (!body) return null
-        return h('g', { className: 'fh-garden-sun', opacity: body.alpha },
+        return h('g', { className: 'fh-garden-sun', 'data-band': typeof lat === 'number' ? (props.part && props.part.band) || 'auto' : 'auto', opacity: body.alpha },
           h('circle', { cx: body.x, cy: body.y, r: body.r * 4.2, fill: 'url(#fh-sun-light)' }),
           h('circle', { cx: body.x, cy: body.y, r: body.r, fill: '#fff4c9' }),
         )
@@ -4953,9 +4995,22 @@ async function writeSave(home) {
           const partKey = editAsOne ? '*' : (part.id || 'part')
           const partLabel = part.id ? `${def.id}:${part.id}` : def.id
           let content
+          // 发光件可以声明 anchor: "<家具 id>"，让光斑跟着那件家具走（相对家具坐标）
+          let partWithAnchor = part
+          if (part.anchor) {
+            const target = defs.find((item) => item && item.id === part.anchor)
+            const targetPart = target && Array.isArray(target.parts)
+              ? (part.anchorPart
+                ? target.parts.find((item) => item && item.id === part.anchorPart)
+                : target.parts.find((item) => item && item.sprite && Array.isArray(item.sprite.rect)))
+              : null
+            if (targetPart && Array.isArray(targetPart.sprite && targetPart.sprite.rect)) {
+              partWithAnchor = { ...part, anchorRect: targetPart.sprite.rect }
+            }
+          }
           if (part.preset) {
             content = PRESETS[part.preset]
-              ? h(PRESETS[part.preset], { home, part })
+              ? h(PRESETS[part.preset], { home, part: partWithAnchor })
               : h(Placeholder, { rect: [40, 60, 200, 120], label: partLabel, note: `未知 preset: ${part.preset}` })
           } else {
             const spriteForRender = surf && part.sprite && !part.sprite.attach && typeof surf.attach === 'string'
@@ -6679,14 +6734,36 @@ async function writeSave(home) {
       const [profile, setProfile] = useState({ characterName: '', selfName: '', roomName: '', userName: '' })
       const [draft, setDraft] = useState(null)
       useEffect(() => store.subscribe(setSnapshot), [store])
-      // 真实天气：打开面板拉一次，之后每 30 分钟一次（Host 侧还有 6 小时缓存）
+      // 真实天气：打开面板先拉一次；没成功就 5s / 30s / 2min 重试（存档可能还没读完、
+      // 或 Host 冷启动那次网络慢），成功后改成每 30 分钟一次（Host 侧还有 6 小时缓存）
       useEffect(() => {
         if (typeof store.refreshWeather !== 'function') return undefined
-        void store.refreshWeather()
-        const timer = setInterval(() => {
-          void store.refreshWeather()
-        }, 30 * 60 * 1000)
-        return () => clearInterval(timer)
+        let alive = true
+        let timer = null
+        const delays = [0, 5000, 30000, 120000]
+        const tick = async (index) => {
+          if (!alive) return
+          const done = await store.refreshWeather()
+          if (!alive || done === true) {
+            if (alive) {
+              timer = setInterval(() => { void store.refreshWeather() }, 30 * 60 * 1000)
+            }
+            return
+          }
+          if (index + 1 < delays.length) {
+            timer = setTimeout(() => { void tick(index + 1) }, delays[index + 1])
+          } else {
+            if (typeof console !== 'undefined') console.warn('[fishhome] 真实天气多次拉取失败，沿用上次数据')
+          }
+        }
+        void tick(0)
+        return () => {
+          alive = false
+          if (timer) {
+            clearTimeout(timer)
+            clearInterval(timer)
+          }
+        }
       }, [store])
       useEffect(() => {
         if (typeof store.loadMaps !== 'function') return undefined

@@ -15,21 +15,21 @@
       "id": "stars",
       "z": -1950,
       "preset": "garden_stars",
-      "band": 123
+      "band": 223
     },
     {
       "id": "moon",
       "z": -1900,
       "preset": "garden_moon",
       "layer": "light",
-      "band": 123
+      "band": 223
     },
     {
       "id": "sun",
       "z": -1899,
       "preset": "garden_sun",
       "layer": "light",
-      "band": 123
+      "band": 223
     }
   ]
 }

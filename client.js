@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = '878ae6ee'
+    const BUILD_REV = '659c5766'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -337,6 +337,9 @@ const NOTE_MARK = '【家园】'
       'period.evening': '傍晚',
       'period.night': '夜里',
       'behavior.idle': '在屋子中间发呆',
+      'behavior.swing': '荡秋千',
+      'flavor.swing': '荡起来风好舒服～',
+      'log.swing': '她跑去荡秋千了',
       'behavior.read': '在看书',
       'behavior.work': '在敲键盘',
       'behavior.window': '在看窗外',
@@ -392,6 +395,10 @@ const NOTE_MARK = '【家园】'
       'moon.chip': '{name}',
 
       'behavior.stargaze': 'Stargazing',
+      'behavior.swing': 'Swinging',
+      'flavor.swing': 'The breeze feels nice~',
+      'log.swing': 'She went to swing',
+
       'flavor.stargaze': 'She leans into the eyepiece and slowly turns the focuser.',
       'log.stargaze': '{name} spent a while at the telescope looking at the stars.',
       'scene.bookshelf': 'Bookshelf',
@@ -809,6 +816,46 @@ const NOTE_MARK = '【家园】'
       return Math.round(Math.min(30, Math.max(16, mixed)))
     }
 
+    /**
+     * 秋千相位：'front' | 'center' | 'back'。
+     * 用「这次行为开始的时间」当相位起点，角色动画 4 帧 × 1 秒自然对齐；
+     * 没在荡秋千（或没人坐）时永远是 'center'。
+     */
+    /** 秋千相位相对她的格数补偿（椅子先绘制，通常给 1） */
+    // 现在两边都用「行为开始时刻 + 时钟」算相位，起点一致 → 不需要补偿
+    const SWING_PHASE_OFFSET = 0
+    /** 角色当前动作的帧号（由 CharacterSprite 每帧写入），秋千相位用它保证两边同帧 */
+    let swingFrameIndex = -1
+    // 每个动画帧对应的相位（front/center/back），由 actions/swing.json 的 frames[].phase 提供
+    let swingPhaseTable = ['front', 'center', 'back', 'center']
+    // 每帧真实时长（来自 actions/swing.json），时钟兜底按累计时间选帧，别假设都是 1000ms
+    let swingFrameDurations = [1000, 1000, 1000, 1000]
+
+    /** 按累计帧时长，把「已过毫秒数」换算成帧号（支持每帧时长不同） */
+    function frameIndexAt(elapsedMs, durations) {
+      const list = Array.isArray(durations) && durations.length > 0 ? durations : [1000, 1000, 1000, 1000]
+      const total = list.reduce((sum, ms) => sum + (Number(ms) > 0 ? Number(ms) : 1000), 0)
+      let t = total > 0 ? ((elapsedMs % total) + total) % total : 0
+      for (let i = 0; i < list.length; i += 1) {
+        const ms = Number(list[i]) > 0 ? Number(list[i]) : 1000
+        if (t < ms) return i
+        t -= ms
+      }
+      return list.length - 1
+    }
+
+    function swingPhaseOf(home, nowMs) {
+      const character = home && home.character
+      if (!character || character.behaviorId !== 'swing') return 'center'
+      const since = Number(character.since)
+      const now = Number.isFinite(nowMs) ? nowMs : Date.now()
+      if (!Number.isFinite(since) || now < since) return 'center'
+      const table = swingPhaseTable.length > 0 ? swingPhaseTable : ['center', 'front', 'center', 'back', 'center']
+      // 先按真实帧时长定位（尊重 1200ms 的落座帧），再加整帧补偿
+      const index = frameIndexAt(now - since, swingFrameDurations) + SWING_PHASE_OFFSET
+      const at = ((index % table.length) + table.length) % table.length
+      return table[at] || 'center'
+    }
     /** 0 = 全黑，1 = 正午。用来做灯光、窗帘与行为倾向，不写死整点。 */
     function daylight(hour) {
       const x = (hour - 6) / 12
@@ -1765,7 +1812,8 @@ const NOTE_MARK = '【家园】'
  */
 async function loadCharacterActions(pack) {
   // 素材会被同名覆盖，用角色包版本号做缓存戳，换图后不用清浏览器缓存
-  const stamp = pack && typeof pack.version === 'string' && pack.version !== '' ? `?v=${encodeURIComponent(pack.version)}` : ''
+  // 版本号做缓存戳，再叠一个时间戳：改完 actions/*.json 刷新面板就能生效，不必再 bump 版本
+  const stamp = `${pack && typeof pack.version === 'string' && pack.version !== '' ? `?v=${encodeURIComponent(pack.version)}` : '?'}${pack && pack.version ? '&' : ''}t=${Math.floor(Date.now() / 60000)}`
   try {
     const index = await fetchJson(`${ROUTE}/pack/actions/index.json${stamp}`)
     const names = Array.isArray(index && index.actions) ? index.actions : []
@@ -1792,6 +1840,8 @@ async function loadCharacterActions(pack) {
             rect: frame.rect,
             durationMs: frame.durationMs,
             squash: Number(frame.squash) > 0 ? Number(frame.squash) : 0,
+            // 秋千用：这一帧对应哪个相位（front/center/back），别在映射时丢掉
+            phase: typeof frame.phase === 'string' && frame.phase !== '' ? frame.phase : undefined,
           })),
         })
       } catch {
@@ -2106,6 +2156,19 @@ async function writeSave(home) {
         }
         return []
       },
+      /** 重新读一遍当前场景（改完 data/ 下的 JSON 后不用重启插件） */
+      async reloadScene() {
+        const mapId = (this.sceneDoc && this.sceneDoc.id) || (this.home && this.home.world && this.home.world.map) || (this.meta && this.meta.map)
+        if (!mapId || typeof this.loadScene !== 'function') return false
+        try {
+          await this.loadScene(mapId)
+          if (typeof this.publish === 'function') this.publish()
+          return true
+        } catch {
+          return false
+        }
+      },
+
       async loadScene(meta) {
         // 竞态保护：连续切房间时只认最后一次加载。
         // 而且「先全部读完、最后一次性落地」，避免半新半旧——否则会出现「卧室的场景 + 客厅的落地窗」。
@@ -2779,6 +2842,16 @@ async function writeSave(home) {
           if (views[tag]) continue
           const view = buildAnimationView(animations, assets, tag, cell)
           if (view) views[tag] = view
+        }
+        // 秋千相位表：动作里每帧写 phase 就能直接控制「前一秒/中/后」
+        const swingAnim = animations.find((anim) => anim && (
+          anim.id === 'swing' || anim.id === 'action:swing' ||
+          (Array.isArray(anim.tags) && anim.tags.includes('swing'))
+        ))
+        if (swingAnim && Array.isArray(swingAnim.frames)) {
+          const table = swingAnim.frames.map((frame) => (frame && frame.phase) || 'center')
+          if (table.some((p) => p !== 'center')) swingPhaseTable = table
+          swingFrameDurations = swingAnim.frames.map((frame) => (Number(frame && frame.durationMs) > 0 ? Number(frame.durationMs) : 1000))
         }
         if (!views.idle) {
           const fallback = buildAnimationView(animations, assets, 'idle', cell)
@@ -4326,6 +4399,8 @@ async function writeSave(home) {
     }
 
     const PRESETS = {
+      // 占位锚点：不画任何东西，但部件带 rect，可以被 animations 的 part 引用
+      none: () => null,
       desk: (props) => h(DeskView, { lamp: props.home.world.props.deskLamp }),
       desk_glow: (props) => h(DeskGlow, {
         lamp: props.home.world.props.deskLamp,
@@ -4729,6 +4804,10 @@ async function writeSave(home) {
       }
       if (Array.isArray(when.period) && !when.period.includes(home.world.period)) {
         return false
+      }
+      // 秋千相位：前/中/后，由「她开始荡的那一秒」算出来（1 秒一帧，前→中→后→中）
+      if (Array.isArray(when.swing)) {
+        if (!when.swing.includes(swingPhaseOf(home, Date.now()))) return false
       }
       // 季节条件：字符串或数组，和 world.season 比对（花园四季整图就靠它切换）
       if (when.season !== undefined && when.season !== null) {
@@ -5320,7 +5399,9 @@ async function writeSave(home) {
         setIndex(0)
       }, [view.key])
       useEffect(() => {
-        const frame = frames[index % frames.length]
+      // 把她的当前帧号共享出去（秋千椅子按同一个帧号切图）
+      swingFrameIndex = index % Math.max(1, frames.length)
+      const frame = frames[index % frames.length]
         // hold：停在随机挑中的那一帧（点心只出一种）
         if (view.hold || frames.length <= 1) return undefined
         const timer = setTimeout(() => {
@@ -5340,7 +5421,11 @@ async function writeSave(home) {
       const sceneOverride = sceneRef.value && Number.isFinite(sceneRef.value.characterHeight)
         ? Number(sceneRef.value.characterHeight)
         : 0
-      const charHeight = sceneOverride > 0 ? sceneOverride : (geom.wall || 280) * 0.62
+      // 场景级的等比缩放（卧室 = 1，画布更大的场景可以调小，让她跟场景匹配）
+      const sceneScale = sceneRef.value && Number.isFinite(sceneRef.value.characterScale) && Number(sceneRef.value.characterScale) > 0
+        ? Number(sceneRef.value.characterScale)
+        : 1
+      const charHeight = (sceneOverride > 0 ? sceneOverride : (geom.wall || 280) * 0.62) * sceneScale
       // 有些动作的图纸格子更大（带思考泡泡等），用 view.scale 把显示尺寸拉回一致
       // squash：当前帧把高度压低几个像素（吃饭的小起伏）
       const baseHeight = charHeight * (Number(view.scale) > 0 ? Number(view.scale) : 1)
@@ -5444,14 +5529,21 @@ async function writeSave(home) {
       const lean = character.lean && character.lean.until > now ? character.lean : null
       // 锚点可以覆盖播放的动画（比如躺床上播 sleep）
       const anchorTag = anchor && anchor.animation ? anchor.animation : null
-      let tag = emote ? emote.tag : (anchorTag || behavior.anim)
+      // 优先播这个行为自己的动画；行为动画不存在时才退回锚点声明的动画
+      // （否则「吊椅:sit」这种锚点会把 swing 动作顶掉，变成基础 sit 图纸）
+      let tag = emote
+        ? emote.tag
+        : (behavior.anim && views[behavior.anim] ? behavior.anim : (anchorTag || behavior.anim))
       // 精力不足：发呆 / 看书换成打盹的那张立绘（pack 里声明的 idle_tired / read_tired）
       if (!emote && !anchorTag && home.character.energy < TIRED_ENERGY && views[`${tag}_tired`]) {
         tag = `${tag}_tired`
       }
       const view = views[tag] || views.idle
       // view 是 { key, frames, cell } 这种「视图数据」，要包成组件才能当子节点用
-      const characterNode = view
+      // 空白动作（比如荡秋千里由合成图代替她）时连影子一起藏起来
+      const blankCharacter = String(view && view.key || '') === 'blank' ||
+        (home && home.character && home.character.behaviorId === 'swing')
+      const characterNode = view && !blankCharacter
         ? h(CharacterSprite, { view })
         : h(Placeholder, {
           rect: [-45, -135, 90, 135],
@@ -5505,7 +5597,10 @@ async function writeSave(home) {
             const wrapped = wrapBubbleText(text, { fontSize, maxWidth: 250, maxLines: 3 })
             const boxW = Math.max(90, Math.min(282, wrapped.width + padX * 2))
             const boxH = wrapped.lines.length * lineHeight + padY * 2
-            const top = -Math.round(sceneRef.value && Number.isFinite(sceneRef.value.characterHeight) ? sceneRef.value.characterHeight : (geom.wall || 280) * 0.62) - 18 - boxH
+            const bubbleScale = sceneRef.value && Number.isFinite(sceneRef.value.characterScale) && Number(sceneRef.value.characterScale) > 0
+              ? Number(sceneRef.value.characterScale)
+              : 1
+            const top = -Math.round((sceneRef.value && Number.isFinite(sceneRef.value.characterHeight) ? sceneRef.value.characterHeight : (geom.wall || 280) * 0.62) * bubbleScale) - 18 - boxH
             return h(
               'g',
               { className: 'fh-say', pointerEvents: 'none' },
@@ -5874,6 +5969,8 @@ async function writeSave(home) {
           return t('log.work')
         case 'window':
           return t('log.window')
+        case 'swing':
+          return t('behavior.swing')
         case 'stargaze':
           return t('log.stargaze')
         case 'play':
@@ -6734,6 +6831,25 @@ async function writeSave(home) {
       const [profile, setProfile] = useState({ characterName: '', selfName: '', roomName: '', userName: '' })
       const [draft, setDraft] = useState(null)
       useEffect(() => store.subscribe(setSnapshot), [store])
+      // 秋千调试钩子：挂载时注册，随时可查她的帧号 / 椅子相位 / 相位表
+      useEffect(() => {
+        if (typeof window === 'undefined') return undefined
+        window.__fhSwing = () => {
+          const home = store && store.home
+          const character = home && home.character
+          return {
+            behavior: character ? character.behaviorId : '?',
+            herIndex: typeof swingFrameIndex === 'number' ? swingFrameIndex : -1,
+            chairPhase: home ? swingPhaseOf(home, Date.now()) : '?',
+            table: Array.isArray(swingPhaseTable) ? swingPhaseTable.slice() : null,
+            offset: typeof SWING_PHASE_OFFSET === 'number' ? SWING_PHASE_OFFSET : null,
+            leadMs: typeof SWING_CHAIR_LEAD_MS === 'number' ? SWING_CHAIR_LEAD_MS : null,
+            since: character ? character.since : 0,
+            now: Date.now(),
+          }
+        }
+        return () => { delete window.__fhSwing }
+      }, [store])
       // 真实天气：打开面板先拉一次；没成功就 5s / 30s / 2min 重试（存档可能还没读完、
       // 或 Host 冷启动那次网络慢），成功后改成每 30 分钟一次（Host 侧还有 6 小时缓存）
       useEffect(() => {
@@ -7097,7 +7213,11 @@ async function writeSave(home) {
               h(HeaderActions, {
                 t,
                 clock,
-                onRefresh: actions.refresh,
+                onRefresh: () => {
+                  actions.refresh()
+                  // 顺手重读场景/家具/事件：改完数据后点一下就能看到，不用重启插件
+                  if (store && typeof store.reloadScene === 'function') void store.reloadScene()
+                },
                 onShot: () => {
                   if (shotBusy) return
                   setShotBusy(true)
@@ -7432,6 +7552,8 @@ async function writeSave(home) {
      * ==================================================================== */
 
     const CSS = `
+/* 空白动作时连影子一起隐藏（秋千由合成图代替角色） */
+.fh-shadow-hidden { display: none; }
 .fh-panel {
   position: relative;
   flex: 1 1 auto;
@@ -8685,6 +8807,7 @@ async function writeSave(home) {
         weatherOf,
         weatherCodeToId,
         currentWeather,
+        swingPhaseOf,
         blendIndoorTemp,
         moonPhaseKey,
         constellationsForSeason,

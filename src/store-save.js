@@ -68,7 +68,8 @@
  */
 async function loadCharacterActions(pack) {
   // 素材会被同名覆盖，用角色包版本号做缓存戳，换图后不用清浏览器缓存
-  const stamp = pack && typeof pack.version === 'string' && pack.version !== '' ? `?v=${encodeURIComponent(pack.version)}` : ''
+  // 版本号做缓存戳，再叠一个时间戳：改完 actions/*.json 刷新面板就能生效，不必再 bump 版本
+  const stamp = `${pack && typeof pack.version === 'string' && pack.version !== '' ? `?v=${encodeURIComponent(pack.version)}` : '?'}${pack && pack.version ? '&' : ''}t=${Math.floor(Date.now() / 60000)}`
   try {
     const index = await fetchJson(`${ROUTE}/pack/actions/index.json${stamp}`)
     const names = Array.isArray(index && index.actions) ? index.actions : []
@@ -95,6 +96,8 @@ async function loadCharacterActions(pack) {
             rect: frame.rect,
             durationMs: frame.durationMs,
             squash: Number(frame.squash) > 0 ? Number(frame.squash) : 0,
+            // 秋千用：这一帧对应哪个相位（front/center/back），别在映射时丢掉
+            phase: typeof frame.phase === 'string' && frame.phase !== '' ? frame.phase : undefined,
           })),
         })
       } catch {

@@ -103,6 +103,46 @@
       return Math.round(Math.min(30, Math.max(16, mixed)))
     }
 
+    /**
+     * 秋千相位：'front' | 'center' | 'back'。
+     * 用「这次行为开始的时间」当相位起点，角色动画 4 帧 × 1 秒自然对齐；
+     * 没在荡秋千（或没人坐）时永远是 'center'。
+     */
+    /** 秋千相位相对她的格数补偿（椅子先绘制，通常给 1） */
+    // 现在两边都用「行为开始时刻 + 时钟」算相位，起点一致 → 不需要补偿
+    const SWING_PHASE_OFFSET = 0
+    /** 角色当前动作的帧号（由 CharacterSprite 每帧写入），秋千相位用它保证两边同帧 */
+    let swingFrameIndex = -1
+    // 每个动画帧对应的相位（front/center/back），由 actions/swing.json 的 frames[].phase 提供
+    let swingPhaseTable = ['front', 'center', 'back', 'center']
+    // 每帧真实时长（来自 actions/swing.json），时钟兜底按累计时间选帧，别假设都是 1000ms
+    let swingFrameDurations = [1000, 1000, 1000, 1000]
+
+    /** 按累计帧时长，把「已过毫秒数」换算成帧号（支持每帧时长不同） */
+    function frameIndexAt(elapsedMs, durations) {
+      const list = Array.isArray(durations) && durations.length > 0 ? durations : [1000, 1000, 1000, 1000]
+      const total = list.reduce((sum, ms) => sum + (Number(ms) > 0 ? Number(ms) : 1000), 0)
+      let t = total > 0 ? ((elapsedMs % total) + total) % total : 0
+      for (let i = 0; i < list.length; i += 1) {
+        const ms = Number(list[i]) > 0 ? Number(list[i]) : 1000
+        if (t < ms) return i
+        t -= ms
+      }
+      return list.length - 1
+    }
+
+    function swingPhaseOf(home, nowMs) {
+      const character = home && home.character
+      if (!character || character.behaviorId !== 'swing') return 'center'
+      const since = Number(character.since)
+      const now = Number.isFinite(nowMs) ? nowMs : Date.now()
+      if (!Number.isFinite(since) || now < since) return 'center'
+      const table = swingPhaseTable.length > 0 ? swingPhaseTable : ['center', 'front', 'center', 'back', 'center']
+      // 先按真实帧时长定位（尊重 1200ms 的落座帧），再加整帧补偿
+      const index = frameIndexAt(now - since, swingFrameDurations) + SWING_PHASE_OFFSET
+      const at = ((index % table.length) + table.length) % table.length
+      return table[at] || 'center'
+    }
     /** 0 = 全黑，1 = 正午。用来做灯光、窗帘与行为倾向，不写死整点。 */
     function daylight(hour) {
       const x = (hour - 6) / 12

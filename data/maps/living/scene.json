@@ -194,5 +194,6 @@
   "curtainLight": {
     "blue": 0.42,
     "white": 0.94
-  }
+  },
+  "characterScale": 1
 }

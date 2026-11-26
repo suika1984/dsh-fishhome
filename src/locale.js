@@ -294,6 +294,9 @@
       'period.evening': '傍晚',
       'period.night': '夜里',
       'behavior.idle': '在屋子中间发呆',
+      'behavior.swing': '荡秋千',
+      'flavor.swing': '荡起来风好舒服～',
+      'log.swing': '她跑去荡秋千了',
       'behavior.read': '在看书',
       'behavior.work': '在敲键盘',
       'behavior.window': '在看窗外',
@@ -349,6 +352,10 @@
       'moon.chip': '{name}',
 
       'behavior.stargaze': 'Stargazing',
+      'behavior.swing': 'Swinging',
+      'flavor.swing': 'The breeze feels nice~',
+      'log.swing': 'She went to swing',
+
       'flavor.stargaze': 'She leans into the eyepiece and slowly turns the focuser.',
       'log.stargaze': '{name} spent a while at the telescope looking at the stars.',
       'scene.bookshelf': 'Bookshelf',

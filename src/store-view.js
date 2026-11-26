@@ -51,6 +51,16 @@
           const view = buildAnimationView(animations, assets, tag, cell)
           if (view) views[tag] = view
         }
+        // 秋千相位表：动作里每帧写 phase 就能直接控制「前一秒/中/后」
+        const swingAnim = animations.find((anim) => anim && (
+          anim.id === 'swing' || anim.id === 'action:swing' ||
+          (Array.isArray(anim.tags) && anim.tags.includes('swing'))
+        ))
+        if (swingAnim && Array.isArray(swingAnim.frames)) {
+          const table = swingAnim.frames.map((frame) => (frame && frame.phase) || 'center')
+          if (table.some((p) => p !== 'center')) swingPhaseTable = table
+          swingFrameDurations = swingAnim.frames.map((frame) => (Number(frame && frame.durationMs) > 0 ? Number(frame.durationMs) : 1000))
+        }
         if (!views.idle) {
           const fallback = buildAnimationView(animations, assets, 'idle', cell)
           if (fallback) views.idle = fallback

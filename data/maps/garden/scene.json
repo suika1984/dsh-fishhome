@@ -43,14 +43,24 @@
     "garden_sky",
     "garden_scene",
     "garden_light",
-    "garden_weather"
+    "garden_weather",
+    "garden_swing"
   ],
   "events": [
     "idle",
     "stretch",
-    "play"
+    "play",
+    "swing"
   ],
   "controls": [
+    {
+      "kind": "event",
+      "id": "swing",
+      "label": {
+        "zh": "荡秋千",
+        "en": "Swing"
+      }
+    },
     {
       "kind": "toggle",
       "key": "gardenSnow",
@@ -92,5 +102,6 @@
       }
     }
   ],
-  "characterHeight": 196
+  "characterHeight": 196,
+  "characterScale": 0.6
 }

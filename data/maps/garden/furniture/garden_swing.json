@@ -1,0 +1,131 @@
+{
+  "id": "garden_swing",
+  "name": {
+    "zh": "吊椅",
+    "en": "Hanging chair"
+  },
+  "type": "furniture",
+  "parts": [
+    {
+      "id": "seat-empty",
+      "z": 60,
+      "sprite": {
+        "src": "swing-seat-empty.png",
+        "rect": [
+          231,
+          452,
+          130,
+          200
+        ]
+      },
+      "visibleWhen": {
+        "characterEventNot": [
+          "swing"
+        ]
+      }
+    },
+    {
+      "id": "seat-center",
+      "z": 60,
+      "sprite": {
+        "src": "swing-seat-center.png",
+        "rect": [
+          231,
+          452,
+          130,
+          200
+        ]
+      },
+      "visibleWhen": {
+        "characterEvent": [
+          "swing"
+        ],
+        "swing": [
+          "center"
+        ]
+      }
+    },
+    {
+      "id": "seat-front",
+      "z": 61,
+      "sprite": {
+        "src": "swing-seat-front.png",
+        "rect": [
+          231,
+          452,
+          130,
+          200
+        ]
+      },
+      "visibleWhen": {
+        "characterEvent": [
+          "swing"
+        ],
+        "swing": [
+          "front"
+        ]
+      }
+    },
+    {
+      "id": "seat-back",
+      "z": 61,
+      "sprite": {
+        "src": "swing-seat-back.png",
+        "rect": [
+          231,
+          452,
+          130,
+          200
+        ]
+      },
+      "visibleWhen": {
+        "characterEvent": [
+          "swing"
+        ],
+        "swing": [
+          "back"
+        ]
+      }
+    },
+    {
+      "id": "anchor",
+      "z": 59,
+      "rect": [
+        231,
+        452,
+        130,
+        200
+      ],
+      "sprite": {
+        "src": "blank.png",
+        "rect": [
+          231,
+          452,
+          130,
+          200
+        ]
+      }
+    }
+  ],
+  "animations": [
+    {
+      "id": "swing",
+      "part": "anchor",
+      "position": {
+        "x": 0.33,
+        "y": 0.86
+      },
+      "pivot": [
+        0,
+        0
+      ],
+      "facing": "front",
+      "renderLayer": "front",
+      "pose": "sit"
+    }
+  ],
+  "click": {
+    "type": "event",
+    "id": "swing"
+  }
+}

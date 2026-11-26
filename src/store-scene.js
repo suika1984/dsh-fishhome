@@ -113,6 +113,19 @@
         }
         return []
       },
+      /** 重新读一遍当前场景（改完 data/ 下的 JSON 后不用重启插件） */
+      async reloadScene() {
+        const mapId = (this.sceneDoc && this.sceneDoc.id) || (this.home && this.home.world && this.home.world.map) || (this.meta && this.meta.map)
+        if (!mapId || typeof this.loadScene !== 'function') return false
+        try {
+          await this.loadScene(mapId)
+          if (typeof this.publish === 'function') this.publish()
+          return true
+        } catch {
+          return false
+        }
+      },
+
       async loadScene(meta) {
         // 竞态保护：连续切房间时只认最后一次加载。
         // 而且「先全部读完、最后一次性落地」，避免半新半旧——否则会出现「卧室的场景 + 客厅的落地窗」。

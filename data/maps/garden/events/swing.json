@@ -1,0 +1,30 @@
+{
+  "id": "swing",
+  "spot": "center",
+  "anchor": "garden_swing:swing",
+  "anim": "blank",
+  "duration": [
+    24,
+    60
+  ],
+  "cooldown": 180,
+  "onTick": {
+    "mood": 0.02,
+    "energy": -0.002
+  },
+  "weight": {
+    "base": 1.4,
+    "mods": [
+      {
+        "when": "daylight",
+        "mul": 1.2
+      },
+      {
+        "when": "rainy",
+        "mul": 0.2
+      }
+    ]
+  },
+  "say": "flavor.swing",
+  "log": "swing"
+}

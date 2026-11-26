@@ -1,0 +1,64 @@
+{
+  "id": "swing",
+  "name": "swing",
+  "tags": [
+    "swing"
+  ],
+  "asset": "sheetSwing",
+  "cell": [
+    435,
+    539
+  ],
+  "frames": [
+    {
+      "rect": [
+        0,
+        0,
+        435,
+        539
+      ],
+      "durationMs": 1200,
+      "phase": "center"
+    },
+    {
+      "rect": [
+        435,
+        0,
+        435,
+        539
+      ],
+      "durationMs": 1000,
+      "phase": "front"
+    },
+    {
+      "rect": [
+        0,
+        0,
+        435,
+        539
+      ],
+      "durationMs": 1000,
+      "phase": "center"
+    },
+    {
+      "rect": [
+        870,
+        0,
+        435,
+        539
+      ],
+      "durationMs": 1000,
+      "phase": "back"
+    },
+    {
+      "rect": [
+        0,
+        0,
+        435,
+        539
+      ],
+      "durationMs": 1000,
+      "phase": "center"
+    }
+  ]
+}

@@ -222,6 +222,8 @@
     }
 
     const PRESETS = {
+      // 占位锚点：不画任何东西，但部件带 rect，可以被 animations 的 part 引用
+      none: () => null,
       desk: (props) => h(DeskView, { lamp: props.home.world.props.deskLamp }),
       desk_glow: (props) => h(DeskGlow, {
         lamp: props.home.world.props.deskLamp,
@@ -625,6 +627,10 @@
       }
       if (Array.isArray(when.period) && !when.period.includes(home.world.period)) {
         return false
+      }
+      // 秋千相位：前/中/后，由「她开始荡的那一秒」算出来（1 秒一帧，前→中→后→中）
+      if (Array.isArray(when.swing)) {
+        if (!when.swing.includes(swingPhaseOf(home, Date.now()))) return false
       }
       // 季节条件：字符串或数组，和 world.season 比对（花园四季整图就靠它切换）
       if (when.season !== undefined && when.season !== null) {

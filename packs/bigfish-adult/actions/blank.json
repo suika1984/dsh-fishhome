@@ -1,0 +1,23 @@
+{
+  "id": "blank",
+  "name": "blank",
+  "tags": [
+    "blank"
+  ],
+  "asset": "blank",
+  "cell": [
+    8,
+    8
+  ],
+  "frames": [
+    {
+      "rect": [
+        0,
+        0,
+        8,
+        8
+      ],
+      "durationMs": 100000
+    }
+  ]
+}

@@ -44,7 +44,9 @@
         setIndex(0)
       }, [view.key])
       useEffect(() => {
-        const frame = frames[index % frames.length]
+      // 把她的当前帧号共享出去（秋千椅子按同一个帧号切图）
+      swingFrameIndex = index % Math.max(1, frames.length)
+      const frame = frames[index % frames.length]
         // hold：停在随机挑中的那一帧（点心只出一种）
         if (view.hold || frames.length <= 1) return undefined
         const timer = setTimeout(() => {
@@ -64,7 +66,11 @@
       const sceneOverride = sceneRef.value && Number.isFinite(sceneRef.value.characterHeight)
         ? Number(sceneRef.value.characterHeight)
         : 0
-      const charHeight = sceneOverride > 0 ? sceneOverride : (geom.wall || 280) * 0.62
+      // 场景级的等比缩放（卧室 = 1，画布更大的场景可以调小，让她跟场景匹配）
+      const sceneScale = sceneRef.value && Number.isFinite(sceneRef.value.characterScale) && Number(sceneRef.value.characterScale) > 0
+        ? Number(sceneRef.value.characterScale)
+        : 1
+      const charHeight = (sceneOverride > 0 ? sceneOverride : (geom.wall || 280) * 0.62) * sceneScale
       // 有些动作的图纸格子更大（带思考泡泡等），用 view.scale 把显示尺寸拉回一致
       // squash：当前帧把高度压低几个像素（吃饭的小起伏）
       const baseHeight = charHeight * (Number(view.scale) > 0 ? Number(view.scale) : 1)
@@ -168,14 +174,21 @@
       const lean = character.lean && character.lean.until > now ? character.lean : null
       // 锚点可以覆盖播放的动画（比如躺床上播 sleep）
       const anchorTag = anchor && anchor.animation ? anchor.animation : null
-      let tag = emote ? emote.tag : (anchorTag || behavior.anim)
+      // 优先播这个行为自己的动画；行为动画不存在时才退回锚点声明的动画
+      // （否则「吊椅:sit」这种锚点会把 swing 动作顶掉，变成基础 sit 图纸）
+      let tag = emote
+        ? emote.tag
+        : (behavior.anim && views[behavior.anim] ? behavior.anim : (anchorTag || behavior.anim))
       // 精力不足：发呆 / 看书换成打盹的那张立绘（pack 里声明的 idle_tired / read_tired）
       if (!emote && !anchorTag && home.character.energy < TIRED_ENERGY && views[`${tag}_tired`]) {
         tag = `${tag}_tired`
       }
       const view = views[tag] || views.idle
       // view 是 { key, frames, cell } 这种「视图数据」，要包成组件才能当子节点用
-      const characterNode = view
+      // 空白动作（比如荡秋千里由合成图代替她）时连影子一起藏起来
+      const blankCharacter = String(view && view.key || '') === 'blank' ||
+        (home && home.character && home.character.behaviorId === 'swing')
+      const characterNode = view && !blankCharacter
         ? h(CharacterSprite, { view })
         : h(Placeholder, {
           rect: [-45, -135, 90, 135],
@@ -229,7 +242,10 @@
             const wrapped = wrapBubbleText(text, { fontSize, maxWidth: 250, maxLines: 3 })
             const boxW = Math.max(90, Math.min(282, wrapped.width + padX * 2))
             const boxH = wrapped.lines.length * lineHeight + padY * 2
-            const top = -Math.round(sceneRef.value && Number.isFinite(sceneRef.value.characterHeight) ? sceneRef.value.characterHeight : (geom.wall || 280) * 0.62) - 18 - boxH
+            const bubbleScale = sceneRef.value && Number.isFinite(sceneRef.value.characterScale) && Number(sceneRef.value.characterScale) > 0
+              ? Number(sceneRef.value.characterScale)
+              : 1
+            const top = -Math.round((sceneRef.value && Number.isFinite(sceneRef.value.characterHeight) ? sceneRef.value.characterHeight : (geom.wall || 280) * 0.62) * bubbleScale) - 18 - boxH
             return h(
               'g',
               { className: 'fh-say', pointerEvents: 'none' },
@@ -598,6 +614,8 @@
           return t('log.work')
         case 'window':
           return t('log.window')
+        case 'swing':
+          return t('behavior.swing')
         case 'stargaze':
           return t('log.stargaze')
         case 'play':
@@ -1458,6 +1476,25 @@
       const [profile, setProfile] = useState({ characterName: '', selfName: '', roomName: '', userName: '' })
       const [draft, setDraft] = useState(null)
       useEffect(() => store.subscribe(setSnapshot), [store])
+      // 秋千调试钩子：挂载时注册，随时可查她的帧号 / 椅子相位 / 相位表
+      useEffect(() => {
+        if (typeof window === 'undefined') return undefined
+        window.__fhSwing = () => {
+          const home = store && store.home
+          const character = home && home.character
+          return {
+            behavior: character ? character.behaviorId : '?',
+            herIndex: typeof swingFrameIndex === 'number' ? swingFrameIndex : -1,
+            chairPhase: home ? swingPhaseOf(home, Date.now()) : '?',
+            table: Array.isArray(swingPhaseTable) ? swingPhaseTable.slice() : null,
+            offset: typeof SWING_PHASE_OFFSET === 'number' ? SWING_PHASE_OFFSET : null,
+            leadMs: typeof SWING_CHAIR_LEAD_MS === 'number' ? SWING_CHAIR_LEAD_MS : null,
+            since: character ? character.since : 0,
+            now: Date.now(),
+          }
+        }
+        return () => { delete window.__fhSwing }
+      }, [store])
       // 真实天气：打开面板先拉一次；没成功就 5s / 30s / 2min 重试（存档可能还没读完、
       // 或 Host 冷启动那次网络慢），成功后改成每 30 分钟一次（Host 侧还有 6 小时缓存）
       useEffect(() => {
@@ -1821,7 +1858,11 @@
               h(HeaderActions, {
                 t,
                 clock,
-                onRefresh: actions.refresh,
+                onRefresh: () => {
+                  actions.refresh()
+                  // 顺手重读场景/家具/事件：改完数据后点一下就能看到，不用重启插件
+                  if (store && typeof store.reloadScene === 'function') void store.reloadScene()
+                },
                 onShot: () => {
                   if (shotBusy) return
                   setShotBusy(true)

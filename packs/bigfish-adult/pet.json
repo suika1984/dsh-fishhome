@@ -3,7 +3,7 @@
   "formatVersion": 1,
   "id": "bigfish-adult",
   "name": "大肥鱼",
-  "version": "3.8.0",
+  "version": "4.0.1",
   "author": "大肥鱼家园",
   "description": "Q 版立绘：站姿 8×5 全 40 格（192×205）+ 45° 图纸 + 吃饭图纸；3.7.0 起 idle / read / sleep 用新绘的 3×2 图纸（每格更大，每 4 秒换一张，精力不足自动换成打盹那张）。",
   "canvas": {
@@ -45,6 +45,16 @@
       "path": "fish-play-whale-sheet.png",
       "width": 996,
       "height": 720
+    },
+    "sheetSwing": {
+      "path": "fish-swing-sheet.png",
+      "width": 1305,
+      "height": 539
+    },
+    "blank": {
+      "path": "blank.png",
+      "width": 8,
+      "height": 8
     }
   },
   "animations": "animations.json",

@@ -3,6 +3,8 @@
      * ==================================================================== */
 
     const CSS = `
+/* 空白动作时连影子一起隐藏（秋千由合成图代替角色） */
+.fh-shadow-hidden { display: none; }
 .fh-panel {
   position: relative;
   flex: 1 1 auto;

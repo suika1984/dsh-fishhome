@@ -267,6 +267,7 @@
         weatherOf,
         weatherCodeToId,
         currentWeather,
+        swingPhaseOf,
         blendIndoorTemp,
         moonPhaseKey,
         constellationsForSeason,

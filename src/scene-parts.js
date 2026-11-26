@@ -455,6 +455,19 @@
           lit,
         )
       },
+      // 小夜灯/蜡烛：以部件 rect 为中心的一小团暖光（弱光源）
+      candle_glow: (props) => {
+        const part = props.part || {}
+        const r = Array.isArray(part.rect) ? part.rect.map(Number) : null
+        if (!r) return null
+        const cx = r[0] + r[2] / 2
+        const cy = r[1] + r[3] * 0.45
+        const radius = Math.max(r[2], r[3]) * 1.4
+        return h('g', { className: 'fh-candle-glow', pointerEvents: 'none' },
+          h('circle', { cx, cy, r: radius, fill: 'url(#fh-lamp-glow)', opacity: 0.5 }),
+          h('circle', { cx, cy, r: radius * 0.45, fill: 'url(#fh-lamp-glow)', opacity: 0.35 }),
+        )
+      },
       // 通用灯罩发光：位置取 part.rect（灯罩光晕 + 地面光池），客厅落地灯用
       lamp_glow: (props) => {
         const part = props.part || {}
@@ -892,6 +905,22 @@
         }
         // editAsOne：整件家具当成一个编辑对象（拼出来的窗户/窗帘），点哪都选整件
         const editAsOne = def.editAsOne === true
+        // follow：把部件挂到同一件家具的另一个部件上（例如茶座上的小夜灯）
+        // 写法 { "follow": { "of": "set", "x": 0.65, "y": 0.24 } }，x/y 是底边中心在基准 rect 内的比例
+        const followMap = Object.create(null)
+        for (const part of def.parts) {
+          if (!part || !part.sprite) continue
+          const follow = part.follow
+          if (follow && typeof follow === 'object' && typeof follow.of === 'string' && followMap[follow.of]) {
+            const base = followMap[follow.of]
+            const w = Number(part.sprite.rect && part.sprite.rect[2]) || Number(base[2])
+            const h = Number(part.sprite.rect && part.sprite.rect[3]) || Number(base[3])
+            const x = base[0] + (Number(follow.x) || 0) * base[2] - w / 2
+            const y = base[1] + (Number(follow.y) || 0) * base[3] - h
+            part.sprite = { ...part.sprite, rect: [x, y, w, h] }
+          }
+          followMap[part.id] = part.sprite.rect
+        }
         for (const part of def.parts) {
           if (!part || !partVisible(part, home)) continue
           const partKey = editAsOne ? '*' : (part.id || 'part')

@@ -44,15 +44,34 @@
     "garden_scene",
     "garden_light",
     "garden_weather",
-    "garden_swing"
+    "garden_swing",
+    "garden_tea"
   ],
   "events": [
     "idle",
     "stretch",
     "play",
-    "swing"
+    "swing",
+    "tea"
   ],
   "controls": [
+    {
+      "kind": "toggle",
+      "key": "teaUmbrella",
+      "label": {
+        "zh": "遮阳伞",
+        "en": "Parasol"
+      },
+      "suffix": "state"
+    },
+    {
+      "kind": "event",
+      "id": "tea",
+      "label": {
+        "zh": "喝杯茶",
+        "en": "Have tea"
+      }
+    },
     {
       "kind": "event",
       "id": "swing",

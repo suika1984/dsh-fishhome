@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = '659c5766'
+    const BUILD_REV = '8e404435'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -337,6 +337,9 @@ const NOTE_MARK = '【家园】'
       'period.evening': '傍晚',
       'period.night': '夜里',
       'behavior.idle': '在屋子中间发呆',
+      'behavior.tea': '喝茶',
+      'flavor.tea': '茶座里晒晒太阳真舒服～',
+      'log.tea': '她去茶座喝茶了',
       'behavior.swing': '荡秋千',
       'flavor.swing': '荡起来风好舒服～',
       'log.swing': '她跑去荡秋千了',
@@ -395,6 +398,9 @@ const NOTE_MARK = '【家园】'
       'moon.chip': '{name}',
 
       'behavior.stargaze': 'Stargazing',
+      'behavior.tea': 'Tea time',
+      'flavor.tea': 'Sunny spot by the table~',
+      'log.tea': 'She went for tea',
       'behavior.swing': 'Swinging',
       'flavor.swing': 'The breeze feels nice~',
       'log.swing': 'She went to swing',
@@ -824,6 +830,8 @@ const NOTE_MARK = '【家园】'
     /** 秋千相位相对她的格数补偿（椅子先绘制，通常给 1） */
     // 现在两边都用「行为开始时刻 + 时钟」算相位，起点一致 → 不需要补偿
     const SWING_PHASE_OFFSET = 0
+    /** 走向吊椅的过渡时长（角色移动动画大约 1.1s），这段时间她还是可见的普通立绘 */
+    const SWING_SEAT_DELAY_MS = 1100
     /** 角色当前动作的帧号（由 CharacterSprite 每帧写入），秋千相位用它保证两边同帧 */
     let swingFrameIndex = -1
     // 每个动画帧对应的相位（front/center/back），由 actions/swing.json 的 frames[].phase 提供
@@ -849,7 +857,9 @@ const NOTE_MARK = '【家园】'
       if (!character || character.behaviorId !== 'swing') return 'center'
       const since = Number(character.since)
       const now = Number.isFinite(nowMs) ? nowMs : Date.now()
-      if (!Number.isFinite(since) || now < since) return 'center'
+      if (!Number.isFinite(since) || now < since) return 'empty'
+      // 还没走到椅子上：显示空椅子，她在走路（本体可见）
+      if (now - since < SWING_SEAT_DELAY_MS) return 'empty'
       const table = swingPhaseTable.length > 0 ? swingPhaseTable : ['center', 'front', 'center', 'back', 'center']
       // 先按真实帧时长定位（尊重 1200ms 的落座帧），再加整帧补偿
       const index = frameIndexAt(now - since, swingFrameDurations) + SWING_PHASE_OFFSET
@@ -996,6 +1006,10 @@ const NOTE_MARK = '【家园】'
       deskLamp: false,
       // 花园：冬天是否积雪（切换 garden-winter / garden-winter-nosnow 两张图）
       gardenSnow: true,
+      // 花园茶座的小夜灯
+      teaLamp: false,
+      // 花园茶座的遮阳伞（true=打开）
+      teaUmbrella: true,
       // 真实天气（Open-Meteo）：开关 + 位置 + 最近一次结果
       weatherEnabled: false,
       weatherPlace: '成都',
@@ -4632,6 +4646,19 @@ async function writeSave(home) {
           lit,
         )
       },
+      // 小夜灯/蜡烛：以部件 rect 为中心的一小团暖光（弱光源）
+      candle_glow: (props) => {
+        const part = props.part || {}
+        const r = Array.isArray(part.rect) ? part.rect.map(Number) : null
+        if (!r) return null
+        const cx = r[0] + r[2] / 2
+        const cy = r[1] + r[3] * 0.45
+        const radius = Math.max(r[2], r[3]) * 1.4
+        return h('g', { className: 'fh-candle-glow', pointerEvents: 'none' },
+          h('circle', { cx, cy, r: radius, fill: 'url(#fh-lamp-glow)', opacity: 0.5 }),
+          h('circle', { cx, cy, r: radius * 0.45, fill: 'url(#fh-lamp-glow)', opacity: 0.35 }),
+        )
+      },
       // 通用灯罩发光：位置取 part.rect（灯罩光晕 + 地面光池），客厅落地灯用
       lamp_glow: (props) => {
         const part = props.part || {}
@@ -5069,6 +5096,22 @@ async function writeSave(home) {
         }
         // editAsOne：整件家具当成一个编辑对象（拼出来的窗户/窗帘），点哪都选整件
         const editAsOne = def.editAsOne === true
+        // follow：把部件挂到同一件家具的另一个部件上（例如茶座上的小夜灯）
+        // 写法 { "follow": { "of": "set", "x": 0.65, "y": 0.24 } }，x/y 是底边中心在基准 rect 内的比例
+        const followMap = Object.create(null)
+        for (const part of def.parts) {
+          if (!part || !part.sprite) continue
+          const follow = part.follow
+          if (follow && typeof follow === 'object' && typeof follow.of === 'string' && followMap[follow.of]) {
+            const base = followMap[follow.of]
+            const w = Number(part.sprite.rect && part.sprite.rect[2]) || Number(base[2])
+            const h = Number(part.sprite.rect && part.sprite.rect[3]) || Number(base[3])
+            const x = base[0] + (Number(follow.x) || 0) * base[2] - w / 2
+            const y = base[1] + (Number(follow.y) || 0) * base[3] - h
+            part.sprite = { ...part.sprite, rect: [x, y, w, h] }
+          }
+          followMap[part.id] = part.sprite.rect
+        }
         for (const part of def.parts) {
           if (!part || !partVisible(part, home)) continue
           const partKey = editAsOne ? '*' : (part.id || 'part')
@@ -5541,8 +5584,11 @@ async function writeSave(home) {
       const view = views[tag] || views.idle
       // view 是 { key, frames, cell } 这种「视图数据」，要包成组件才能当子节点用
       // 空白动作（比如荡秋千里由合成图代替她）时连影子一起藏起来
-      const blankCharacter = String(view && view.key || '') === 'blank' ||
-        (home && home.character && home.character.behaviorId === 'swing')
+      // 荡秋千：走路阶段她还是可见的普通立绘，坐定之后才交给合成图
+      const swingElapsed = home && home.character ? Date.now() - Number(home.character.since) : 0
+      const seatedForSwing = !!(home && home.character && home.character.behaviorId === 'swing' &&
+        Number.isFinite(swingElapsed) && swingElapsed >= SWING_SEAT_DELAY_MS)
+      const blankCharacter = String(view && view.key || '') === 'blank' || seatedForSwing
       const characterNode = view && !blankCharacter
         ? h(CharacterSprite, { view })
         : h(Placeholder, {
@@ -5969,6 +6015,7 @@ async function writeSave(home) {
           return t('log.work')
         case 'window':
           return t('log.window')
+        case 'tea':
         case 'swing':
           return t('behavior.swing')
         case 'stargaze':

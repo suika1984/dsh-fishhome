@@ -111,6 +111,8 @@
     /** 秋千相位相对她的格数补偿（椅子先绘制，通常给 1） */
     // 现在两边都用「行为开始时刻 + 时钟」算相位，起点一致 → 不需要补偿
     const SWING_PHASE_OFFSET = 0
+    /** 走向吊椅的过渡时长（角色移动动画大约 1.1s），这段时间她还是可见的普通立绘 */
+    const SWING_SEAT_DELAY_MS = 1100
     /** 角色当前动作的帧号（由 CharacterSprite 每帧写入），秋千相位用它保证两边同帧 */
     let swingFrameIndex = -1
     // 每个动画帧对应的相位（front/center/back），由 actions/swing.json 的 frames[].phase 提供
@@ -136,7 +138,9 @@
       if (!character || character.behaviorId !== 'swing') return 'center'
       const since = Number(character.since)
       const now = Number.isFinite(nowMs) ? nowMs : Date.now()
-      if (!Number.isFinite(since) || now < since) return 'center'
+      if (!Number.isFinite(since) || now < since) return 'empty'
+      // 还没走到椅子上：显示空椅子，她在走路（本体可见）
+      if (now - since < SWING_SEAT_DELAY_MS) return 'empty'
       const table = swingPhaseTable.length > 0 ? swingPhaseTable : ['center', 'front', 'center', 'back', 'center']
       // 先按真实帧时长定位（尊重 1200ms 的落座帧），再加整帧补偿
       const index = frameIndexAt(now - since, swingFrameDurations) + SWING_PHASE_OFFSET
@@ -283,6 +287,10 @@
       deskLamp: false,
       // 花园：冬天是否积雪（切换 garden-winter / garden-winter-nosnow 两张图）
       gardenSnow: true,
+      // 花园茶座的小夜灯
+      teaLamp: false,
+      // 花园茶座的遮阳伞（true=打开）
+      teaUmbrella: true,
       // 真实天气（Open-Meteo）：开关 + 位置 + 最近一次结果
       weatherEnabled: false,
       weatherPlace: '成都',

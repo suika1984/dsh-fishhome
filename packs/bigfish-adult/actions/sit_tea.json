@@ -1,0 +1,23 @@
+{
+  "id": "sit_tea",
+  "name": "sit_tea",
+  "tags": [
+    "sit_tea"
+  ],
+  "asset": "sheetSwing",
+  "cell": [
+    435,
+    539
+  ],
+  "frames": [
+    {
+      "rect": [
+        0,
+        0,
+        435,
+        539
+      ],
+      "durationMs": 100000
+    }
+  ]
+}

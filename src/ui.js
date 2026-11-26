@@ -186,8 +186,11 @@
       const view = views[tag] || views.idle
       // view 是 { key, frames, cell } 这种「视图数据」，要包成组件才能当子节点用
       // 空白动作（比如荡秋千里由合成图代替她）时连影子一起藏起来
-      const blankCharacter = String(view && view.key || '') === 'blank' ||
-        (home && home.character && home.character.behaviorId === 'swing')
+      // 荡秋千：走路阶段她还是可见的普通立绘，坐定之后才交给合成图
+      const swingElapsed = home && home.character ? Date.now() - Number(home.character.since) : 0
+      const seatedForSwing = !!(home && home.character && home.character.behaviorId === 'swing' &&
+        Number.isFinite(swingElapsed) && swingElapsed >= SWING_SEAT_DELAY_MS)
+      const blankCharacter = String(view && view.key || '') === 'blank' || seatedForSwing
       const characterNode = view && !blankCharacter
         ? h(CharacterSprite, { view })
         : h(Placeholder, {
@@ -614,6 +617,7 @@
           return t('log.work')
         case 'window':
           return t('log.window')
+        case 'tea':
         case 'swing':
           return t('behavior.swing')
         case 'stargaze':

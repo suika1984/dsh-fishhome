@@ -2,7 +2,7 @@
   "id": "swing",
   "spot": "center",
   "anchor": "garden_swing:swing",
-  "anim": "blank",
+  "anim": "idle",
   "duration": [
     24,
     60

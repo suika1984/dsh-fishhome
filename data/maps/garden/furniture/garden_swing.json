@@ -19,8 +19,20 @@
         ]
       },
       "visibleWhen": {
-        "characterEventNot": [
-          "swing"
+        "any": [
+          {
+            "characterEventNot": [
+              "swing"
+            ]
+          },
+          {
+            "characterEvent": [
+              "swing"
+            ],
+            "swing": [
+              "empty"
+            ]
+          }
         ]
       }
     },

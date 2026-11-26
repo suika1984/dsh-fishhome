@@ -21,6 +21,7 @@
     "idle_tired",
     "read_tired",
     "swing",
-    "blank"
+    "blank",
+    "sit_tea"
   ]
 }

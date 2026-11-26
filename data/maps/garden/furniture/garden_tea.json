@@ -1,0 +1,154 @@
+{
+  "id": "garden_tea",
+  "name": {
+    "zh": "茶座",
+    "en": "Tea set"
+  },
+  "type": "furniture",
+  "parts": [
+    {
+      "id": "umbrella-closed",
+      "z": 45,
+      "sprite": {
+        "src": "tea-umbrella-closed.png",
+        "rect": [
+          344,
+          365,
+          65,
+          275
+        ]
+      },
+      "visibleWhen": {
+        "state": {
+          "teaUmbrella": false
+        }
+      },
+      "follow": {
+        "of": "table-on",
+        "x": 0.42,
+        "y": 1
+      }
+    },
+    {
+      "id": "umbrella-open",
+      "z": 45,
+      "sprite": {
+        "src": "tea-umbrella-open.png",
+        "rect": [
+          276,
+          365,
+          230,
+          275
+        ]
+      },
+      "visibleWhen": {
+        "state": {
+          "teaUmbrella": true
+        }
+      },
+      "follow": {
+        "of": "table-on",
+        "x": 0.348,
+        "y": 1
+      }
+    },
+    {
+      "id": "table-off",
+      "z": 110,
+      "sprite": {
+        "src": "tea-table-off.png",
+        "rect": [
+          315,
+          495,
+          111,
+          145
+        ]
+      },
+      "visibleWhen": {
+        "state": {
+          "teaLamp": false
+        }
+      }
+    },
+    {
+      "id": "table-on",
+      "z": 110,
+      "sprite": {
+        "src": "tea-table-on.png",
+        "rect": [
+          315,
+          495,
+          111,
+          145
+        ]
+      },
+      "visibleWhen": {
+        "state": {
+          "teaLamp": true
+        }
+      }
+    },
+    {
+      "id": "chair-right",
+      "z": 90,
+      "sprite": {
+        "src": "tea-chair.png",
+        "rect": [
+          403,
+          548,
+          68,
+          92
+        ]
+      }
+    },
+    {
+      "id": "chair-left",
+      "z": 90,
+      "sprite": {
+        "src": "tea-chair.png",
+        "rect": [
+          271,
+          548,
+          68,
+          92
+        ],
+        "flipX": true
+      }
+    },
+    {
+      "id": "anchor",
+      "z": 89,
+      "sprite": {
+        "src": "blank.png",
+        "rect": [
+          271,
+          548,
+          68,
+          92
+        ]
+      }
+    }
+  ],
+  "animations": [
+    {
+      "id": "sit",
+      "part": "anchor",
+      "position": {
+        "x": 0.5,
+        "y": 0.62
+      },
+      "pivot": [
+        0,
+        0
+      ],
+      "facing": "front_left",
+      "renderLayer": "front",
+      "pose": "sit"
+    }
+  ],
+  "click": {
+    "type": "toggle",
+    "key": "teaLamp"
+  },
+  "editAsOne": true
+}

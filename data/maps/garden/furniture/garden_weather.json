@@ -11,5 +11,6 @@
       "z": 160,
       "preset": "garden_weather"
     }
-  ]
+  ],
+  "locked": true
 }

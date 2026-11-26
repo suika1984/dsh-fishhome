@@ -299,6 +299,34 @@
         this.publish()
         return id
       },
+      /**
+       * 复制「选中的部件」（比如石头路里的一块石头），不是整件家具。
+       * 新部件偏移一个等距格，id 自动避让。
+       */
+      duplicatePart(defId, partId) {
+        const defs = cloneJson(furnitureRef.value)
+        const def = defs.find((item) => item.id === defId)
+        if (!def || !Array.isArray(def.parts) || partId === '*') return null
+        const index = def.parts.findIndex((part) => (part.id || 'part') === partId)
+        if (index < 0) return null
+        const source = def.parts[index]
+        this.pushHistory('duplicate-part')
+        const copy = cloneJson(source)
+        let n = 1
+        const baseId = source.id || 'part'
+        let id = `${baseId}-copy`
+        while (def.parts.some((part) => (part.id || '') === id)) { n += 1; id = `${baseId}-copy${n}` }
+        copy.id = id
+        if (copy.sprite && Array.isArray(copy.sprite.rect)) {
+          const rect = copy.sprite.rect.map(Number)
+          copy.sprite.rect = [rect[0] + geom.kx, rect[1] + geom.ky, rect[2], rect[3]]
+        }
+        def.parts.splice(index + 1, 0, copy)
+        applyFurniture(defs)
+        this.publish()
+        return { defId, partId: id }
+      },
+
       /** 删除一件家具：先从内存里拿掉，保存时才真正删文件 */
       removeFurniture(defId) {
         this.pushHistory('remove')

@@ -48,8 +48,8 @@
       "id": "sleep",
       "animation": "sleep",
       "position": {
-        "x": 0.91,
-        "y": 0.5
+        "x": 0.303,
+        "y": 0.58
       },
       "pivot": [
         0,
@@ -64,8 +64,8 @@
       "id": "nap",
       "animation": "sleep",
       "position": {
-        "x": 0.91,
-        "y": 0.5
+        "x": 0.303,
+        "y": 0.58
       },
       "pivot": [
         0,

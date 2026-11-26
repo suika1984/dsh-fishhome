@@ -17,7 +17,15 @@
     "satiety": -0.008,
     "mood": 0.035
   },
-  "weight": null,
+  "weight": {
+    "base": 1,
+    "mods": [
+      {
+        "factor": "outdoorComfort",
+        "gain": 1.25
+      }
+    ]
+  },
   "say": {
     "chance": 0.5,
     "lines": [

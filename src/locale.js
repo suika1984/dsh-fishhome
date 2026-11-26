@@ -294,6 +294,8 @@
       'period.evening': '傍晚',
       'period.night': '夜里',
       'behavior.idle': '在屋子中间发呆',
+      'behavior.meal': '吃饭',
+      'log.meal': '她去吃饭了',
       'behavior.tea': '喝茶',
       'flavor.tea': '茶座里晒晒太阳真舒服～',
       'log.tea': '她去茶座喝茶了',
@@ -355,6 +357,8 @@
       'moon.chip': '{name}',
 
       'behavior.stargaze': 'Stargazing',
+      'behavior.meal': 'Meal',
+      'log.meal': 'She went to eat',
       'behavior.tea': 'Tea time',
       'flavor.tea': 'Sunny spot by the table~',
       'log.tea': 'She went for tea',

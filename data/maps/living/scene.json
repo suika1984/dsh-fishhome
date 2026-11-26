@@ -90,7 +90,8 @@
     "cook",
     "eat",
     "sit",
-    "sofa_play"
+    "sofa_play",
+    "meal"
   ],
   "light": {
     "sources": [

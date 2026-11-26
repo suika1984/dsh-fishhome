@@ -340,6 +340,49 @@
           ),
         )
       },
+      // 花园：云层（阴/雨/雪天出现，比日月飘得快；大小与位置按天随机，避免重复感）
+      garden_clouds: (props) => {
+        const home = props && props.home
+        const weather = currentWeather(home)
+        if (weather === 'clear') return null
+        const part = (props && props.part) || {}
+        const W = geom.canvasW || 1200
+        const band = Number(part.band) > 0 ? Number(part.band) : Math.round((geom.canvasH || 677) * 0.16)
+        const list = Array.isArray(part.clouds) && part.clouds.length > 0 ? part.clouds : ['cloud-1.png']
+        const count = Number(part.count) > 0
+          ? Number(part.count)
+          : weather === 'rain' ? 9 : weather === 'drizzle' ? 8 : weather === 'snow' ? 6 : 7
+        const speed = Number(part.speed) > 0 ? Number(part.speed) : 1.4
+        const now = Date.now() / 1000
+        // 同一天同一时间形状稳定，换天会换布局
+        const date = new Date()
+        const daySeed = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000)
+        const rnd = seededRandom(daySeed * 131 + 17)
+        const nodes = []
+        for (let i = 0; i < count; i += 1) {
+          const src = list[Math.floor(rnd() * list.length) % list.length]
+          const sizeK = 0.72 + rnd() * 0.5                 // 0.72~1.22 倍
+          const h0 = band * (0.22 + rnd() * 0.16) * sizeK  // 高度
+          const w0 = h0 * (1.9 + rnd() * 0.5)
+          const y0 = band * (0.02 + rnd() * 0.46)
+          // 循环飘移：每朵云速度略有差异，整体比日月快
+          // 横向速度 px/s：0.8 基准 → 1200px 画布约 25 分钟飘过；speed 可整体缩放
+          const v = 0.8 * speed * (0.75 + rnd() * 0.6)
+          const span = W + w0 * 2
+          const x0 = ((now * v + rnd() * span) % span) - w0
+          nodes.push(h('image', {
+            key: `cloud-${i}`,
+            href: `${ROUTE}/pack/${encodeURIComponent(src)}`,
+            x: x0.toFixed(1),
+            y: y0.toFixed(1),
+            width: w0.toFixed(1),
+            height: h0.toFixed(1),
+            opacity: (0.75 + rnd() * 0.25).toFixed(2),
+            preserveAspectRatio: 'none',
+          }))
+        }
+        return h('g', { className: 'fh-garden-clouds', 'data-count': count }, nodes)
+      },
       // 花园：星空 + 当季星座（只在天空带里画，天亮了自动淡出）
       garden_stars: (props) => {
         const home = props && props.home
@@ -966,14 +1009,15 @@
           }
           const selected = editing && edit.selected &&
             edit.selected.defId === def.id && edit.selected.partId === partKey
+          const locked = def.locked === true
           const node = h(
             PropGroup,
             {
-              className: `fh-prop-${def.id}${selected ? ' fh-prop-selected' : ''}`,
+              className: `fh-prop-${def.id}${selected ? ' fh-prop-selected' : ''}${locked ? ' fh-prop-locked' : ''}`,
               label,
-              focusable: editing,
+              focusable: editing && !locked,
               onActivate,
-              onPointerDown: editing && typeof actions.dragStart === 'function'
+              onPointerDown: editing && !locked && typeof actions.dragStart === 'function'
                 ? (event) => actions.dragStart(def.id, partKey, event)
                 : undefined,
             },

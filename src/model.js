@@ -272,6 +272,78 @@
       energyUnder35: (c) => c.energy < 35,
       energyVeryLow: (c) => c.energy < 22,
       energyHigh: (c) => c.energy > 72,
+      // ---- 室外活动：天气 + 温度 ----
+      rainy: (c, clock) => clock.weather === 'drizzle' || clock.weather === 'rain',
+      snowy: (c, clock) => clock.weather === 'snow',
+      cloudy: (c, clock) => clock.weather === 'overcast',
+      // 温度适宜且不下雨。晴天时「怕冷」放宽、「怕热」收紧：
+      //   晴天：16~24° 算舒服，<6 或 >26 就不适合出门
+      //   非晴天：18~26° 算舒服，<10 或 >30 才不适合
+      outdoorNice: (c, clock, props) => {
+        const temp = outdoorTempOf(props, clock)
+        const wet = clock.weather === 'drizzle' || clock.weather === 'rain' || clock.weather === 'snow'
+        const sunny = clock.weather === 'clear'
+        const low = sunny ? 16 : 18
+        const high = sunny ? 24 : 26
+        return !wet && temp >= low && temp <= high
+      },
+      // 太冷 / 太热 / 下雨（雪单独算：白天可玩雪，晚上太冷）
+      outdoorPoor: (c, clock, props) => {
+        const temp = outdoorTempOf(props, clock)
+        const wet = clock.weather === 'drizzle' || clock.weather === 'rain'
+        const sunny = clock.weather === 'clear'
+        const coldLimit = sunny ? 6 : 10   // 晴天有太阳，冷一点也能出门
+        const hotLimit = sunny ? 26 : 30   // 晴天晒，热一点就不想出门
+        return wet || temp < coldLimit || temp > hotLimit
+      },
+      // 下雪的白天：可以出去玩雪
+      snowDay: (c, clock) => clock.weather === 'snow' && (clock.daylight || 0) > 0.25,
+      // 下雪的夜晚：不适合出门
+      snowNight: (c, clock) => clock.weather === 'snow' && (clock.daylight || 0) <= 0.25,
+    }
+
+    /**
+     * 室外温度：开了真实天气就用它，否则用室内估算值（季节表）。
+     * 室外活动和室内活动对温度的敏感度不一样，所以单独取一份。
+     */
+    function outdoorTempOf(props, clock) {
+      const live = props && props.weatherEnabled === true ? Number(props.liveWeatherTemp) : NaN
+      if (Number.isFinite(live)) return live
+      return Number.isFinite(clock && clock.temperature) ? Number(clock.temperature) : 20
+    }
+
+    /**
+     * 权重里能用的「连续系数」：数据里写 { "factor": "outdoorComfort" }，
+     * 返回值直接乘到权重上（不需要真假判断）。比一堆 if 档位更平滑。
+     */
+    function outdoorComfortOf(character, clock, props) {
+      const temp = outdoorTempOf(props, clock)
+      const sunny = clock.weather === 'clear'
+      const center = sunny ? 20 : 22
+      // 每偏离 1° 乘 0.94：20° → ×1，30° → ×0.54，5° → ×0.46
+      let value = Math.pow(0.94, Math.abs(temp - center))
+      const day = (clock.daylight || 0) > 0.25
+      const weatherMul =
+        clock.weather === 'clear' ? 1.15 :
+          clock.weather === 'overcast' ? 0.95 :
+            clock.weather === 'drizzle' ? 0.5 :
+              clock.weather === 'rain' ? 0.3 :
+                clock.weather === 'snow' ? (day ? 0.85 : 0.45) : 1
+      value *= weatherMul
+      return Math.min(1.6, Math.max(0.12, value))
+    }
+
+    /** 越饿越想吃：饱腹 70 以下开始加成，0 时约 ×3 */
+    function hungerUrgeOf(character) {
+      const satiety = Number(character && character.satiety)
+      if (!Number.isFinite(satiety)) return 1
+      const lack = Math.max(0, (70 - satiety) / 70)
+      return 1 + Math.pow(lack, 1.5) * 2
+    }
+
+    const FACTOR_VOCAB = {
+      outdoorComfort: outdoorComfortOf,
+      hungerUrge: hungerUrgeOf,
     }
 
     const SPOTS = {
@@ -478,6 +550,16 @@
       const mods = Array.isArray(weight.mods) ? weight.mods : []
       for (const mod of mods) {
         if (!mod || typeof mod.when !== 'string') continue
+        // 连续系数：{ factor: "outdoorComfort" }
+        if (typeof mod.factor === 'string') {
+          const factorFn = FACTOR_VOCAB[mod.factor]
+          let factorValue = typeof factorFn === 'function' ? Number(factorFn(character, clock, props)) : NaN
+          // gain >1 放大影响、<1 减弱影响（玩雪更敏感、发呆更迟钝）
+          const gain = Number(mod.gain)
+          if (Number.isFinite(factorValue) && Number.isFinite(gain) && gain > 0) factorValue = Math.pow(factorValue, gain)
+          if (Number.isFinite(factorValue)) value *= factorValue
+          continue
+        }
         const check = WEIGHT_VOCAB[mod.when]
         if (!check || !check(character, clock, props)) continue
         const mul = Number(mod.mul)

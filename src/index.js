@@ -265,6 +265,8 @@
         gardenBody,
         moonPhase,
         weatherOf,
+        outdoorTempOf,
+        outdoorComfortOf,
         weatherCodeToId,
         currentWeather,
         swingPhaseOf,

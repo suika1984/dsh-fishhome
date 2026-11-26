@@ -78,6 +78,7 @@
           // 睡眠时也保持“当前行为”的可读性：行为本身在 stepHome 里切换
         }
         this.syncSleepRoom(now)
+        this.syncMealRoom(now)
         // 顺带问一下 DSH 会话在干什么（异步，不阻塞时钟）
         void this.refreshActivity()
         this.publish()
@@ -87,6 +88,28 @@
        * 睡觉回卧室：床只在卧室，所以在别的房间睡着时把她送回卧室（她不在客厅/花园里"站着睡"）；
        * 醒来后再回到你正在看的房间，免得早上看不见人。
        */
+      /**
+       * 饿了就往客厅走（吃饭在客厅的 dining 位置）。
+       * 只在「没在睡觉/打盹」且饱腹低时切换，避免来回跳。
+       */
+      syncMealRoom(now) {
+        const home = this.home
+        if (!home || !home.character || !home.world) return
+        const behavior = home.character.behaviorId
+        if (behavior === 'sleep' || behavior === 'nap') return
+        const satiety = Number(home.character.satiety)
+        if (!Number.isFinite(satiety)) return
+        const current = typeof home.world.map === 'string' && home.world.map !== '' ? home.world.map : 'living'
+        const viewing = this.currentMap ? this.currentMap() : current
+        if (satiety < 35 && current !== 'living') {
+          home.world.map = 'living'
+          this.publish && this.publish()
+        } else if (satiety > 70 && current === 'living' && viewing !== 'living') {
+          home.world.map = viewing
+          this.publish && this.publish()
+        }
+      },
+
       syncSleepRoom(now) {
         const home = this.home
         if (!home || !home.character || !home.world) return

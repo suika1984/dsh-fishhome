@@ -12,8 +12,8 @@
       "sprite": {
         "src": "swing-seat-empty.png",
         "rect": [
-          231,
-          452,
+          986,
+          512,
           130,
           200
         ]
@@ -42,8 +42,8 @@
       "sprite": {
         "src": "swing-seat-center.png",
         "rect": [
-          231,
-          452,
+          986,
+          512,
           130,
           200
         ]
@@ -63,8 +63,8 @@
       "sprite": {
         "src": "swing-seat-front.png",
         "rect": [
-          231,
-          452,
+          986,
+          512,
           130,
           200
         ]
@@ -84,8 +84,8 @@
       "sprite": {
         "src": "swing-seat-back.png",
         "rect": [
-          231,
-          452,
+          986,
+          512,
           130,
           200
         ]
@@ -111,8 +111,8 @@
       "sprite": {
         "src": "blank.png",
         "rect": [
-          231,
-          452,
+          986,
+          512,
           130,
           200
         ]

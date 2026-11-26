@@ -30,6 +30,21 @@
       "preset": "garden_sun",
       "layer": "light",
       "band": 223
+    },
+    {
+      "id": "clouds",
+      "z": -1898,
+      "preset": "garden_clouds",
+      "band": 223,
+      "clouds": [
+        "cloud-1.png",
+        "cloud-3.png",
+        "cloud-5.png",
+        "cloud-7.png",
+        "cloud-9.png"
+      ],
+      "speed": 1
     }
-  ]
+  ],
+  "locked": true
 }

@@ -598,6 +598,27 @@ assert.equal(zh('status.remain', { seconds: 30 }).includes('30'), true)
   assert.ok(model.blendIndoorTemp(45, 'summer') <= 30, '再热也不会高于 30°')
 }
 
+// 室外活动权重：温度取真实室外值，缺省退回室内估算
+{
+  const clock = { temperature: 21, weather: 'clear', hour: 12 }
+  assert.equal(model.outdoorTempOf({ weatherEnabled: true, liveWeatherTemp: 12 }, clock), 12)
+  assert.equal(model.outdoorTempOf({ weatherEnabled: false, liveWeatherTemp: 12 }, clock), 21)
+  assert.equal(model.outdoorTempOf({}, { temperature: 25 }), 25)
+  // 花园的室外事件要引用天气/温度权重
+  const swing = JSON.parse(readFileSync(path.join(here, '..', 'data', 'maps', 'garden', 'events', 'swing.json'), 'utf8'))
+  const factors = (swing.weight.mods || []).map((mod) => mod.factor).filter(Boolean)
+  assert.ok(factors.includes('outdoorComfort'), '秋千按天气温度的连续系数调权重')
+  // 线性：越接近舒适温度系数越大，晴天加成、雨天压低
+  const c = { temperature: 20, weather: 'clear', daylight: 1, hour: 12 }
+  const good = model.outdoorComfortOf({}, { ...c, temperature: 20 }, {})
+  const warm = model.outdoorComfortOf({}, { ...c, temperature: 28 }, {})
+  const hot = model.outdoorComfortOf({}, { ...c, temperature: 34 }, {})
+  const rainy = model.outdoorComfortOf({}, { ...c, weather: 'rain' }, {})
+  assert.ok(good > warm && warm > hot, '温度越偏系数越小（20 > 28 > 34）')
+  assert.ok(rainy < good, '雨天系数低于晴天')
+  assert.ok(hot >= 0.12, '最差不低于 0.12')
+}
+
 // 天气：按日期+季节稳定摇一个，冬天才可能下雪
 {
   const day = new Date(2026, 0, 15, 12, 0, 0).getTime()

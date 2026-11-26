@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = '8e404435'
+    const BUILD_REV = 'dcac95f6'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -337,6 +337,8 @@ const NOTE_MARK = '【家园】'
       'period.evening': '傍晚',
       'period.night': '夜里',
       'behavior.idle': '在屋子中间发呆',
+      'behavior.meal': '吃饭',
+      'log.meal': '她去吃饭了',
       'behavior.tea': '喝茶',
       'flavor.tea': '茶座里晒晒太阳真舒服～',
       'log.tea': '她去茶座喝茶了',
@@ -398,6 +400,8 @@ const NOTE_MARK = '【家园】'
       'moon.chip': '{name}',
 
       'behavior.stargaze': 'Stargazing',
+      'behavior.meal': 'Meal',
+      'log.meal': 'She went to eat',
       'behavior.tea': 'Tea time',
       'flavor.tea': 'Sunny spot by the table~',
       'log.tea': 'She went for tea',
@@ -991,6 +995,78 @@ const NOTE_MARK = '【家园】'
       energyUnder35: (c) => c.energy < 35,
       energyVeryLow: (c) => c.energy < 22,
       energyHigh: (c) => c.energy > 72,
+      // ---- 室外活动：天气 + 温度 ----
+      rainy: (c, clock) => clock.weather === 'drizzle' || clock.weather === 'rain',
+      snowy: (c, clock) => clock.weather === 'snow',
+      cloudy: (c, clock) => clock.weather === 'overcast',
+      // 温度适宜且不下雨。晴天时「怕冷」放宽、「怕热」收紧：
+      //   晴天：16~24° 算舒服，<6 或 >26 就不适合出门
+      //   非晴天：18~26° 算舒服，<10 或 >30 才不适合
+      outdoorNice: (c, clock, props) => {
+        const temp = outdoorTempOf(props, clock)
+        const wet = clock.weather === 'drizzle' || clock.weather === 'rain' || clock.weather === 'snow'
+        const sunny = clock.weather === 'clear'
+        const low = sunny ? 16 : 18
+        const high = sunny ? 24 : 26
+        return !wet && temp >= low && temp <= high
+      },
+      // 太冷 / 太热 / 下雨（雪单独算：白天可玩雪，晚上太冷）
+      outdoorPoor: (c, clock, props) => {
+        const temp = outdoorTempOf(props, clock)
+        const wet = clock.weather === 'drizzle' || clock.weather === 'rain'
+        const sunny = clock.weather === 'clear'
+        const coldLimit = sunny ? 6 : 10   // 晴天有太阳，冷一点也能出门
+        const hotLimit = sunny ? 26 : 30   // 晴天晒，热一点就不想出门
+        return wet || temp < coldLimit || temp > hotLimit
+      },
+      // 下雪的白天：可以出去玩雪
+      snowDay: (c, clock) => clock.weather === 'snow' && (clock.daylight || 0) > 0.25,
+      // 下雪的夜晚：不适合出门
+      snowNight: (c, clock) => clock.weather === 'snow' && (clock.daylight || 0) <= 0.25,
+    }
+
+    /**
+     * 室外温度：开了真实天气就用它，否则用室内估算值（季节表）。
+     * 室外活动和室内活动对温度的敏感度不一样，所以单独取一份。
+     */
+    function outdoorTempOf(props, clock) {
+      const live = props && props.weatherEnabled === true ? Number(props.liveWeatherTemp) : NaN
+      if (Number.isFinite(live)) return live
+      return Number.isFinite(clock && clock.temperature) ? Number(clock.temperature) : 20
+    }
+
+    /**
+     * 权重里能用的「连续系数」：数据里写 { "factor": "outdoorComfort" }，
+     * 返回值直接乘到权重上（不需要真假判断）。比一堆 if 档位更平滑。
+     */
+    function outdoorComfortOf(character, clock, props) {
+      const temp = outdoorTempOf(props, clock)
+      const sunny = clock.weather === 'clear'
+      const center = sunny ? 20 : 22
+      // 每偏离 1° 乘 0.94：20° → ×1，30° → ×0.54，5° → ×0.46
+      let value = Math.pow(0.94, Math.abs(temp - center))
+      const day = (clock.daylight || 0) > 0.25
+      const weatherMul =
+        clock.weather === 'clear' ? 1.15 :
+          clock.weather === 'overcast' ? 0.95 :
+            clock.weather === 'drizzle' ? 0.5 :
+              clock.weather === 'rain' ? 0.3 :
+                clock.weather === 'snow' ? (day ? 0.85 : 0.45) : 1
+      value *= weatherMul
+      return Math.min(1.6, Math.max(0.12, value))
+    }
+
+    /** 越饿越想吃：饱腹 70 以下开始加成，0 时约 ×3 */
+    function hungerUrgeOf(character) {
+      const satiety = Number(character && character.satiety)
+      if (!Number.isFinite(satiety)) return 1
+      const lack = Math.max(0, (70 - satiety) / 70)
+      return 1 + Math.pow(lack, 1.5) * 2
+    }
+
+    const FACTOR_VOCAB = {
+      outdoorComfort: outdoorComfortOf,
+      hungerUrge: hungerUrgeOf,
     }
 
     const SPOTS = {
@@ -1197,6 +1273,16 @@ const NOTE_MARK = '【家园】'
       const mods = Array.isArray(weight.mods) ? weight.mods : []
       for (const mod of mods) {
         if (!mod || typeof mod.when !== 'string') continue
+        // 连续系数：{ factor: "outdoorComfort" }
+        if (typeof mod.factor === 'string') {
+          const factorFn = FACTOR_VOCAB[mod.factor]
+          let factorValue = typeof factorFn === 'function' ? Number(factorFn(character, clock, props)) : NaN
+          // gain >1 放大影响、<1 减弱影响（玩雪更敏感、发呆更迟钝）
+          const gain = Number(mod.gain)
+          if (Number.isFinite(factorValue) && Number.isFinite(gain) && gain > 0) factorValue = Math.pow(factorValue, gain)
+          if (Number.isFinite(factorValue)) value *= factorValue
+          continue
+        }
         const check = WEIGHT_VOCAB[mod.when]
         if (!check || !check(character, clock, props)) continue
         const mul = Number(mod.mul)
@@ -2630,6 +2716,34 @@ async function writeSave(home) {
         this.publish()
         return id
       },
+      /**
+       * 复制「选中的部件」（比如石头路里的一块石头），不是整件家具。
+       * 新部件偏移一个等距格，id 自动避让。
+       */
+      duplicatePart(defId, partId) {
+        const defs = cloneJson(furnitureRef.value)
+        const def = defs.find((item) => item.id === defId)
+        if (!def || !Array.isArray(def.parts) || partId === '*') return null
+        const index = def.parts.findIndex((part) => (part.id || 'part') === partId)
+        if (index < 0) return null
+        const source = def.parts[index]
+        this.pushHistory('duplicate-part')
+        const copy = cloneJson(source)
+        let n = 1
+        const baseId = source.id || 'part'
+        let id = `${baseId}-copy`
+        while (def.parts.some((part) => (part.id || '') === id)) { n += 1; id = `${baseId}-copy${n}` }
+        copy.id = id
+        if (copy.sprite && Array.isArray(copy.sprite.rect)) {
+          const rect = copy.sprite.rect.map(Number)
+          copy.sprite.rect = [rect[0] + geom.kx, rect[1] + geom.ky, rect[2], rect[3]]
+        }
+        def.parts.splice(index + 1, 0, copy)
+        applyFurniture(defs)
+        this.publish()
+        return { defId, partId: id }
+      },
+
       /** 删除一件家具：先从内存里拿掉，保存时才真正删文件 */
       removeFurniture(defId) {
         this.pushHistory('remove')
@@ -2884,6 +2998,7 @@ async function writeSave(home) {
           // 睡眠时也保持“当前行为”的可读性：行为本身在 stepHome 里切换
         }
         this.syncSleepRoom(now)
+        this.syncMealRoom(now)
         // 顺带问一下 DSH 会话在干什么（异步，不阻塞时钟）
         void this.refreshActivity()
         this.publish()
@@ -2893,6 +3008,28 @@ async function writeSave(home) {
        * 睡觉回卧室：床只在卧室，所以在别的房间睡着时把她送回卧室（她不在客厅/花园里"站着睡"）；
        * 醒来后再回到你正在看的房间，免得早上看不见人。
        */
+      /**
+       * 饿了就往客厅走（吃饭在客厅的 dining 位置）。
+       * 只在「没在睡觉/打盹」且饱腹低时切换，避免来回跳。
+       */
+      syncMealRoom(now) {
+        const home = this.home
+        if (!home || !home.character || !home.world) return
+        const behavior = home.character.behaviorId
+        if (behavior === 'sleep' || behavior === 'nap') return
+        const satiety = Number(home.character.satiety)
+        if (!Number.isFinite(satiety)) return
+        const current = typeof home.world.map === 'string' && home.world.map !== '' ? home.world.map : 'living'
+        const viewing = this.currentMap ? this.currentMap() : current
+        if (satiety < 35 && current !== 'living') {
+          home.world.map = 'living'
+          this.publish && this.publish()
+        } else if (satiety > 70 && current === 'living' && viewing !== 'living') {
+          home.world.map = viewing
+          this.publish && this.publish()
+        }
+      },
+
       syncSleepRoom(now) {
         const home = this.home
         if (!home || !home.character || !home.world) return
@@ -4531,6 +4668,49 @@ async function writeSave(home) {
           ),
         )
       },
+      // 花园：云层（阴/雨/雪天出现，比日月飘得快；大小与位置按天随机，避免重复感）
+      garden_clouds: (props) => {
+        const home = props && props.home
+        const weather = currentWeather(home)
+        if (weather === 'clear') return null
+        const part = (props && props.part) || {}
+        const W = geom.canvasW || 1200
+        const band = Number(part.band) > 0 ? Number(part.band) : Math.round((geom.canvasH || 677) * 0.16)
+        const list = Array.isArray(part.clouds) && part.clouds.length > 0 ? part.clouds : ['cloud-1.png']
+        const count = Number(part.count) > 0
+          ? Number(part.count)
+          : weather === 'rain' ? 9 : weather === 'drizzle' ? 8 : weather === 'snow' ? 6 : 7
+        const speed = Number(part.speed) > 0 ? Number(part.speed) : 1.4
+        const now = Date.now() / 1000
+        // 同一天同一时间形状稳定，换天会换布局
+        const date = new Date()
+        const daySeed = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000)
+        const rnd = seededRandom(daySeed * 131 + 17)
+        const nodes = []
+        for (let i = 0; i < count; i += 1) {
+          const src = list[Math.floor(rnd() * list.length) % list.length]
+          const sizeK = 0.72 + rnd() * 0.5                 // 0.72~1.22 倍
+          const h0 = band * (0.22 + rnd() * 0.16) * sizeK  // 高度
+          const w0 = h0 * (1.9 + rnd() * 0.5)
+          const y0 = band * (0.02 + rnd() * 0.46)
+          // 循环飘移：每朵云速度略有差异，整体比日月快
+          // 横向速度 px/s：0.8 基准 → 1200px 画布约 25 分钟飘过；speed 可整体缩放
+          const v = 0.8 * speed * (0.75 + rnd() * 0.6)
+          const span = W + w0 * 2
+          const x0 = ((now * v + rnd() * span) % span) - w0
+          nodes.push(h('image', {
+            key: `cloud-${i}`,
+            href: `${ROUTE}/pack/${encodeURIComponent(src)}`,
+            x: x0.toFixed(1),
+            y: y0.toFixed(1),
+            width: w0.toFixed(1),
+            height: h0.toFixed(1),
+            opacity: (0.75 + rnd() * 0.25).toFixed(2),
+            preserveAspectRatio: 'none',
+          }))
+        }
+        return h('g', { className: 'fh-garden-clouds', 'data-count': count }, nodes)
+      },
       // 花园：星空 + 当季星座（只在天空带里画，天亮了自动淡出）
       garden_stars: (props) => {
         const home = props && props.home
@@ -5157,14 +5337,15 @@ async function writeSave(home) {
           }
           const selected = editing && edit.selected &&
             edit.selected.defId === def.id && edit.selected.partId === partKey
+          const locked = def.locked === true
           const node = h(
             PropGroup,
             {
-              className: `fh-prop-${def.id}${selected ? ' fh-prop-selected' : ''}`,
+              className: `fh-prop-${def.id}${selected ? ' fh-prop-selected' : ''}${locked ? ' fh-prop-locked' : ''}`,
               label,
-              focusable: editing,
+              focusable: editing && !locked,
               onActivate,
-              onPointerDown: editing && typeof actions.dragStart === 'function'
+              onPointerDown: editing && !locked && typeof actions.dragStart === 'function'
                 ? (event) => actions.dragStart(def.id, partKey, event)
                 : undefined,
             },
@@ -5591,7 +5772,9 @@ async function writeSave(home) {
       const blankCharacter = String(view && view.key || '') === 'blank' || seatedForSwing
       const characterNode = view && !blankCharacter
         ? h(CharacterSprite, { view })
-        : h(Placeholder, {
+        : blankCharacter
+          ? null
+          : h(Placeholder, {
           rect: [-45, -135, 90, 135],
           label: home.characterName || 'character',
           note: '缺角色图',
@@ -6015,6 +6198,7 @@ async function writeSave(home) {
           return t('log.work')
         case 'window':
           return t('log.window')
+        case 'meal':
         case 'tea':
         case 'swing':
           return t('behavior.swing')
@@ -7014,8 +7198,12 @@ async function writeSave(home) {
             return
           }
           const result = await store.saveShot({ map, dataUrl })
+          // 提示里显示完整路径：截图到底存哪了一目了然
+          const shotPath = result && result.dir
+            ? `${String(result.dir).replace(/[\\/]+$/, '')}\\${result.file}`
+            : (result && result.file) || ''
           setShotTip(result.ok
-            ? t('shot.saved', { file: result.file })
+            ? t('shot.saved', { file: shotPath })
             : t('shot.failed', { error: result.error || '?' }))
           if (typeof console !== 'undefined') {
             console.log('[fishhome] 截图结果', { ok: result.ok, file: result.file, bytes: result.bytes, payloadKb: Math.round(dataUrl.length / 1024) })
@@ -7451,6 +7639,22 @@ async function writeSave(home) {
                 },
                 onDuplicate: () => {
                   if (!edit.selected) return
+                  // 选中了具体部件（不是整件）→ 只复制这一块，比如石头路里的一块石头
+                  if (edit.selected.partId && edit.selected.partId !== '*' && typeof store.duplicatePart === 'function') {
+                    const made = store.duplicatePart(edit.selected.defId, edit.selected.partId)
+                    if (made) {
+                      setEdit((prev) => ({
+                        ...prev,
+                        selected: {
+                          defId: made.defId,
+                          partId: made.partId,
+                          isSprite: true,
+                        },
+                        status: `已复制部件 ${made.partId}（保存后才会写文件）`,
+                      }))
+                      return
+                    }
+                  }
                   const id = store.duplicateFurniture(edit.selected.defId)
                   if (!id) return
                   const def = furnitureRef.value.find((item) => item.id === id)
@@ -8852,6 +9056,8 @@ async function writeSave(home) {
         gardenBody,
         moonPhase,
         weatherOf,
+        outdoorTempOf,
+        outdoorComfortOf,
         weatherCodeToId,
         currentWeather,
         swingPhaseOf,

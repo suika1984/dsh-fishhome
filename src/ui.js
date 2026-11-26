@@ -193,7 +193,9 @@
       const blankCharacter = String(view && view.key || '') === 'blank' || seatedForSwing
       const characterNode = view && !blankCharacter
         ? h(CharacterSprite, { view })
-        : h(Placeholder, {
+        : blankCharacter
+          ? null
+          : h(Placeholder, {
           rect: [-45, -135, 90, 135],
           label: home.characterName || 'character',
           note: '缺角色图',
@@ -617,6 +619,7 @@
           return t('log.work')
         case 'window':
           return t('log.window')
+        case 'meal':
         case 'tea':
         case 'swing':
           return t('behavior.swing')
@@ -1616,8 +1619,12 @@
             return
           }
           const result = await store.saveShot({ map, dataUrl })
+          // 提示里显示完整路径：截图到底存哪了一目了然
+          const shotPath = result && result.dir
+            ? `${String(result.dir).replace(/[\\/]+$/, '')}\\${result.file}`
+            : (result && result.file) || ''
           setShotTip(result.ok
-            ? t('shot.saved', { file: result.file })
+            ? t('shot.saved', { file: shotPath })
             : t('shot.failed', { error: result.error || '?' }))
           if (typeof console !== 'undefined') {
             console.log('[fishhome] 截图结果', { ok: result.ok, file: result.file, bytes: result.bytes, payloadKb: Math.round(dataUrl.length / 1024) })
@@ -2053,6 +2060,22 @@
                 },
                 onDuplicate: () => {
                   if (!edit.selected) return
+                  // 选中了具体部件（不是整件）→ 只复制这一块，比如石头路里的一块石头
+                  if (edit.selected.partId && edit.selected.partId !== '*' && typeof store.duplicatePart === 'function') {
+                    const made = store.duplicatePart(edit.selected.defId, edit.selected.partId)
+                    if (made) {
+                      setEdit((prev) => ({
+                        ...prev,
+                        selected: {
+                          defId: made.defId,
+                          partId: made.partId,
+                          isSprite: true,
+                        },
+                        status: `已复制部件 ${made.partId}（保存后才会写文件）`,
+                      }))
+                      return
+                    }
+                  }
                   const id = store.duplicateFurniture(edit.selected.defId)
                   if (!id) return
                   const def = furnitureRef.value.find((item) => item.id === id)

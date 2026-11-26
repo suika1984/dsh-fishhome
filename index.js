@@ -71,10 +71,12 @@ function normalizeConfig(raw) {
   // 数据同步：auto = 包内新内容自动同步到用户目录（不动用户改过的文件）；off = 只在空目录时复制一次
   const dataSync = config.dataSync === 'off' ? 'off' : 'auto'
   // 截图目录（本地调试用，默认仓库下 test/shots；写不进去会退回 DSH_HOME）
+  // 注意：仓库目录在部分环境里会被 DSH 沙箱「虚拟化」——写入返回成功但外部看不到，
+  // 所以默认把截图放进数据目录（Host 对它一定有真实写权限），要改仍可用 config.shotDir。
   const shotDir =
     typeof config.shotDir === 'string' && config.shotDir.trim() !== ''
       ? path.resolve(HERE, config.shotDir.trim())
-      : path.join(HERE, 'test', 'shots')
+      : path.join(dataDir, 'shots')
   const map =
     typeof config.map === 'string' && /^[A-Za-z0-9._-]+$/.test(config.map.trim())
       ? config.map.trim()
@@ -475,6 +477,23 @@ function createHandler(settings) {
       if (rest === '/api/weather' && (req.method === 'GET' || req.method === 'HEAD')) {
         await handleWeather(req, res, url, settings.config())
         return true
+      }
+      if (rest.startsWith('/api/shots/') && (req.method === 'GET' || req.method === 'HEAD')) {
+        const name = decodeURIComponent(rest.slice('/api/shots/'.length))
+        if (!/^[A-Za-z0-9._-]+\.png$/.test(name)) {
+          sendText(res, 400, 'bad name')
+          return
+        }
+        try {
+          const buf = await fsp.readFile(path.join(settings.config().shotDir, name))
+          res.statusCode = 200
+          res.setHeader('content-type', 'image/png')
+          res.setHeader('cache-control', 'no-store')
+          res.end(buf)
+        } catch {
+          sendText(res, 404, 'not found')
+        }
+        return
       }
       if (rest === '/api/activity' && (req.method === 'GET' || req.method === 'HEAD')) {
         const activity = settings.activity ? settings.activity() : null

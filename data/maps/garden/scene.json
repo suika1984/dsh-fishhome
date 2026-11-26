@@ -45,7 +45,8 @@
     "garden_light",
     "garden_weather",
     "garden_swing",
-    "garden_tea"
+    "garden_tea",
+    "garden_path"
   ],
   "events": [
     "idle",

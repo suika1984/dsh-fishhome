@@ -15,7 +15,15 @@
   "onTick": {
     "mood": 0.003
   },
-  "weight": null,
+  "weight": {
+    "base": 1,
+    "mods": [
+      {
+        "factor": "outdoorComfort",
+        "gain": 1
+      }
+    ]
+  },
   "request": null,
   "say": null
 }

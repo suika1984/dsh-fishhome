@@ -9,8 +9,8 @@
   ],
   "cooldown": 180,
   "onTick": {
-    "mood": 0.02,
-    "energy": -0.002
+    "energy": -0.002,
+    "mood": 0.02
   },
   "weight": {
     "base": 1.4,
@@ -20,11 +20,14 @@
         "mul": 1.2
       },
       {
-        "when": "rainy",
-        "mul": 0.2
+        "factor": "outdoorComfort",
+        "gain": 1
       }
     ]
   },
-  "say": "flavor.swing",
-  "log": "swing"
+  "say": null,
+  "log": "swing",
+  "kind": "autonomous",
+  "label": null,
+  "request": null
 }

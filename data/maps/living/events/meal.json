@@ -1,0 +1,41 @@
+{
+  "id": "meal",
+  "label": {
+    "zh": "吃饭"
+  },
+  "kind": "autonomous",
+  "spot": "dining",
+  "anim": "eat_main",
+  "duration": [
+    45,
+    70
+  ],
+  "log": "meal",
+  "cooldown": 300,
+  "onTick": {
+    "satiety": 1.6,
+    "mood": 0.03
+  },
+  "weight": {
+    "base": 1,
+    "mods": [
+      {
+        "factor": "hungerUrge"
+      },
+      {
+        "when": "hungry",
+        "mul": 1.8
+      }
+    ]
+  },
+  "say": {
+    "chance": 0.4,
+    "lines": [
+      {
+        "zh": "该吃饭了～",
+        "en": "Time to eat~"
+      }
+    ]
+  },
+  "request": null
+}

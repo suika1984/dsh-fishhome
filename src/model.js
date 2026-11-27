@@ -176,6 +176,7 @@
       return {
         season: seasonOf(date),
         period: periodOf(hour),
+      mealSlot: mealSlotOf(hour),
         hour,
         minute,
         clock: `${pad2(hour)}:${pad2(minute)}`,
@@ -255,6 +256,16 @@
      * 权重里能用的具名条件（固定词汇表，不写表达式）。
      * 数据里写 { "when": "moodLow", "mul": 1.35 }，这里负责判断真假。
      */
+    /** 三餐时段：早 7~9 / 午 11~13:30 / 晚 17~19:30，其余时间 null */
+    function mealSlotOf(hour) {
+      const h = Number(hour)
+      if (!Number.isFinite(h)) return null
+      if (h >= 7 && h < 9) return 'breakfast'
+      if (h >= 11 && h < 13.5) return 'lunch'
+      if (h >= 17 && h < 19.5) return 'dinner'
+      return null
+    }
+
     const WEIGHT_VOCAB = {
       morning: (c, clock) => clock.hour > 6 && clock.hour < 10,
       workHours: (c, clock) => clock.hour > 8 && clock.hour < 22,
@@ -266,6 +277,22 @@
       curtainClosed: (c, clock, props) => props.curtainOpen !== true,
       noLight: (c, clock, props) => !(props.deskLamp === true || clock.daylight > 0.3),
       hungry: (c) => c.satiety < 45,
+      starving: (c) => c.satiety < 22,
+      starvingHard: (c) => c.satiety < 15,
+      breakfast: (c, clock) => mealSlotOf(clock.hour) === 'breakfast',
+      lunch: (c, clock) => mealSlotOf(clock.hour) === 'lunch',
+      dinner: (c, clock) => mealSlotOf(clock.hour) === 'dinner',
+      // 饭点：早 7~9、午 11~13:30、晚 17~19:30
+      mealWindow: (c, clock) => {
+        const h = clock.hour + (Number.isFinite(clock.minute) ? clock.minute / 60 : 0)
+        return (h >= 7 && h < 9) || (h >= 11 && h < 13.5) || (h >= 17 && h < 19.5)
+      },
+      // 饭点 + 七八分饱 → 也优先去吃（不用饿到很低）
+      mealWindowPeckish: (c, clock) => {
+        const h = clock.hour + (Number.isFinite(clock.minute) ? clock.minute / 60 : 0)
+        const inWindow = (h >= 7 && h < 9) || (h >= 11 && h < 13.5) || (h >= 17 && h < 19.5)
+        return inWindow && c.satiety < 55
+      },
       moodLow: (c) => c.mood < 60,
       moodVeryLow: (c) => c.mood < 55,
       energyLow: (c) => c.energy < 55,
@@ -338,7 +365,7 @@
       const satiety = Number(character && character.satiety)
       if (!Number.isFinite(satiety)) return 1
       const lack = Math.max(0, (70 - satiety) / 70)
-      return 1 + Math.pow(lack, 1.5) * 2
+      return 1 + Math.pow(lack, 1.5) * 3
     }
 
     const FACTOR_VOCAB = {
@@ -1011,9 +1038,22 @@
       const capped = Math.min(gap, OFFLINE_CAP_MS)
       let cursor = now - capped
       let steps = 0
+      // 离线期间的饭点：按时吃饭把饱腹补回来（历史时间点上补，不是“上线才掉血/回血”）
+      const eatenSlots = new Set()
       while (cursor < now && steps < 220) {
         const next = Math.min(now, cursor + OFFLINE_STEP_MS)
         stepHome(home, next, (next - cursor) / 1000)
+        const when = new Date(next)
+        const slot = mealSlotOf(when.getHours())
+        if (slot && home.character) {
+          const key = `${when.getFullYear()}-${when.getMonth()}-${when.getDate()}-${slot}`
+          if (!eatenSlots.has(key) && home.character.satiety < 70) {
+            eatenSlots.add(key)
+            home.character.satiety = Math.min(100, home.character.satiety + 26)
+            home.character.mood = Math.min(100, (home.character.mood || 70) + 2)
+            pushLog(home, next, 'meal', null)
+          }
+        }
         cursor = next
         steps += 1
       }

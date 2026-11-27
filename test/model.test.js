@@ -619,6 +619,19 @@ assert.equal(zh('status.remain', { seconds: 30 }).includes('30'), true)
   assert.ok(hot >= 0.12, '最差不低于 0.12')
 }
 
+// 离线期间：饭点会补饱腹（历史时间点补，而不是上线才回血）
+{
+  const day = new Date(2026, 10, 20, 18, 30, 0).getTime()   // 晚饭时间
+  const home = model.createHome(day - 6 * 3600 * 1000, '大肥鱼')
+  home.character.satiety = 8
+  home.updatedAt = day - 6 * 3600 * 1000
+  model.settleOffline(home, day)
+  assert.ok(home.character.satiety > 20, '离线饭点后饱腹应恢复')
+  const mealLog = (home.log || []).find((row) => row.code === 'meal')
+  assert.ok(mealLog, '离线期间应留下吃饭日志')
+  assert.ok(mealLog.at < day, '吃饭日志的时间应早于当前时间')
+}
+
 // 天气：按日期+季节稳定摇一个，冬天才可能下雪
 {
   const day = new Date(2026, 0, 15, 12, 0, 0).getTime()

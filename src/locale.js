@@ -295,6 +295,7 @@
       'period.night': '夜里',
       'behavior.idle': '在屋子中间发呆',
       'behavior.meal': '吃饭',
+      'log.hungryWake': '她饿醒了，去找吃的',
       'log.meal': '她去吃饭了',
       'behavior.tea': '喝茶',
       'flavor.tea': '茶座里晒晒太阳真舒服～',
@@ -358,6 +359,7 @@
 
       'behavior.stargaze': 'Stargazing',
       'behavior.meal': 'Meal',
+      'log.hungryWake': 'She woke up hungry',
       'log.meal': 'She went to eat',
       'behavior.tea': 'Tea time',
       'flavor.tea': 'Sunny spot by the table~',

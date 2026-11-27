@@ -17,14 +17,14 @@
     "mood": 0.02
   },
   "weight": {
-    "base": 1.2,
+    "base": 1,
     "mods": [
       {
         "factor": "hungerUrge"
       },
       {
         "when": "hungry",
-        "mul": 1.5
+        "mul": 1.4
       },
       {
         "when": "night",

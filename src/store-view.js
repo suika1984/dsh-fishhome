@@ -95,10 +95,24 @@
       syncMealRoom(now) {
         const home = this.home
         if (!home || !home.character || !home.world) return
-        const behavior = home.character.behaviorId
-        if (behavior === 'sleep' || behavior === 'nap') return
         const satiety = Number(home.character.satiety)
         if (!Number.isFinite(satiety)) return
+        // 只在「快饿晕了还在睡」时兜底打断；日常是「先把手里的事做完再去吃」
+        if (satiety < 8) {
+          const behavior = home.character.behaviorId
+          if (behavior === 'sleep' || behavior === 'nap') {
+            home.character.behaviorId = 'idle'
+            home.character.since = now
+            home.character.until = now + 5 * 60 * 1000
+            home.character.lastEventId = null
+            if (this.pushLog || true) {
+              // 用现成的日志通道（没有就跳过）
+              if (typeof pushLog === 'function') pushLog(home, now, 'hungryWake', null)
+            }
+          }
+        }
+        const behavior = home.character.behaviorId
+        if (behavior === 'sleep' || behavior === 'nap') return
         const current = typeof home.world.map === 'string' && home.world.map !== '' ? home.world.map : 'living'
         const viewing = this.currentMap ? this.currentMap() : current
         if (satiety < 35 && current !== 'living') {

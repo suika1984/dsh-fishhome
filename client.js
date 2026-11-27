@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = 'dcac95f6'
+    const BUILD_REV = 'ac30a0fd'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -338,6 +338,7 @@ const NOTE_MARK = '【家园】'
       'period.night': '夜里',
       'behavior.idle': '在屋子中间发呆',
       'behavior.meal': '吃饭',
+      'log.hungryWake': '她饿醒了，去找吃的',
       'log.meal': '她去吃饭了',
       'behavior.tea': '喝茶',
       'flavor.tea': '茶座里晒晒太阳真舒服～',
@@ -401,6 +402,7 @@ const NOTE_MARK = '【家园】'
 
       'behavior.stargaze': 'Stargazing',
       'behavior.meal': 'Meal',
+      'log.hungryWake': 'She woke up hungry',
       'log.meal': 'She went to eat',
       'behavior.tea': 'Tea time',
       'flavor.tea': 'Sunny spot by the table~',
@@ -899,6 +901,7 @@ const NOTE_MARK = '【家园】'
       return {
         season: seasonOf(date),
         period: periodOf(hour),
+      mealSlot: mealSlotOf(hour),
         hour,
         minute,
         clock: `${pad2(hour)}:${pad2(minute)}`,
@@ -978,6 +981,16 @@ const NOTE_MARK = '【家园】'
      * 权重里能用的具名条件（固定词汇表，不写表达式）。
      * 数据里写 { "when": "moodLow", "mul": 1.35 }，这里负责判断真假。
      */
+    /** 三餐时段：早 7~9 / 午 11~13:30 / 晚 17~19:30，其余时间 null */
+    function mealSlotOf(hour) {
+      const h = Number(hour)
+      if (!Number.isFinite(h)) return null
+      if (h >= 7 && h < 9) return 'breakfast'
+      if (h >= 11 && h < 13.5) return 'lunch'
+      if (h >= 17 && h < 19.5) return 'dinner'
+      return null
+    }
+
     const WEIGHT_VOCAB = {
       morning: (c, clock) => clock.hour > 6 && clock.hour < 10,
       workHours: (c, clock) => clock.hour > 8 && clock.hour < 22,
@@ -989,6 +1002,22 @@ const NOTE_MARK = '【家园】'
       curtainClosed: (c, clock, props) => props.curtainOpen !== true,
       noLight: (c, clock, props) => !(props.deskLamp === true || clock.daylight > 0.3),
       hungry: (c) => c.satiety < 45,
+      starving: (c) => c.satiety < 22,
+      starvingHard: (c) => c.satiety < 15,
+      breakfast: (c, clock) => mealSlotOf(clock.hour) === 'breakfast',
+      lunch: (c, clock) => mealSlotOf(clock.hour) === 'lunch',
+      dinner: (c, clock) => mealSlotOf(clock.hour) === 'dinner',
+      // 饭点：早 7~9、午 11~13:30、晚 17~19:30
+      mealWindow: (c, clock) => {
+        const h = clock.hour + (Number.isFinite(clock.minute) ? clock.minute / 60 : 0)
+        return (h >= 7 && h < 9) || (h >= 11 && h < 13.5) || (h >= 17 && h < 19.5)
+      },
+      // 饭点 + 七八分饱 → 也优先去吃（不用饿到很低）
+      mealWindowPeckish: (c, clock) => {
+        const h = clock.hour + (Number.isFinite(clock.minute) ? clock.minute / 60 : 0)
+        const inWindow = (h >= 7 && h < 9) || (h >= 11 && h < 13.5) || (h >= 17 && h < 19.5)
+        return inWindow && c.satiety < 55
+      },
       moodLow: (c) => c.mood < 60,
       moodVeryLow: (c) => c.mood < 55,
       energyLow: (c) => c.energy < 55,
@@ -1061,7 +1090,7 @@ const NOTE_MARK = '【家园】'
       const satiety = Number(character && character.satiety)
       if (!Number.isFinite(satiety)) return 1
       const lack = Math.max(0, (70 - satiety) / 70)
-      return 1 + Math.pow(lack, 1.5) * 2
+      return 1 + Math.pow(lack, 1.5) * 3
     }
 
     const FACTOR_VOCAB = {
@@ -1734,9 +1763,22 @@ const NOTE_MARK = '【家园】'
       const capped = Math.min(gap, OFFLINE_CAP_MS)
       let cursor = now - capped
       let steps = 0
+      // 离线期间的饭点：按时吃饭把饱腹补回来（历史时间点上补，不是“上线才掉血/回血”）
+      const eatenSlots = new Set()
       while (cursor < now && steps < 220) {
         const next = Math.min(now, cursor + OFFLINE_STEP_MS)
         stepHome(home, next, (next - cursor) / 1000)
+        const when = new Date(next)
+        const slot = mealSlotOf(when.getHours())
+        if (slot && home.character) {
+          const key = `${when.getFullYear()}-${when.getMonth()}-${when.getDate()}-${slot}`
+          if (!eatenSlots.has(key) && home.character.satiety < 70) {
+            eatenSlots.add(key)
+            home.character.satiety = Math.min(100, home.character.satiety + 26)
+            home.character.mood = Math.min(100, (home.character.mood || 70) + 2)
+            pushLog(home, next, 'meal', null)
+          }
+        }
         cursor = next
         steps += 1
       }
@@ -3015,10 +3057,24 @@ async function writeSave(home) {
       syncMealRoom(now) {
         const home = this.home
         if (!home || !home.character || !home.world) return
-        const behavior = home.character.behaviorId
-        if (behavior === 'sleep' || behavior === 'nap') return
         const satiety = Number(home.character.satiety)
         if (!Number.isFinite(satiety)) return
+        // 只在「快饿晕了还在睡」时兜底打断；日常是「先把手里的事做完再去吃」
+        if (satiety < 8) {
+          const behavior = home.character.behaviorId
+          if (behavior === 'sleep' || behavior === 'nap') {
+            home.character.behaviorId = 'idle'
+            home.character.since = now
+            home.character.until = now + 5 * 60 * 1000
+            home.character.lastEventId = null
+            if (this.pushLog || true) {
+              // 用现成的日志通道（没有就跳过）
+              if (typeof pushLog === 'function') pushLog(home, now, 'hungryWake', null)
+            }
+          }
+        }
+        const behavior = home.character.behaviorId
+        if (behavior === 'sleep' || behavior === 'nap') return
         const current = typeof home.world.map === 'string' && home.world.map !== '' ? home.world.map : 'living'
         const viewing = this.currentMap ? this.currentMap() : current
         if (satiety < 35 && current !== 'living') {
@@ -6198,6 +6254,7 @@ async function writeSave(home) {
           return t('log.work')
         case 'window':
           return t('log.window')
+        case 'hungryWake':
         case 'meal':
         case 'tea':
         case 'swing':

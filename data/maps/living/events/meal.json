@@ -17,14 +17,26 @@
     "mood": 0.03
   },
   "weight": {
-    "base": 1,
+    "base": 1.4,
     "mods": [
       {
         "factor": "hungerUrge"
       },
       {
         "when": "hungry",
-        "mul": 1.8
+        "mul": 2
+      },
+      {
+        "when": "starving",
+        "mul": 2.5
+      },
+      {
+        "when": "starvingHard",
+        "mul": 3.5
+      },
+      {
+        "when": "mealWindowPeckish",
+        "mul": 2.2
       }
     ]
   },

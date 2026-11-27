@@ -619,6 +619,7 @@
           return t('log.work')
         case 'window':
           return t('log.window')
+        case 'hungryWake':
         case 'meal':
         case 'tea':
         case 'swing':

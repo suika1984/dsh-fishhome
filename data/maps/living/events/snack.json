@@ -1,7 +1,7 @@
 {
   "id": "snack",
   "label": {
-    "zh": "吃东西"
+    "zh": "在吧台吃点零食"
   },
   "kind": "autonomous",
   "spot": "dining",

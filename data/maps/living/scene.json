@@ -91,7 +91,8 @@
     "eat",
     "sit",
     "sofa_play",
-    "meal"
+    "meal",
+    "snack_sofa"
   ],
   "light": {
     "sources": [

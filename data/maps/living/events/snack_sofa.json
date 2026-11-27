@@ -1,0 +1,46 @@
+{
+  "id": "snack_sofa",
+  "label": {
+    "zh": "在沙发上吃零食"
+  },
+  "kind": "autonomous",
+  "spot": "sofa",
+  "anim": "eat_snack",
+  "duration": [
+    30,
+    50
+  ],
+  "log": "snack",
+  "cooldown": 300,
+  "onTick": {
+    "satiety": 0.3,
+    "mood": 0.03
+  },
+  "weight": {
+    "base": 1.3,
+    "mods": [
+      {
+        "factor": "hungerUrge"
+      },
+      {
+        "when": "offMealPeckish",
+        "mul": 2.4
+      },
+      {
+        "when": "mealWindow",
+        "mul": 0.3
+      }
+    ]
+  },
+  "say": {
+    "chance": 0.4,
+    "lines": [
+      {
+        "zh": "窝在沙发上吃点东西～",
+        "en": "Snacking on the sofa~"
+      }
+    ]
+  },
+  "request": null,
+  "anchor": "sofa:sit"
+}

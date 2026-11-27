@@ -13,7 +13,7 @@
   "log": "meal",
   "cooldown": 300,
   "onTick": {
-    "satiety": 1.6,
+    "satiety": 0.5,
     "mood": 0.03
   },
   "weight": {
@@ -37,6 +37,10 @@
       {
         "when": "mealWindowPeckish",
         "mul": 2.2
+      },
+      {
+        "when": "offMealPeckish",
+        "mul": 0.45
       }
     ]
   },

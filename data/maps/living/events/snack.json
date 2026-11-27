@@ -11,24 +11,28 @@
     50
   ],
   "log": "snack",
-  "cooldown": 240,
+  "cooldown": 300,
   "onTick": {
-    "satiety": 0.9,
-    "mood": 0.02
+    "satiety": 0.3,
+    "mood": 0.03
   },
   "weight": {
-    "base": 1,
+    "base": 1.2,
     "mods": [
       {
         "factor": "hungerUrge"
       },
       {
-        "when": "hungry",
-        "mul": 1.4
+        "when": "offMealPeckish",
+        "mul": 2.6
+      },
+      {
+        "when": "mealWindow",
+        "mul": 0.35
       },
       {
         "when": "night",
-        "mul": 0.6
+        "mul": 0.5
       }
     ]
   },

@@ -15,7 +15,7 @@ window.__ModuleLoader__.load({
     const React = require('react')
     const h = React.createElement
     const { useState, useEffect, useRef, useMemo } = React
-    const BUILD_REV = 'ac30a0fd'
+    const BUILD_REV = '92a5cff8'
 
     const PANEL_ID = 'fishhome'
     const NS = 'fishhome'
@@ -1012,6 +1012,12 @@ const NOTE_MARK = '【家园】'
         const h = clock.hour + (Number.isFinite(clock.minute) ? clock.minute / 60 : 0)
         return (h >= 7 && h < 9) || (h >= 11 && h < 13.5) || (h >= 17 && h < 19.5)
       },
+      // 非饭点 + 有点饿（饱腹 40~62）→ 适合吃零食，别硬等到饭点
+      offMealPeckish: (c, clock) => {
+        const h = clock.hour + (Number.isFinite(clock.minute) ? clock.minute / 60 : 0)
+        const inWindow = (h >= 7 && h < 9) || (h >= 11 && h < 13.5) || (h >= 17 && h < 19.5)
+        return !inWindow && c.satiety >= 35 && c.satiety < 62
+      },
       // 饭点 + 七八分饱 → 也优先去吃（不用饿到很低）
       mealWindowPeckish: (c, clock) => {
         const h = clock.hour + (Number.isFinite(clock.minute) ? clock.minute / 60 : 0)
@@ -1706,7 +1712,7 @@ const NOTE_MARK = '【家园】'
       const character = home.character
 
       // 连续衰减与行为效果
-      character.satiety -= 0.0026 * dt
+      character.satiety -= 0.0016 * dt
       if (behavior.id !== 'sleep' && behavior.id !== 'nap') character.energy -= 0.0016 * dt
       for (const key of ['energy', 'satiety', 'mood']) {
         const delta = behavior.onTick && behavior.onTick[key]
